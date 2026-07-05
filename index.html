@@ -392,6 +392,7 @@ const state = {
   players: [],
   gameFilter: { category: null, playerCount: null, search: '' },
   myTab: 'stats',
+  authMode: 'login',   // 'login' | 'signup'
 };
 
 // ===== API =====
@@ -660,37 +661,77 @@ function renderLoginForm() {
   document.getElementById('my-content').style.display = 'none';
   const el = document.getElementById('my-login');
   el.style.display = 'block';
+  const isSignup = state.authMode === 'signup';
   el.innerHTML = `
     <div class="center-login">
-      <div class="lg-ico">🔐</div>
-      <h2>MY 페이지 로그인</h2>
-      <div class="field">
-        <label>이름</label>
-        <input class="input" id="login-name" placeholder="이름" autocomplete="off" />
+      <div class="lg-ico">${isSignup ? '✨' : '🔐'}</div>
+      <h2>MY 페이지</h2>
+      <div class="subtabs" style="margin-bottom:20px;">
+        <button class="${!isSignup ? 'on' : ''}" onclick="setAuthMode('login')">로그인</button>
+        <button class="${isSignup ? 'on' : ''}" onclick="setAuthMode('signup')">가입하기</button>
       </div>
       <div class="field">
-        <label>PIN (비밀번호)</label>
-        <input class="input" id="login-pin" type="password" inputmode="numeric" placeholder="PIN" autocomplete="off" />
+        <label>${isSignup ? '닉네임' : '닉네임(이름)'}</label>
+        <input class="input" id="auth-name" placeholder="닉네임" autocomplete="off" maxlength="20" />
       </div>
-      <button class="btn" id="login-btn" onclick="doLogin()">로그인</button>
-      <div class="hint" style="text-align:center;margin-top:14px;">동아리 관리자에게 계정을 요청하세요.</div>
+      <div class="field">
+        <label>비밀번호 (숫자 4자리)</label>
+        <input class="input" id="auth-pin" type="password" inputmode="numeric" pattern="[0-9]*"
+               maxlength="4" placeholder="••••" autocomplete="off" />
+      </div>
+      <button class="btn" onclick="${isSignup ? 'doSignup()' : 'doLogin()'}">${isSignup ? '가입하고 시작하기' : '로그인'}</button>
+      <div class="hint" style="text-align:center;margin-top:14px;">
+        ${isSignup
+          ? '닉네임과 숫자 4자리만 입력하면 바로 시작할 수 있어요.'
+          : '처음이신가요? 위 <b>가입하기</b> 탭을 눌러주세요.'}
+      </div>
     </div>`;
-  el.querySelector('#login-pin').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  el.querySelector('#auth-pin').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { isSignup ? doSignup() : doLogin(); }
+  });
+}
+
+function setAuthMode(mode) {
+  state.authMode = mode;
+  renderLoginForm();
+}
+
+function applyAuth(user, pin, welcome) {
+  state.user = user;
+  sessionStorage.setItem('bg_user', JSON.stringify(user));
+  sessionStorage.setItem('bg_pin', pin);
+  updateWhoami();
+  renderGames();
+  toast(welcome);
+  renderMy();
 }
 
 async function doLogin() {
-  const name = document.getElementById('login-name').value.trim();
-  const pin = document.getElementById('login-pin').value.trim();
-  if (!name || !pin) { toast('이름과 PIN을 입력하세요.', true); return; }
+  const name = document.getElementById('auth-name').value.trim();
+  const pin = document.getElementById('auth-pin').value.trim();
+  if (!name || !pin) { toast('닉네임과 PIN을 입력하세요.', true); return; }
   showLoader('로그인 중…');
   try {
     const user = await api('login', { name, pin });
-    state.user = user;
-    sessionStorage.setItem('bg_user', JSON.stringify(user));
-    updateWhoami();
-    renderGames();
-    toast(`${user.name}님 환영합니다!`);
-    renderMy();
+    applyAuth(user, pin, `${user.name}님 환영합니다!`);
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    hideLoader();
+  }
+}
+
+async function doSignup() {
+  const name = document.getElementById('auth-name').value.trim();
+  const pin = document.getElementById('auth-pin').value.trim();
+  if (!name) { toast('닉네임을 입력하세요.', true); return; }
+  if (!/^\d{4}$/.test(pin)) { toast('비밀번호는 숫자 4자리로 입력하세요.', true); return; }
+  showLoader('가입 중…');
+  try {
+    const user = await api('signup', { name, pin });
+    // 새 회원이 참가자 목록/통계에 바로 반영되도록 갱신
+    try { state.players = await api('getPlayers'); } catch (e) {}
+    applyAuth(user, pin, `${user.name}님 가입 완료! 환영합니다 🎉`);
   } catch (e) {
     toast(e.message, true);
   } finally {

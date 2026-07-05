@@ -74,24 +74,19 @@ record_id | session_id | play_date | game_id | duration_min | player_id | score 
 
 ---
 
-## 3. 플레이어(계정) 등록
+## 3. 플레이어(계정) 등록 — 셀프 가입
 
-PIN은 시트에 평문 저장하지 않고 **SHA-256 해시**로만 저장합니다.
-Apps Script 편집기에서 `addPlayerManual` 함수를 이용해 등록하세요.
+별도 계정 발급 없이, 앱의 **MY → 가입하기** 탭에서 **닉네임 + 숫자 4자리 PIN**만 입력하면
+바로 가입·로그인됩니다. PIN은 시트에 평문이 아닌 **SHA-256 해시**로만 저장됩니다.
 
-```js
-// 편집기 콘솔에서 임시로 아래처럼 호출 후 실행 (인자 값만 바꿔가며 여러 번)
-function _seed() {
-  addPlayerManual('P001', '홍길동', '1234', 'admin');   // 관리자
-  addPlayerManual('P002', '김보드', '5678', 'member');  // 일반 회원
-}
-```
+- **닉네임**은 로그인 아이디로 쓰이므로 중복되면 가입이 거부됩니다.
+- **가장 먼저 가입한 사람이 자동으로 관리자(`admin`)** 가 됩니다.
+  (게임 세부정보 수정 권한 보유. 이후 가입자는 모두 `member`)
+- 즉, 동아리 대표가 앱을 열어 먼저 가입하면 관리자가 되고, 나머지 회원은 각자 가입하면 됩니다.
 
-1. 위 `_seed` 같은 임시 함수를 만들고 실행하면, `Players` 시트에 해시된 PIN으로 행이 추가됩니다.
-2. 등록이 끝나면 임시 함수는 삭제해도 됩니다.
-3. `role`은 `admin` 또는 `member`. **게임 세부정보 수정(updateGame)** 은 `admin`만 가능합니다.
-
-> `name`은 로그인 아이디로 쓰이므로 **중복되지 않게** 등록하세요.
+> 필요하면 Apps Script 편집기에서 `addPlayerManual('P001','홍길동','1234','admin')`
+> 함수로 수동 등록하거나, `Players` 시트의 `role` 값을 직접 `admin`으로 바꿔
+> 추가 관리자를 지정할 수도 있습니다.
 
 ---
 
@@ -144,7 +139,7 @@ const API_URL = "https://script.google.com/macros/s/AKfyc.../exec";
 |---|---|
 | **플레이** | 전체 플레이 기록을 최신순으로. 상단에 이번 달/누적/최다 플레이 요약 |
 | **게임** | 등록된 모든 게임을 우리동아리평점 내림차순 카드로. 분류·인원수 필터 + 이름 검색. 카드 탭 시 요약 펼침 |
-| **MY** | 이름+PIN 로그인 → 개인 통계(플레이 기록) & 내가 참가한 게임 평점/메모(게임 기록) |
+| **MY** | 닉네임+PIN 가입/로그인 → 개인 통계(플레이 기록) & 내가 참가한 게임 평점/메모(게임 기록) |
 | **+ 버튼** | 게임 추가(BGG 연동/직접입력) · 플레이 결과 추가 |
 
 - 로그인 정보는 `sessionStorage`에 유지됩니다(탭을 닫으면 해제).
@@ -157,6 +152,7 @@ const API_URL = "https://script.google.com/macros/s/AKfyc.../exec";
 | action | 파라미터 | 동작 |
 |---|---|---|
 | `login` | name, pin | PIN SHA-256 대조, 성공 시 `{player_id, name, role}` |
+| `signup` | name, pin | 닉네임 중복·PIN(숫자 4자리) 검증 후 신규 등록. 첫 가입자는 `admin` |
 | `getGames` | - | 전체 게임 + `club_rating`, `rating_count`, `play_count` |
 | `getPlays` | - | 세션 단위 그룹핑된 전체 플레이 기록(최신순) |
 | `getPlayerStats` | playerId | 개인 통계(총 플레이/승수/승률, 월별, 게임별 승률) |
@@ -186,7 +182,8 @@ const API_URL = "https://script.google.com/macros/s/AKfyc.../exec";
 |---|---|
 | 첫 응답이 2~3초 느림 | Apps Script 콜드스타트. 정상이며 로딩 스피너가 표시됩니다. |
 | `Unknown action` | 배포 후 코드 변경 시 **새 버전으로 재배포** 했는지 확인 |
-| 로그인 실패 | `Players` 시트에 이름 존재/PIN 일치 확인. `addPlayerManual`로 재등록 |
+| 로그인 실패 | 닉네임·PIN 확인. 처음이면 **가입하기** 탭으로 먼저 가입 |
+| 관리자 지정 | 첫 가입자가 자동 admin. 이후 `Players` 시트 `role`을 `admin`으로 바꿔 추가 지정 |
 | BGG 검색 결과 없음 | 영문명으로 검색. BGG가 202(큐잉) 응답 시 백엔드가 자동 재시도 |
 | 게임 수정 버튼 안 보임 | `admin` 계정으로 로그인해야 노출됩니다 |
 | CORS/401 오류 | 배포 시 **액세스: 모든 사용자**, **실행: 나** 설정 확인 |

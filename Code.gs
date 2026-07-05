@@ -26,6 +26,7 @@ function doGet(e) {
     var data;
     switch (action) {
       case 'login':          data = actionLogin(params); break;
+      case 'signup':         data = actionSignup(params); break;
       case 'getGames':       data = actionGetGames(params); break;
       case 'getPlays':       data = actionGetPlays(params); break;
       case 'getPlayerStats': data = actionGetPlayerStats(params); break;
@@ -196,6 +197,31 @@ function actionLogin(params) {
   if (!p) throw new Error('사용자를 찾을 수 없습니다.');
   if (String(p.pin_hash) !== sha256Hex(pin)) throw new Error('PIN이 올바르지 않습니다.');
   return { player_id: p.player_id, name: p.name, role: p.role || 'member' };
+}
+
+function actionSignup(params) {
+  var name = (params.name || '').trim();
+  var pin = (params.pin || '').trim();
+  if (!name) throw new Error('닉네임을 입력하세요.');
+  if (name.length > 20) throw new Error('닉네임은 20자 이하로 입력하세요.');
+  if (!/^\d{4}$/.test(pin)) throw new Error('비밀번호는 숫자 4자리로 입력하세요.');
+
+  var read = readSheet(SHEETS.PLAYERS);
+  var dup = read.rows.some(function (r) { return String(r.name).trim() === name; });
+  if (dup) throw new Error('이미 사용 중인 닉네임입니다.');
+
+  var playerId = nextId(read.rows, 'player_id', 'P', 3);
+  // 첫 가입자는 관리자(게임 정보 수정 권한), 이후는 일반 회원
+  var role = read.rows.length === 0 ? 'admin' : 'member';
+
+  appendRowByHeader(SHEETS.PLAYERS, {
+    player_id: playerId,
+    name: name,
+    pin_hash: sha256Hex(pin),
+    role: role,
+    joined_at: todayStr()
+  });
+  return { player_id: playerId, name: name, role: role };
 }
 
 function actionGetPlayers(params) {
