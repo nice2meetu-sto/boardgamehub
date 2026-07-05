@@ -181,7 +181,7 @@
 
   /* rating editor (MY 게임기록) */
   .rate-edit { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
-  .stars { display: flex; gap: 2px; font-size: 26px; user-select: none; }
+  .stars { display: flex; gap: 1px; font-size: 22px; user-select: none; }
   .stars .s { color: #dcdce3; cursor: pointer; line-height: 1; }
   .stars .s.filled { color: var(--win); }
   .stars .s.half { position: relative; color: #dcdce3; }
@@ -315,14 +315,14 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v14</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v15</span></h1>
     <div class="who" id="whoami">비로그인</div>
   </div>
 
   <!-- ===== VIEW: 플레이 ===== -->
   <div class="view active" id="view-play">
     <div class="summary-row" id="play-summary"></div>
-    <div class="section-title">전체 플레이 기록 (최신순)</div>
+    <div class="section-title" id="play-list-title">게임별 플레이 횟수</div>
     <div id="play-list"></div>
   </div>
 
@@ -489,25 +489,62 @@ async function loadCore() {
 // ============================================================
 //  VIEW: 플레이
 // ============================================================
+function setPlayScope(scope) {
+  state.playScope = scope;
+  renderPlay();
+}
+
 function renderPlay() {
-  // 요약
   const nowYM = new Date().toISOString().substring(0, 7);
-  let thisMonth = 0;
-  const gameCount = {};
+  const scope = state.playScope || 'all';
+
+  // 게임별 플레이 횟수 집계(전체/이번 달)
+  const agg = {}; // game_id -> {name, image, all, month}
+  let totalMonth = 0;
   state.plays.forEach(s => {
-    if (String(s.play_date).substring(0, 7) === nowYM) thisMonth++;
-    gameCount[s.game_name] = (gameCount[s.game_name] || 0) + 1;
+    const isMonth = String(s.play_date).substring(0, 7) === nowYM;
+    if (isMonth) totalMonth++;
+    const gid = s.game_id || s.game_name;
+    if (!agg[gid]) agg[gid] = { name: s.game_name, image: s.game_image, all: 0, month: 0 };
+    agg[gid].all++;
+    if (isMonth) agg[gid].month++;
   });
-  let topGame = '-';
-  let topN = 0;
-  Object.keys(gameCount).forEach(g => { if (gameCount[g] > topN) { topN = gameCount[g]; topGame = g; } });
+  const totalAll = state.plays.length;
+
+  // 최다 플레이 = 누적 플레이 '건수' 최다 게임
+  let topGame = '-', topN = 0;
+  Object.keys(agg).forEach(gid => { if (agg[gid].all > topN) { topN = agg[gid].all; topGame = agg[gid].name; } });
 
   document.getElementById('play-summary').innerHTML = `
-    <div class="stat hero"><div class="num">${thisMonth}</div><div class="lbl">이번 달 플레이</div></div>
-    <div class="stat"><div class="num">${state.plays.length}</div><div class="lbl">누적 플레이</div></div>
+    <div class="stat ${scope === 'month' ? 'hero' : ''}" style="cursor:pointer;" onclick="setPlayScope('month')">
+      <div class="num">${totalMonth}</div><div class="lbl">이번 달 플레이</div></div>
+    <div class="stat ${scope === 'all' ? 'hero' : ''}" style="cursor:pointer;" onclick="setPlayScope('all')">
+      <div class="num">${totalAll}</div><div class="lbl">누적 플레이</div></div>
     <div class="stat"><div class="num" style="font-size:14px;padding-top:6px;">${esc(topGame)}</div><div class="lbl">최다 플레이</div></div>`;
 
-  renderSessionList('play-list', state.plays);
+  document.getElementById('play-list-title').textContent =
+    scope === 'month' ? '이번 달 게임별 플레이 횟수' : '게임별 플레이 횟수 (누적)';
+
+  // 선택 범위 기준 정렬(플레이 횟수 내림차순)
+  const list = Object.keys(agg)
+    .map(gid => ({ name: agg[gid].name, image: agg[gid].image, count: scope === 'month' ? agg[gid].month : agg[gid].all }))
+    .filter(g => g.count > 0)
+    .sort((a, b) => b.count - a.count || String(a.name).localeCompare(String(b.name)));
+
+  const el = document.getElementById('play-list');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty"><div class="big">🎲</div>${scope === 'month' ? '이번 달 플레이 기록이 없어요.' : '아직 플레이 기록이 없어요.'}<br/>+ 버튼으로 결과를 추가해보세요.</div>`;
+    return;
+  }
+  el.innerHTML = list.map((g, i) => `
+    <div class="session" style="display:flex;align-items:center;gap:12px;">
+      <div class="grow-rank">${i + 1}</div>
+      ${thumb(g.image, 'session-thumb')}
+      <div style="flex:1;min-width:0;">
+        <div class="g-name">${esc(g.name)}</div>
+        <div class="g-meta">${g.count}판</div>
+      </div>
+    </div>`).join('');
 }
 
 function renderSessionList(containerId, sessions) {
@@ -925,11 +962,11 @@ function ratingEditorHtml(g) {
 }
 
 function starsHtml(val) {
-  // 10점 만점을 별 5개로 표시 (별 1개 = 2점, 0.5 별 = 1점)
+  // 별 10개 = 10점 만점. 별 1개 = 1점, 별 왼쪽 절반 = 0.5점 (0.5 단위)
   let html = '';
-  for (let i = 1; i <= 5; i++) {
-    const full = val >= i * 2;
-    const half = !full && val >= i * 2 - 1;
+  for (let i = 1; i <= 10; i++) {
+    const full = val >= i;
+    const half = !full && val >= i - 0.5;
     html += `<span class="s ${full ? 'filled' : (half ? 'half' : '')}"
       data-star="${i}"
       onclick="pickStar(event, ${i})"
@@ -938,11 +975,11 @@ function starsHtml(val) {
   return html;
 }
 
-// 별 왼쪽 절반 탭 = 0.5, 오른쪽 = 1.0 (즉 half/full)
+// 별 왼쪽 절반 탭 = 0.5점, 오른쪽 = 1.0점
 function pickStar(e, starIndex) {
   const rect = e.target.getBoundingClientRect();
   const isLeft = (e.clientX - rect.left) < rect.width / 2;
-  const val = starIndex * 2 - (isLeft ? 1 : 0); // 왼쪽=홀수(0.5칸), 오른쪽=짝수
+  const val = starIndex - (isLeft ? 0.5 : 0);
   const gid = e.target.closest('.rate-edit').dataset.gid;
   const container = document.getElementById('stars-' + gid);
   container.innerHTML = starsHtml(val);
@@ -1334,7 +1371,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v14 (2026-07-05) 직접입력 전용';
+const APP_VERSION = 'v15 (2026-07-05) 별점·플레이통계·PIN';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');

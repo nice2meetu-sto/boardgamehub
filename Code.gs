@@ -185,10 +185,18 @@ function findPlayerByName(name) {
   return null;
 }
 
+// PIN 대조: 시트의 평문 'pin' 컬럼을 기준으로 함(관리자가 pin 셀을 고치면 비밀번호가 바뀜).
+// 평문 pin이 비어 있는 레거시 행만 예외적으로 pin_hash로 대조.
+function checkPin(playerRow, pin) {
+  var plain = String(playerRow.pin == null ? '' : playerRow.pin).trim();
+  if (plain !== '') return plain === String(pin).trim();
+  return String(playerRow.pin_hash) === sha256Hex(pin);
+}
+
 function verifyByPlayerId(playerId, pin) {
   var p = findPlayerById(playerId);
   if (!p) throw new Error('사용자를 찾을 수 없습니다.');
-  if (String(p.pin_hash) !== sha256Hex(pin)) throw new Error('PIN이 올바르지 않습니다.');
+  if (!checkPin(p, pin)) throw new Error('PIN이 올바르지 않습니다.');
   return p;
 }
 
@@ -200,7 +208,7 @@ function actionLogin(params) {
   if (!name || !pin) throw new Error('이름과 PIN을 입력하세요.');
   var p = findPlayerByName(name);
   if (!p) throw new Error('사용자를 찾을 수 없습니다.');
-  if (String(p.pin_hash) !== sha256Hex(pin)) throw new Error('PIN이 올바르지 않습니다.');
+  if (!checkPin(p, pin)) throw new Error('PIN이 올바르지 않습니다.');
   return { player_id: p.player_id, name: p.name, role: p.role || 'member' };
 }
 
@@ -222,8 +230,7 @@ function actionSignup(params) {
   appendRowByHeader(SHEETS.PLAYERS, {
     player_id: playerId,
     name: name,
-    pin_hash: sha256Hex(pin),
-    pin: pin,               // 관리자가 시트에서 확인할 수 있게 평문도 저장(동아리 내부용)
+    pin: pin,               // 비밀번호는 pin 컬럼(평문)에 그대로 저장. 관리자가 이 값을 고치면 비밀번호가 바뀜
     role: role,
     joined_at: todayStr()
   });

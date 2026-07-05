@@ -39,8 +39,9 @@ Apps Script를 먼저 연결(2단계)한 뒤, 편집기에서 `setupSheets` 함�
 ```
 player_id | name | pin_hash | pin | role | joined_at
 ```
-> `pin`은 관리자가 시트에서 직접 확인할 수 있는 **평문 PIN**입니다(회원이 PIN을 잊었을 때 안내용).
-> 로그인 검증은 `pin_hash`(SHA-256)로 하고, `pin`은 조회 편의를 위한 보조 컬럼입니다.
+> `pin`이 **실제 비밀번호(평문)** 입니다. 로그인 검증도 이 `pin` 값으로 하므로,
+> 관리자가 시트에서 **`pin` 셀을 고치면 그 회원의 비밀번호가 바로 바뀝니다**(분실 시 재설정 가능).
+> `pin_hash` 컬럼은 예전 방식의 잔재로, 지금은 비워둬도 되고 무시됩니다.
 > 동아리 내부용 4자리 숫자라 노출해도 무방하지만, 시트 공유 범위는 관리자로 제한하세요.
 
 **`Games`**
@@ -91,7 +92,8 @@ record_id | session_id | play_date | game_id | duration_min | player_id | score 
 ## 3. 플레이어(계정) 등록 — 셀프 가입
 
 별도 계정 발급 없이, 앱의 **MY → 가입하기** 탭에서 **닉네임 + 숫자 4자리 PIN**만 입력하면
-바로 가입·로그인됩니다. PIN은 시트에 평문이 아닌 **SHA-256 해시**로만 저장됩니다.
+바로 가입·로그인됩니다. PIN은 `Players` 시트의 **`pin` 컬럼에 그대로(평문) 저장**되며, 이 값이 곧 비밀번호입니다.
+관리자가 `pin` 셀을 수정하면 해당 회원의 비밀번호가 바뀝니다.
 
 - **닉네임**은 로그인 아이디로 쓰이므로 중복되면 가입이 거부됩니다.
 - **가장 먼저 가입한 사람이 자동으로 관리자(`admin`)** 가 됩니다.
@@ -166,7 +168,7 @@ const API_URL = "https://script.google.com/macros/s/AKfyc.../exec";
 
 | action | 파라미터 | 동작 |
 |---|---|---|
-| `login` | name, pin | PIN SHA-256 대조, 성공 시 `{player_id, name, role}` |
+| `login` | name, pin | `pin` 컬럼(평문) 대조, 성공 시 `{player_id, name, role}` |
 | `signup` | name, pin | 닉네임 중복·PIN(숫자 4자리) 검증 후 신규 등록. 첫 가입자는 `admin` |
 | `getGames` | - | 전체 게임 + `club_rating`, `rating_count`, `play_count` |
 | `getPlays` | - | 세션 단위 그룹핑된 전체 플레이 기록(최신순) |
@@ -198,7 +200,7 @@ const API_URL = "https://script.google.com/macros/s/AKfyc.../exec";
 | 첫 응답이 2~3초 느림 | Apps Script 콜드스타트. 정상이며 로딩 스피너가 표시됩니다. |
 | `Unknown action` / 가입(signup) 안 됨 | 편집기의 `Code.gs`를 **최신으로 교체** 후 **배포 관리 → 편집 → 버전: 새 버전 → 배포**. (API_URL만 바꾸고 백엔드를 재배포 안 하면 새 기능이 반영되지 않습니다) |
 | 로그인 실패 | 닉네임·PIN 확인. 처음이면 **가입하기** 탭으로 먼저 가입 |
-| PIN 분실 | `Players` 시트의 `pin` 컬럼에서 평문 PIN 확인 후 안내 |
+| PIN 분실/변경 | `Players` 시트의 `pin` 셀을 확인하거나 원하는 값으로 수정(= 비밀번호 재설정) |
 | 관리자 지정 | 첫 가입자가 자동 admin. 이후 `Players` 시트 `role`을 `admin`으로 바꿔 추가 지정 |
 | 게임 수정 버튼 안 보임 | `admin` 계정으로 로그인해야 노출됩니다 |
 | CORS/401 오류 | 배포 시 **액세스: 모든 사용자**, **실행: 나** 설정 확인 |
