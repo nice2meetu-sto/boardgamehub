@@ -639,16 +639,32 @@ function actionUpdateGame(params) {
 // ===== BGG 연동 =====
 
 function bggFetch(url) {
-  // BGG는 간헐적으로 202(큐잉) 반환 → 대기 후 재시도
-  var res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-  var code = res.getResponseCode();
-  if (code === 202) {
-    Utilities.sleep(2000);
-    res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  // BGG는 Cloudflare 뒤에 있어, 기본 UrlFetchApp 요청(헤더 없음)을 봇으로 보고
+  // 401/403으로 막는 경우가 있음 → 브라우저형 User-Agent를 붙여 우회.
+  // 또한 202(큐잉)/429/5xx/일시적 차단은 잠깐 대기 후 재시도.
+  var options = {
+    muteHttpExceptions: true,
+    followRedirects: true,
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+                    '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      'Accept': 'application/xml, text/xml, */*'
+    }
+  };
+  var maxAttempts = 3;
+  var code = 0;
+  for (var i = 0; i < maxAttempts; i++) {
+    var res = UrlFetchApp.fetch(url, options);
     code = res.getResponseCode();
+    if (code === 200) return res.getContentText();
+    var retryable = (code === 202 || code === 429 || code === 401 || code === 403 || code >= 500);
+    if (!retryable || i === maxAttempts - 1) break;
+    Utilities.sleep(1200 * (i + 1)); // 1.2s, 2.4s 백오프
   }
-  if (code !== 200) throw new Error('BGG 응답 오류: ' + code);
-  return res.getContentText();
+  if (code === 401 || code === 403 || code === 429) {
+    throw new Error('BGG가 잠시 요청을 막았습니다(' + code + '). 몇 초 뒤 다시 검색해 주세요.');
+  }
+  throw new Error('BGG 응답 오류: ' + code);
 }
 
 function actionSearchBgg(params) {
