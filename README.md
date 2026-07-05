@@ -1,12 +1,11 @@
 # 🎲 보드게임 동아리 관리 웹앱
 
 동아리원들이 모바일에서 사용하는 보드게임 관리 페이지입니다.
-플레이 기록·평점·개인 통계를 관리하고, BoardGameGeek(BGG) 연동으로 게임 정보를 자동 수집합니다.
+플레이 기록·평점·개인 통계를 관리하고, 게임 정보를 직접 입력해 등록합니다.
 
 - **프론트엔드**: 단일 `index.html` (vanilla JS, 프레임워크 없음) — GitHub Pages 호스팅
 - **백엔드**: Google Apps Script 웹앱 (`Code.gs`, `doGet` 기반 GET-only JSON API)
 - **DB**: Google Sheets (시트 4장)
-- **외부 연동**: BGG XML API2 (서버사이드 `UrlFetchApp`)
 
 ---
 
@@ -16,7 +15,6 @@
 [모바일 브라우저] ──fetch(GET)──▶ [Apps Script 웹앱 doGet] ──▶ [Google Sheets]
      index.html                        Code.gs                Players/Games/
   (GitHub Pages)                                              Ratings/PlayLogs
-                                          └──UrlFetchApp──▶ [BGG XML API2]
 ```
 
 - 모든 요청은 **GET만** 사용 (CORS preflight 회피). 쓰기 작업도 GET 파라미터로 처리하며,
@@ -138,57 +136,6 @@ const API_URL = "https://script.google.com/macros/s/AKfyc.../exec";
 
 ---
 
-## 5-1. (선택) BGG 프록시 설정 — "BGG 연동 오류 401/403"이 뜰 때
-
-BGG(boardgamegeek.com)는 Cloudflare 뒤에 있어 **Google Apps Script 서버 IP를 차단**하는 경우가 있습니다.
-그러면 게임 검색/추가 시 `BGG 응답 오류: 401` 또는 `BGG 접속이 차단되어…` 가 뜹니다.
-(앱의 게임/플레이 데이터는 시트에서 읽으므로 이 문제와 무관합니다 — 오직 BGG 외부 연동만 영향받습니다.)
-
-`Code.gs`는 기본적으로 공개 프록시로 우회를 시도하지만, 공개 프록시는 불안정할 수 있습니다.
-**가장 확실한 방법은 무료 Cloudflare Worker로 "내 전용 프록시"를 만드는 것**입니다(5분).
-
-1. [dash.cloudflare.com](https://dash.cloudflare.com) 로그인 → 좌측 **Workers & Pages** → **Create** → **Create Worker**
-2. 이름 지정(예: `bgg-proxy`) → **Deploy** → **Edit code** 클릭
-3. 기존 코드를 지우고 아래를 붙여넣은 뒤 **Deploy**:
-
-```js
-export default {
-  async fetch(request) {
-    const cors = { 'Access-Control-Allow-Origin': '*' };
-    const target = new URL(request.url).searchParams.get('url');
-    if (!target) return new Response('missing url', { status: 400, headers: cors });
-    // 보안: boardgamegeek.com 요청만 허용
-    if (!/^https:\/\/boardgamegeek\.com\//i.test(target))
-      return new Response('forbidden', { status: 403, headers: cors });
-    const upstream = await fetch(target, {
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/xml, text/xml, */*' }
-    });
-    const body = await upstream.text();
-    return new Response(body, {
-      status: upstream.status,
-      headers: { ...cors, 'Content-Type': 'text/xml; charset=utf-8' }
-    });
-  }
-}
-```
-
-4. 배포되면 나오는 주소(예: `https://bgg-proxy.<계정>.workers.dev`)를 복사
-5. `Code.gs` 상단 `BGG_PROXY` 에 붙여넣기:
-
-```js
-var BGG_PROXY = 'https://bgg-proxy.<계정>.workers.dev';
-```
-
-6. Apps Script를 **새 버전으로 재배포** → 이제 BGG 요청이 내 Worker를 거쳐 안정적으로 동작합니다.
-
-> Worker는 게임 검색·상세 XML만 중계하며 boardgamegeek.com 외 요청은 거부하도록 제한돼 있습니다.
-> 무료 플랜(하루 10만 요청)으로 동아리 용도엔 충분합니다.
-
-### 게임 추가 시 BGG 링크 붙여넣기
-검색이 잘 안 될 때는, BGG에서 게임 페이지를 열어 **주소(URL)를 복사**해 검색창에 붙여넣으면
-검색을 건너뛰고 그 게임이 바로 선택됩니다. (단, 상세정보 수집은 위 프록시가 동작해야 완료됩니다.)
-
----
 
 ## 6. GitHub Pages 배포
 
@@ -208,7 +155,7 @@ var BGG_PROXY = 'https://bgg-proxy.<계정>.workers.dev';
 | **플레이** | 전체 플레이 기록을 최신순으로. 상단에 이번 달/누적/최다 플레이 요약 |
 | **게임** | 등록된 모든 게임을 우리동아리평점 내림차순 카드로. 분류·인원수 필터 + 이름 검색. 카드 탭 시 요약 펼침 |
 | **MY** | 닉네임+PIN 가입/로그인 → 개인 통계(플레이 기록) & 내가 참가한 게임 평점/메모(게임 기록) |
-| **+ 버튼** | 게임 추가(BGG 연동/직접입력) · 플레이 결과 추가 |
+| **+ 버튼** | 게임 추가(직접입력) · 플레이 결과 추가 |
 
 - 로그인 정보는 `sessionStorage`에 유지됩니다(탭을 닫으면 해제).
 - 쓰기 작업(평점·플레이·게임 추가/수정) 시 본인 확인용 PIN을 한 번 입력합니다.
@@ -227,8 +174,7 @@ var BGG_PROXY = 'https://bgg-proxy.<계정>.workers.dev';
 | `getMyRatings` | playerId | 내 평점·메모 목록 |
 | `getPlayers` | - | 플레이어 목록(참가자 선택용) |
 | `getCategories` | - | `Categories` 탭의 분류 목록(없으면 기본값) |
-| `searchBgg` | query | BGG 검색 후보 `[{bgg_id, name_en, year}]` |
-| `addGame` | payload(JSON) | BGG 상세 수집·번역 또는 수동입력 저장 |
+| `addGame` | payload(JSON) | 수동 입력값으로 게임 저장 |
 | `saveRating` | playerId, pin, gameId, rating, memo | 본인 인증 후 upsert |
 | `addPlay` | payload(JSON) | 세션 생성 후 참가자별 행 추가 |
 | `updateGame` | playerId, pin, payload | **admin만** 게임 세부정보 수정 |
@@ -254,7 +200,6 @@ var BGG_PROXY = 'https://bgg-proxy.<계정>.workers.dev';
 | 로그인 실패 | 닉네임·PIN 확인. 처음이면 **가입하기** 탭으로 먼저 가입 |
 | PIN 분실 | `Players` 시트의 `pin` 컬럼에서 평문 PIN 확인 후 안내 |
 | 관리자 지정 | 첫 가입자가 자동 admin. 이후 `Players` 시트 `role`을 `admin`으로 바꿔 추가 지정 |
-| BGG 검색 결과 없음 | 영문명으로 검색. BGG가 202(큐잉) 응답 시 백엔드가 자동 재시도 |
 | 게임 수정 버튼 안 보임 | `admin` 계정으로 로그인해야 노출됩니다 |
 | CORS/401 오류 | 배포 시 **액세스: 모든 사용자**, **실행: 나** 설정 확인 |
 
@@ -264,6 +209,6 @@ var BGG_PROXY = 'https://bgg-proxy.<계정>.workers.dev';
 
 ```
 index.html   # 단일 파일 프론트엔드 (CSS/JS 인라인)
-Code.gs      # Apps Script 백엔드 (doGet 라우팅 + BGG 연동 + 번역)
+Code.gs      # Apps Script 백엔드 (doGet 라우팅 + 시트 읽기/쓰기)
 README.md    # 이 문서
 ```

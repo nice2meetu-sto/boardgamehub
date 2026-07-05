@@ -11,12 +11,6 @@
 // ===== 설정 =====
 var SHEET_ID = ''; // 비워두면 컨테이너 바운드 스프레드시트(getActiveSpreadsheet) 사용
 
-// BGG가 구글 Apps Script 서버 IP를 차단할 때 우회할 "내 전용 프록시" 주소.
-// Cloudflare Worker 등을 만들어 여기에 붙여넣으면(예: 'https://bgg-proxy.내계정.workers.dev')
-// BGG 요청을 그 프록시로 먼저 보냅니다. 비워두면 직접+공개프록시만 시도.
-// (Worker 코드는 README 'BGG 프록시 설정' 참고)
-var BGG_PROXY = 'https://bgg-proxy.ism199962.workers.dev';
-
 var SHEETS = {
   PLAYERS: 'Players',
   GAMES: 'Games',
@@ -44,7 +38,6 @@ function doGet(e) {
       case 'getMyRatings':   data = actionGetMyRatings(params); break;
       case 'getPlayers':     data = actionGetPlayers(params); break;
       case 'getCategories':  data = actionGetCategories(params); break;
-      case 'searchBgg':      data = actionSearchBgg(params); break;
       case 'addGame':        data = actionAddGame(params); break;
       case 'saveRating':     data = actionSaveRating(params); break;
       case 'addPlay':        data = actionAddPlay(params); break;
@@ -581,28 +574,11 @@ function actionAddGame(params) {
     created_at: nowIso()
   };
 
-  if (payload.bgg_id) {
-    var detail = fetchBggThing(payload.bgg_id);
-    record.bgg_id = payload.bgg_id;
-    record.name_en = detail.name_en || record.name_en;
-    record.min_players = detail.min_players !== null ? detail.min_players : record.min_players;
-    record.max_players = detail.max_players !== null ? detail.max_players : record.max_players;
-    record.playtime_min = detail.playtime_min !== null ? detail.playtime_min : record.playtime_min;
-    record.weight = detail.weight !== null ? detail.weight : record.weight;
-    record.bgg_rating = detail.bgg_rating !== null ? detail.bgg_rating : record.bgg_rating;
-    record.image_url = detail.image_url || record.image_url;
-    record.source = 'bgg';
-    if (!record.summary_kr && detail.description) {
-      record.summary_kr = translateToKo(detail.description);
-    }
-  } else {
-    // 수동 입력값 반영
-    if (payload.min_players !== undefined && payload.min_players !== '') record.min_players = toNum(payload.min_players);
-    if (payload.max_players !== undefined && payload.max_players !== '') record.max_players = toNum(payload.max_players);
-    if (payload.playtime_min !== undefined && payload.playtime_min !== '') record.playtime_min = toNum(payload.playtime_min);
-    if (payload.weight !== undefined && payload.weight !== '') record.weight = toNum(payload.weight);
-    if (payload.bgg_rating !== undefined && payload.bgg_rating !== '') record.bgg_rating = toNum(payload.bgg_rating);
-  }
+  // 수동 입력값 반영
+  if (payload.min_players !== undefined && payload.min_players !== '') record.min_players = toNum(payload.min_players);
+  if (payload.max_players !== undefined && payload.max_players !== '') record.max_players = toNum(payload.max_players);
+  if (payload.playtime_min !== undefined && payload.playtime_min !== '') record.playtime_min = toNum(payload.playtime_min);
+  if (payload.weight !== undefined && payload.weight !== '') record.weight = toNum(payload.weight);
 
   appendRowByHeader(SHEETS.GAMES, record);
   return { game_id: gameId, name_kr: record.name_kr, source: record.source };
@@ -640,192 +616,6 @@ function actionUpdateGame(params) {
   });
 
   return { game_id: payload.game_id, updated: true };
-}
-
-// ===== BGG 연동 =====
-
-var BGG_FETCH_OPTIONS = {
-  muteHttpExceptions: true,
-  followRedirects: true,
-  headers: {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-                  '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Accept': 'application/xml, text/xml, */*'
-  }
-};
-
-// 특정 URL을 202/429/5xx만 재시도하며 1회 GET. 성공 시 XML 텍스트, 실패 시 null.
-function bggTryOnce(target) {
-  var lastCode = 0;
-  for (var i = 0; i < 3; i++) {
-    var res;
-    try {
-      res = UrlFetchApp.fetch(target, BGG_FETCH_OPTIONS);
-    } catch (e) {
-      return { ok: false, code: -1 };  // 네트워크 예외 → 이 경로 포기
-    }
-    lastCode = res.getResponseCode();
-    if (lastCode === 200) {
-      var txt = res.getContentText();
-      // XML스러운 응답이면 성공
-      if (txt && txt.indexOf('<') !== -1) return { ok: true, text: txt };
-      // 200인데 빈/비XML 응답 → BGG의 202(대기)가 프록시를 거치며 빈 200으로 온 경우.
-      // 상태코드 기반 재시도가 안 걸리므로 여기서 잠깐 대기 후 재시도.
-      if (i < 2) { Utilities.sleep(1500 * (i + 1)); continue; }
-      return { ok: false, code: 200 };
-    }
-    if (lastCode === 202 || lastCode === 429 || lastCode >= 500) {
-      Utilities.sleep(1200 * (i + 1)); // 1.2s, 2.4s 백오프
-      continue;
-    }
-    break; // 401/403/404 등 → 재시도 무의미
-  }
-  return { ok: false, code: lastCode };
-}
-
-function bggFetch(url) {
-  // BGG가 Google Apps Script 서버 IP를 401/403으로 차단하는 경우가 있어,
-  // 직접 호출 실패 시 프록시를 경유해 우회한다(공개 검색어만 전달, 민감정보 없음).
-  var targets = [];
-  // 1) 내 전용 프록시(설정돼 있으면 최우선 — 가장 안정적)
-  if (BGG_PROXY) {
-    var base = String(BGG_PROXY).replace(/\/+$/, '');
-    targets.push(base + '?url=' + encodeURIComponent(url));
-  }
-  targets.push(url); // 2) 직접
-  targets.push('https://api.allorigins.win/raw?url=' + encodeURIComponent(url));       // 3) 공개 프록시
-  targets.push('https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(url)); // 4) 공개 프록시
-  targets.push('https://corsproxy.io/?url=' + encodeURIComponent(url));                // 5) 공개 프록시
-  var lastCode = 0;
-  for (var t = 0; t < targets.length; t++) {
-    var r = bggTryOnce(targets[t]);
-    if (r.ok) return r.text;
-    if (r.code) lastCode = r.code;
-  }
-  if (lastCode === 401 || lastCode === 403 || lastCode === 429) {
-    throw new Error('BGG 접속이 차단되어 프록시 경유도 실패했습니다(' + lastCode + '). 잠시 후 다시 시도해 주세요.');
-  }
-  throw new Error('BGG 응답 오류: ' + (lastCode || '연결 실패'));
-}
-
-function actionSearchBgg(params) {
-  var query = params.query;
-  if (!query) throw new Error('검색어가 필요합니다.');
-  var url = 'https://boardgamegeek.com/xmlapi2/search?query=' +
-    encodeURIComponent(query) + '&type=boardgame';
-  var xml = bggFetch(url);
-  var doc = XmlService.parse(xml);
-  var root = doc.getRootElement();
-  var items = root.getChildren('item');
-  var results = [];
-  var seen = {};
-  items.forEach(function (item) {
-    var bggId = item.getAttribute('id') ? item.getAttribute('id').getValue() : '';
-    if (!bggId || seen[bggId]) return;
-    seen[bggId] = true;
-    var nameEl = item.getChild('name');
-    var nameEn = nameEl && nameEl.getAttribute('value') ? nameEl.getAttribute('value').getValue() : '';
-    var yearEl = item.getChild('yearpublished');
-    var year = yearEl && yearEl.getAttribute('value') ? yearEl.getAttribute('value').getValue() : '';
-    results.push({ bgg_id: bggId, name_en: nameEn, year: year });
-  });
-  return results.slice(0, 20);
-}
-
-function fetchBggThing(bggId) {
-  var url = 'https://boardgamegeek.com/xmlapi2/thing?id=' + encodeURIComponent(bggId) + '&stats=1';
-  var xml = bggFetch(url);
-  var doc = XmlService.parse(xml);
-  var root = doc.getRootElement();
-  var item = root.getChild('item');
-  if (!item) throw new Error('BGG 게임 정보를 찾을 수 없습니다.');
-
-  function attrInt(childName) {
-    var el = item.getChild(childName);
-    if (!el) return null;
-    var a = el.getAttribute('value');
-    return a ? toNum(a.getValue()) : null;
-  }
-
-  // 기본 영문명 (type=primary)
-  var nameEn = '';
-  var names = item.getChildren('name');
-  for (var i = 0; i < names.length; i++) {
-    var typeAttr = names[i].getAttribute('type');
-    if (typeAttr && typeAttr.getValue() === 'primary') {
-      nameEn = names[i].getAttribute('value').getValue();
-      break;
-    }
-  }
-  if (!nameEn && names.length > 0 && names[0].getAttribute('value')) {
-    nameEn = names[0].getAttribute('value').getValue();
-  }
-
-  var image = item.getChild('image');
-  var imageUrl = image ? String(image.getText()).trim() : '';
-  // BGG가 프로토콜 상대경로(//cf.geekdo...)를 주는 경우 https 보정
-  if (imageUrl.indexOf('//') === 0) imageUrl = 'https:' + imageUrl;
-
-  var descEl = item.getChild('description');
-  var description = descEl ? cleanBggText(descEl.getText()) : '';
-
-  // stats
-  var weight = null, bggRating = null;
-  var stats = item.getChild('statistics');
-  if (stats) {
-    var ratings = stats.getChild('ratings');
-    if (ratings) {
-      var avgWeightEl = ratings.getChild('averageweight');
-      if (avgWeightEl && avgWeightEl.getAttribute('value')) {
-        var w = toNum(avgWeightEl.getAttribute('value').getValue());
-        weight = w !== null ? Math.round(w * 100) / 100 : null;
-      }
-      var averageEl = ratings.getChild('average');
-      if (averageEl && averageEl.getAttribute('value')) {
-        var r = toNum(averageEl.getAttribute('value').getValue());
-        bggRating = r !== null ? Math.round(r * 100) / 100 : null;
-      }
-    }
-  }
-
-  return {
-    name_en: nameEn,
-    min_players: attrInt('minplayers'),
-    max_players: attrInt('maxplayers'),
-    playtime_min: attrInt('playingtime'),
-    weight: weight,
-    bgg_rating: bggRating,
-    image_url: imageUrl,
-    description: description
-  };
-}
-
-function cleanBggText(text) {
-  if (!text) return '';
-  var t = String(text);
-  // BGG XmlService는 이미 대부분 디코드하지만, 남은 엔티티/개행 정리
-  t = t.replace(/&#10;/g, '\n')
-       .replace(/&#13;/g, '')
-       .replace(/&amp;/g, '&')
-       .replace(/&quot;/g, '"')
-       .replace(/&rsquo;/g, "'")
-       .replace(/&mdash;/g, '-')
-       .replace(/&ndash;/g, '-')
-       .replace(/&nbsp;/g, ' ')
-       .replace(/&#\d+;/g, ' ');
-  t = t.replace(/\n{3,}/g, '\n\n').trim();
-  return t;
-}
-
-function translateToKo(text) {
-  if (!text) return '';
-  try {
-    // 번역 길이 제한 대응: 너무 길면 앞부분만
-    var src = text.length > 4500 ? text.substring(0, 4500) : text;
-    return LanguageApp.translate(src, 'en', 'ko');
-  } catch (e) {
-    return text; // 번역 실패 시 원문 유지
-  }
 }
 
 // ===== 초기 세팅 헬퍼 (수동 실행용) =====
