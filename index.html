@@ -558,7 +558,7 @@ function renderPlay() {
   }
 
   document.getElementById('play-list-title').textContent =
-    scope === 'month' ? '이번 달 게임별 플레이 횟수' : '게임별 플레이 횟수 (누적)';
+    scope === 'month' ? '이번 달 게임별 플레이 횟수' : '게임별 플레이 횟수';
 
   // 게임별 순위(선택 범위 기준, 횟수 내림차순)
   const list = Object.keys(agg)
