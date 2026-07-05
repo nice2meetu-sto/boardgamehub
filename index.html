@@ -315,7 +315,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 동아리 <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v10</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 동아리 <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v11</span></h1>
     <div class="who" id="whoami">비로그인</div>
   </div>
 
@@ -887,7 +887,7 @@ async function renderMyGames() {
     state._myGamesList = games;
     el.innerHTML = `
       <div class="hint" style="margin-bottom:10px;">내가 참가한 게임에 평점과 메모를 남겨보세요. 평점 평균이 '우리동아리평점'이 됩니다.</div>
-      <div class="searchbox"><span>🔍</span><input id="my-games-search" placeholder="게임 이름 검색 (한글/영문)" oninput="filterMyGames()" /></div>
+      <div class="searchbox"><span>🔍</span><input id="my-games-search" placeholder="게임 이름·분류 검색 (예: 스플렌더, 전략)" oninput="filterMyGames()" /></div>
       <div id="my-games-cards"></div>`;
     filterMyGames();
   } catch (e) {
@@ -901,7 +901,8 @@ function filterMyGames() {
   const term = (input ? input.value : '').trim().toLowerCase();
   const list = !term ? all : all.filter(g =>
     String(g.name_kr || '').toLowerCase().includes(term) ||
-    String(g.name_en || '').toLowerCase().includes(term));
+    String(g.name_en || '').toLowerCase().includes(term) ||
+    String(g.category || '').toLowerCase().includes(term));
   const cards = document.getElementById('my-games-cards');
   if (!cards) return;
   cards.innerHTML = list.length
@@ -1333,7 +1334,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v10 (2026-07-05) 검색·점수통계';
+const APP_VERSION = 'v11 (2026-07-05) 게임기록 분류검색';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
