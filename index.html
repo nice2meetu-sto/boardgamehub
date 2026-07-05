@@ -315,7 +315,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v21</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0013</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -1000,8 +1000,7 @@ function renderMyPlaysTab() {
   state._mySessions = state.plays.filter(s =>
     s.participants.some(p => p.player_id === state.user.player_id));
   el.innerHTML = `
-    <div class="section-title" style="margin-top:0;">내 플레이 기록</div>
-    <div class="searchbox">
+    <div class="searchbox" style="margin-top:2px;">
       <span>🔍</span>
       <input id="my-play-search" placeholder="게임명 · 참가자 이름 검색" oninput="filterMyPlays()" />
     </div>
@@ -1517,7 +1516,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v21 (2026-07-05) 게임별플레이 검색분리';
+const APP_VERSION = 'v0013 (KST push time HHMM)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
