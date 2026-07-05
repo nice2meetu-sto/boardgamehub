@@ -671,7 +671,9 @@ function fetchBggThing(bggId) {
   }
 
   var image = item.getChild('image');
-  var imageUrl = image ? image.getText() : '';
+  var imageUrl = image ? String(image.getText()).trim() : '';
+  // BGG가 프로토콜 상대경로(//cf.geekdo...)를 주는 경우 https 보정
+  if (imageUrl.indexOf('//') === 0) imageUrl = 'https:' + imageUrl;
 
   var descEl = item.getChild('description');
   var description = descEl ? cleanBggText(descEl.getText()) : '';

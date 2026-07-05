@@ -134,9 +134,17 @@
     padding: 14px; margin-bottom: 12px;
   }
   .session-head { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
-  .session-thumb {
-    width: 46px; height: 46px; border-radius: 12px; object-fit: cover; flex-shrink: 0;
+  /* thumbnail wrapper: shows 🎲 placeholder behind the image; if the image
+     fails to load (e.g. BGG hotlink block) the placeholder stays visible */
+  .thumb {
+    position: relative; flex-shrink: 0; overflow: hidden;
     background: var(--main-light);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .thumb::after { content: '🎲'; font-size: 22px; }
+  .thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .session-thumb {
+    width: 46px; height: 46px; border-radius: 12px;
   }
   .session-head .g-name { font-weight: 700; font-size: 15px; }
   .session-head .g-meta { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
@@ -157,8 +165,7 @@
   }
   .gcard-top { display: flex; gap: 12px; }
   .gcard-img {
-    width: 68px; height: 68px; border-radius: 12px; object-fit: cover; flex-shrink: 0;
-    background: var(--main-light);
+    width: 68px; height: 68px; border-radius: 12px;
   }
   .gcard-body { flex: 1; min-width: 0; }
   .gcard-name { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
@@ -434,9 +441,13 @@ function fmtDate(d) {
   if (parts.length === 3) return `${parts[1]}.${parts[2]}`;
   return s;
 }
-function thumb(url, fallbackClass) {
-  if (url) return `<img class="${fallbackClass}" src="${esc(url)}" loading="lazy" onerror="this.style.visibility='hidden'"/>`;
-  return `<div class="${fallbackClass}" style="display:flex;align-items:center;justify-content:center;font-size:20px;">🎲</div>`;
+function thumb(url, cls) {
+  // referrerpolicy=no-referrer: BGG 이미지 CDN의 핫링크 차단(403) 회피용.
+  // 로드 실패 시 img를 제거하면 뒤의 🎲 플레이스홀더가 그대로 보임.
+  const img = url
+    ? `<img src="${esc(url)}" loading="lazy" referrerpolicy="no-referrer" alt="" onerror="this.remove()"/>`
+    : '';
+  return `<div class="thumb ${cls}">${img}</div>`;
 }
 function gameById(id) { return state.games.find(g => g.game_id === id); }
 
