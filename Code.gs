@@ -15,7 +15,7 @@ var SHEET_ID = ''; // 비워두면 컨테이너 바운드 스프레드시트(get
 // Cloudflare Worker 등을 만들어 여기에 붙여넣으면(예: 'https://bgg-proxy.내계정.workers.dev')
 // BGG 요청을 그 프록시로 먼저 보냅니다. 비워두면 직접+공개프록시만 시도.
 // (Worker 코드는 README 'BGG 프록시 설정' 참고)
-var BGG_PROXY = '';
+var BGG_PROXY = 'https://damp-silence-3737.ism199962.workers.dev';
 
 var SHEETS = {
   PLAYERS: 'Players',
