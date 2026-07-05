@@ -468,12 +468,15 @@ function switchView(name) {
 async function loadCore() {
   showLoader('데이터 불러오는 중…');
   try {
-    const [games, plays, players] = await Promise.all([
-      api('getGames'), api('getPlays'), api('getPlayers')
+    // getCategories는 옛 백엔드엔 없을 수 있으므로 실패해도 기본값 유지
+    const [games, plays, players, categories] = await Promise.all([
+      api('getGames'), api('getPlays'), api('getPlayers'),
+      api('getCategories').catch(() => null)
     ]);
     state.games = games;
     state.plays = plays;
     state.players = players;
+    if (Array.isArray(categories) && categories.length) CATEGORIES = categories;
     renderPlay();
     renderGames();
   } catch (e) {
@@ -953,7 +956,8 @@ function switchAddTab(tab) {
 }
 
 // ----- 게임 추가 -----
-const CATEGORIES = ['전략', '마피아', '트릭테이킹', '파티', '협력', '덱빌딩', '추리', '가족', '아브스트랙트', '기타'];
+// 기본 분류(폴백). 앱 시작 시 스프레드시트 Categories 탭에서 읽어와 덮어씀
+let CATEGORIES = ['전략', '마피아', '트릭테이킹', '파티', '협력', '덱빌딩', '추리', '가족', '아브스트랙트', '기타'];
 const addGameState = { mode: 'bgg', bggPick: null, bggCandidates: [], bggDetail: null };
 
 function renderAddGameForm() {

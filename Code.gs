@@ -18,6 +18,11 @@ var SHEETS = {
   PLAYLOGS: 'PlayLogs'
 };
 
+// 카테고리(분류) 탭 이름 후보 — 이 중 먼저 존재하는 시트에서 읽음
+var CATEGORY_SHEET_NAMES = ['Categories', '분류', '카테고리'];
+// 탭이 없을 때 사용할 기본 분류
+var DEFAULT_CATEGORIES = ['전략', '마피아', '트릭테이킹', '파티', '협력', '덱빌딩', '추리', '가족', '아브스트랙트', '기타'];
+
 // ===== 진입점 =====
 function doGet(e) {
   var params = (e && e.parameter) ? e.parameter : {};
@@ -32,6 +37,7 @@ function doGet(e) {
       case 'getPlayerStats': data = actionGetPlayerStats(params); break;
       case 'getMyRatings':   data = actionGetMyRatings(params); break;
       case 'getPlayers':     data = actionGetPlayers(params); break;
+      case 'getCategories':  data = actionGetCategories(params); break;
       case 'searchBgg':      data = actionSearchBgg(params); break;
       case 'addGame':        data = actionAddGame(params); break;
       case 'saveRating':     data = actionSaveRating(params); break;
@@ -223,6 +229,33 @@ function actionSignup(params) {
     joined_at: todayStr()
   });
   return { player_id: playerId, name: name, role: role };
+}
+
+function actionGetCategories(params) {
+  var ss = getSpreadsheet();
+  var sh = null;
+  for (var i = 0; i < CATEGORY_SHEET_NAMES.length; i++) {
+    sh = ss.getSheetByName(CATEGORY_SHEET_NAMES[i]);
+    if (sh) break;
+  }
+  if (!sh) return DEFAULT_CATEGORIES;
+
+  var last = sh.getLastRow();
+  if (last < 1) return DEFAULT_CATEGORIES;
+
+  // 첫 번째 열의 값들을 읽음. 1행이 헤더(category/분류/카테고리)면 건너뜀.
+  var vals = sh.getRange(1, 1, last, 1).getDisplayValues();
+  var out = [];
+  for (var r = 0; r < vals.length; r++) {
+    var v = String(vals[r][0]).trim();
+    if (!v) continue;
+    if (r === 0) {
+      var low = v.toLowerCase();
+      if (low === 'category' || v === '분류' || v === '카테고리' || low === 'categories') continue;
+    }
+    if (out.indexOf(v) === -1) out.push(v);
+  }
+  return out.length ? out : DEFAULT_CATEGORIES;
 }
 
 function actionGetPlayers(params) {
@@ -760,6 +793,15 @@ function setupSheets() {
     sh.getRange(1, 1, 1, defs[name].length).setValues([defs[name]]);
     sh.setFrozenRows(1);
   });
+
+  // Categories 탭: 없을 때만 생성하고 기본 분류로 채움(이미 있으면 건드리지 않음)
+  if (!ss.getSheetByName('Categories') && !ss.getSheetByName('분류') && !ss.getSheetByName('카테고리')) {
+    var cs = ss.insertSheet('Categories');
+    cs.getRange(1, 1).setValue('category');
+    cs.setFrozenRows(1);
+    var rows = DEFAULT_CATEGORIES.map(function (c) { return [c]; });
+    cs.getRange(2, 1, rows.length, 1).setValues(rows);
+  }
 }
 
 /**

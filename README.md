@@ -55,6 +55,19 @@ game_id | name_kr | name_en | bgg_id | category | min_players | max_players | pl
 player_id | game_id | rating | memo | updated_at
 ```
 
+**`Categories`** (선택 — 게임 분류 목록을 앱에서 관리)
+```
+category
+전략
+마피아
+트릭테이킹
+...
+```
+> `Categories` 탭의 A열에 분류를 한 줄에 하나씩 적으면, 게임 추가/수정 화면의 분류 선택지가
+> 이 목록으로 채워집니다(코드 수정 불필요). 1행 헤더 `category`는 있어도 없어도 됩니다.
+> 탭 이름은 `Categories` / `분류` / `카테고리` 중 아무거나 가능하며, 탭이 없으면 기본 목록을 사용합니다.
+> (`setupSheets` 실행 시 기본 분류가 채워진 `Categories` 탭이 자동 생성됩니다.)
+
 **`PlayLogs`**
 ```
 record_id | session_id | play_date | game_id | duration_min | player_id | score | is_win | created_at
@@ -161,6 +174,7 @@ const API_URL = "https://script.google.com/macros/s/AKfyc.../exec";
 | `getPlayerStats` | playerId | 개인 통계(총 플레이/승수/승률, 월별, 게임별 승률) |
 | `getMyRatings` | playerId | 내 평점·메모 목록 |
 | `getPlayers` | - | 플레이어 목록(참가자 선택용) |
+| `getCategories` | - | `Categories` 탭의 분류 목록(없으면 기본값) |
 | `searchBgg` | query | BGG 검색 후보 `[{bgg_id, name_en, year}]` |
 | `addGame` | payload(JSON) | BGG 상세 수집·번역 또는 수동입력 저장 |
 | `saveRating` | playerId, pin, gameId, rating, memo | 본인 인증 후 upsert |
