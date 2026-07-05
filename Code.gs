@@ -15,7 +15,7 @@ var SHEET_ID = ''; // 비워두면 컨테이너 바운드 스프레드시트(get
 // Cloudflare Worker 등을 만들어 여기에 붙여넣으면(예: 'https://bgg-proxy.내계정.workers.dev')
 // BGG 요청을 그 프록시로 먼저 보냅니다. 비워두면 직접+공개프록시만 시도.
 // (Worker 코드는 README 'BGG 프록시 설정' 참고)
-var BGG_PROXY = 'https://damp-silence-3737.ism199962.workers.dev';
+var BGG_PROXY = 'https://bgg-proxy.ism199962.workers.dev';
 
 var SHEETS = {
   PLAYERS: 'Players',
@@ -667,8 +667,11 @@ function bggTryOnce(target) {
     lastCode = res.getResponseCode();
     if (lastCode === 200) {
       var txt = res.getContentText();
-      // 프록시가 에러 페이지/빈 응답을 줄 수 있으니 XML스러운지 최소 확인
+      // XML스러운 응답이면 성공
       if (txt && txt.indexOf('<') !== -1) return { ok: true, text: txt };
+      // 200인데 빈/비XML 응답 → BGG의 202(대기)가 프록시를 거치며 빈 200으로 온 경우.
+      // 상태코드 기반 재시도가 안 걸리므로 여기서 잠깐 대기 후 재시도.
+      if (i < 2) { Utilities.sleep(1500 * (i + 1)); continue; }
       return { ok: false, code: 200 };
     }
     if (lastCode === 202 || lastCode === 429 || lastCode >= 500) {
