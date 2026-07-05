@@ -315,7 +315,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0013</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0100</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -339,6 +339,7 @@
     </div>
     <div class="chip-row" id="cat-filter"></div>
     <div class="chip-row" id="player-filter"></div>
+    <div class="chip-row" id="weight-filter"></div>
     <div id="games-list"></div>
   </div>
 
@@ -407,7 +408,7 @@ const state = {
   games: [],
   plays: [],
   players: [],
-  gameFilter: { category: null, playerCount: null, search: '' },
+  gameFilter: { category: null, playerCount: null, weight: null, search: '' },
   myTab: 'overview',
   myGameSort: 'winrate',
   authMode: 'login',   // 'login' | 'signup'
@@ -660,9 +661,18 @@ function renderSessionList(containerId, sessions) {
 // ============================================================
 //  VIEW: 게임
 // ============================================================
+// 난이도(weight) 필터 구간
+const WEIGHT_BUCKETS = [
+  { key: '0-2', label: '0~2', lo: 0, hi: 2 },
+  { key: '2-3', label: '2~3', lo: 2, hi: 3 },
+  { key: '3-4', label: '3~4', lo: 3, hi: 4 },
+  { key: '4-5', label: '4~5', lo: 4, hi: 5 }
+];
+
 function renderGames() {
   renderCategoryFilter();
   renderPlayerCountFilter();
+  renderWeightFilter();
   renderGameCards();
 }
 
@@ -687,6 +697,15 @@ function renderPlayerCountFilter() {
 }
 function setPcFilter(n) { state.gameFilter.playerCount = n; renderGames(); }
 
+function renderWeightFilter() {
+  const cur = state.gameFilter.weight;
+  const el = document.getElementById('weight-filter');
+  el.innerHTML =
+    `<span class="chip ${!cur ? 'on' : ''}" onclick="setWeightFilter(null)">난이도 전체</span>` +
+    WEIGHT_BUCKETS.map(b => `<span class="chip ${cur === b.key ? 'on' : ''}" onclick="setWeightFilter('${b.key}')">${b.label}</span>`).join('');
+}
+function setWeightFilter(key) { state.gameFilter.weight = key; renderGames(); }
+
 document.getElementById('game-search').addEventListener('input', e => {
   state.gameFilter.search = e.target.value.trim().toLowerCase();
   renderGameCards();
@@ -704,6 +723,15 @@ function filteredGames() {
       const lo = min == null ? 1 : min;
       const hi = max == null ? 99 : max;
       return lo <= n && n <= hi;
+    });
+  }
+  if (f.weight) {
+    const b = WEIGHT_BUCKETS.find(x => x.key === f.weight);
+    if (b) list = list.filter(g => {
+      const w = g.weight;
+      if (w == null) return false;
+      // 경계값은 위 구간에 포함(2→2~3, 3→3~4, 4→4~5), 마지막 구간만 상한 포함
+      return b.key === '4-5' ? (w >= b.lo && w <= b.hi) : (w >= b.lo && w < b.hi);
     });
   }
   if (f.search) {
@@ -1516,7 +1544,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v0013 (KST push time HHMM)';
+const APP_VERSION = 'v0100 난이도 필터';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
