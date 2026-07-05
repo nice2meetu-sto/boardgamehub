@@ -1,7 +1,8 @@
 # 🎲 보드게임 동아리 관리 웹앱
 
 동아리원들이 모바일에서 사용하는 보드게임 관리 페이지입니다.
-플레이 기록·평점·개인 통계를 관리하고, 게임 정보를 직접 입력해 등록합니다.
+플레이 기록·평점·개인 통계를 관리하고, 게임 정보를 직접 입력하거나 BoardGameGeek(BGG) 연동으로 등록합니다.
+(BGG 연동은 `Code.gs`의 `BGG_PROXY`에 설정된 Cloudflare Worker 프록시를 통해 동작합니다.)
 
 - **프론트엔드**: 단일 `index.html` (vanilla JS, 프레임워크 없음) — GitHub Pages 호스팅
 - **백엔드**: Google Apps Script 웹앱 (`Code.gs`, `doGet` 기반 GET-only JSON API)
@@ -155,7 +156,7 @@ const API_URL = "https://script.google.com/macros/s/AKfyc.../exec";
 | **플레이** | 전체 플레이 기록을 최신순으로. 상단에 이번 달/누적/최다 플레이 요약 |
 | **게임** | 등록된 모든 게임을 우리동아리평점 내림차순 카드로. 분류·인원수 필터 + 이름 검색. 카드 탭 시 요약 펼침 |
 | **MY** | 닉네임+PIN 가입/로그인 → 개인 통계(플레이 기록) & 내가 참가한 게임 평점/메모(게임 기록) |
-| **+ 버튼** | 게임 추가(직접입력, 사진 촬영/업로드 가능) · 플레이 결과 추가 |
+| **+ 버튼** | 게임 추가(BGG 연동 또는 직접입력·사진 촬영/업로드) · 플레이 결과 추가 |
 
 - 로그인 정보는 `sessionStorage`에 유지됩니다(탭을 닫으면 해제).
 - 쓰기 작업(평점·플레이·게임 추가/수정) 시 본인 확인용 PIN을 한 번 입력합니다.
@@ -174,7 +175,8 @@ const API_URL = "https://script.google.com/macros/s/AKfyc.../exec";
 | `getMyRatings` | playerId | 내 평점·메모 목록 |
 | `getPlayers` | - | 플레이어 목록(참가자 선택용) |
 | `getCategories` | - | `Categories` 탭의 분류 목록(없으면 기본값) |
-| `addGame` | payload(JSON) | 수동 입력값으로 게임 저장 |
+| `searchBgg` | query | BGG 검색 후보 `[{bgg_id, name_en, year}]` |
+| `addGame` | payload(JSON) | bgg_id가 있으면 BGG 상세 수집·번역, 없으면 수동 입력 저장 |
 | `saveRating` | playerId, pin, gameId, rating, memo | 본인 인증 후 upsert |
 | `addPlay` | payload(JSON) | 세션 생성 후 참가자별 행 추가 |
 | `updateGame` | playerId, pin, payload | **admin만** 게임 세부정보 수정 |

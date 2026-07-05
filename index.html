@@ -315,7 +315,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v11</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v12</span></h1>
     <div class="who" id="whoami">비로그인</div>
   </div>
 
@@ -613,6 +613,7 @@ function gameCardHtml(g, opts = {}) {
   const club = g.club_rating != null
     ? `<span class="rate-club"><span class="star">★</span> ${g.club_rating.toFixed(1)} <small>(${g.rating_count})</small></span>`
     : `<span class="rate-club muted"><span class="star" style="color:#dcdce3">★</span> - <small>평가없음</small></span>`;
+  const bgg = g.bgg_rating ? `<span class="rate-bgg">BGG ${Number(g.bgg_rating).toFixed(1)}</span>` : '';
 
   const detail = g.summary_kr
     ? `<div class="gcard-detail">${esc(g.summary_kr)}</div>`
@@ -626,7 +627,7 @@ function gameCardHtml(g, opts = {}) {
           ${g.category ? `<span class="badge" style="margin-left:6px;">${esc(g.category)}</span>` : ''}</div>
         ${g.name_en && g.name_kr ? `<div class="gcard-en">${esc(g.name_en)}</div>` : ''}
         <div class="gcard-meta">${meta.map(m => `<span>${m}</span>`).join('')}</div>
-        <div class="gcard-ratings">${club}</div>
+        <div class="gcard-ratings">${club}${bgg}</div>
       </div>
     </div>
     ${detail}
@@ -1015,7 +1016,10 @@ function switchAddTab(tab) {
 // ----- 게임 추가 -----
 // 기본 분류(폴백). 앱 시작 시 스프레드시트 Categories 탭에서 읽어와 덮어씀
 let CATEGORIES = ['전략', '마피아', '트릭테이킹', '파티', '협력', '덱빌딩', '추리', '가족', '아브스트랙트', '기타'];
+const addGameState = { mode: 'bgg', bggPick: null, bggCandidates: [] };
+
 function renderAddGameForm() {
+  const m = addGameState.mode;
   const el = document.getElementById('add-game-form');
   el.innerHTML = `
     <div class="field">
@@ -1032,24 +1036,108 @@ function renderAddGameForm() {
         ${CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
       </select>
     </div>
-    <div class="row2">
-      <div class="field"><label>최소 인원</label><input class="input" id="ag-min" type="number" inputmode="numeric" /></div>
-      <div class="field"><label>최대 인원</label><input class="input" id="ag-max" type="number" inputmode="numeric" /></div>
+    <div class="subtabs">
+      <button id="agmode-bgg" class="${m === 'bgg' ? 'on' : ''}" onclick="setAddGameMode('bgg')">BGG 연동</button>
+      <button id="agmode-manual" class="${m === 'manual' ? 'on' : ''}" onclick="setAddGameMode('manual')">직접 입력</button>
     </div>
-    <div class="row2">
-      <div class="field"><label>플레이타임(분)</label><input class="input" id="ag-time" type="number" inputmode="numeric" /></div>
-      <div class="field"><label>난이도(weight)</label><input class="input" id="ag-weight" type="number" step="0.01" inputmode="decimal" /></div>
+    <div id="ag-bgg-section" style="display:${m === 'bgg' ? 'block' : 'none'};">
+      <div class="field">
+        <label>영문명 검색 또는 BGG 링크/ID 붙여넣기</label>
+        <div class="row2">
+          <input class="input" id="ag-bggquery" placeholder="예: Splendor 또는 boardgamegeek.com/boardgame/148228" />
+          <button class="btn sm" style="flex:0 0 auto;" onclick="doBggSearch()">검색</button>
+        </div>
+        <div class="hint">BGG 게임 페이지 주소(URL)나 숫자 ID를 붙여넣으면 검색 없이 바로 선택됩니다.</div>
+      </div>
+      <div id="ag-candidates"></div>
+      <div id="ag-preview"></div>
     </div>
-    <div class="field">
-      <label>게임 사진 (선택 — 찍거나 앨범에서 선택)</label>
-      <input class="input" id="ag-photo" type="file" accept="image/*" onchange="onPhotoPick(this,'ag')" />
-      <div id="ag-photo-preview"></div>
-      <div class="hint">사진을 올리면 작게 압축해서 저장합니다. 안 올리면 아래 URL(선택)을 씁니다.</div>
+    <div id="ag-manual-section" style="display:${m === 'manual' ? 'block' : 'none'};">
+      <div class="row2">
+        <div class="field"><label>최소 인원</label><input class="input" id="ag-min" type="number" inputmode="numeric" /></div>
+        <div class="field"><label>최대 인원</label><input class="input" id="ag-max" type="number" inputmode="numeric" /></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>플레이타임(분)</label><input class="input" id="ag-time" type="number" inputmode="numeric" /></div>
+        <div class="field"><label>난이도(weight)</label><input class="input" id="ag-weight" type="number" step="0.01" inputmode="decimal" /></div>
+      </div>
+      <div class="field">
+        <label>게임 사진 (선택 — 찍거나 앨범에서 선택)</label>
+        <input class="input" id="ag-photo" type="file" accept="image/*" onchange="onPhotoPick(this,'ag')" />
+        <div id="ag-photo-preview"></div>
+        <div class="hint">사진을 올리면 작게 압축해서 저장합니다. 안 올리면 아래 URL(선택)을 씁니다.</div>
+      </div>
+      <div class="field"><label>이미지 URL (선택)</label><input class="input" id="ag-image" placeholder="https://..." /></div>
+      <div class="field"><label>게임 요약</label><textarea class="input" id="ag-summary" placeholder="게임 설명"></textarea></div>
     </div>
-    <div class="field"><label>이미지 URL (선택)</label><input class="input" id="ag-image" placeholder="https://..." /></div>
-    <div class="field"><label>게임 요약</label><textarea class="input" id="ag-summary" placeholder="게임 설명"></textarea></div>
     <button class="btn" style="margin-top:8px;" onclick="submitAddGame()">게임 추가</button>`;
   photoState.ag = '';
+}
+
+function setAddGameMode(mode) {
+  addGameState.mode = mode;
+  addGameState.bggPick = null;
+  renderAddGameForm();
+}
+
+// BGG 게임 URL 또는 순수 숫자에서 게임 ID 추출
+function extractBggId(s) {
+  s = String(s || '').trim();
+  const m = s.match(/boardgamegeek\.com\/boardgame\/(\d+)/i);
+  if (m) return m[1];
+  if (/^\d+$/.test(s)) return s;
+  return null;
+}
+
+async function doBggSearch() {
+  const q = document.getElementById('ag-bggquery').value.trim();
+  if (!q) { toast('검색어 또는 BGG 링크/ID를 입력하세요.', true); return; }
+
+  // BGG 링크나 ID를 붙여넣은 경우: 검색을 건너뛰고 그 ID를 바로 선택
+  const pastedId = extractBggId(q);
+  if (pastedId) {
+    addGameState.bggCandidates = [{ bgg_id: pastedId, name_en: 'BGG ID ' + pastedId, year: '' }];
+    addGameState.bggPick = addGameState.bggCandidates[0];
+    document.getElementById('ag-candidates').innerHTML =
+      `<div class="cand on"><div class="cn">BGG ID ${esc(pastedId)} 선택됨</div>
+        <div class="cy">저장 시 이 ID로 상세정보를 가져옵니다.</div></div>`;
+    document.getElementById('ag-preview').innerHTML =
+      `<div class="hint">한글 게임명을 입력한 뒤 아래 '게임 추가'를 누르세요.</div>`;
+    return;
+  }
+
+  showLoader('BGG 검색 중…');
+  try {
+    const results = await api('searchBgg', { query: q });
+    addGameState.bggCandidates = results;
+    const el = document.getElementById('ag-candidates');
+    if (!results.length) { el.innerHTML = `<div class="hint">검색 결과가 없습니다.</div>`; return; }
+    el.innerHTML = results.map((r, i) =>
+      `<div class="cand" data-i="${i}" onclick="pickBgg(${i})">
+        <div class="cn">${esc(r.name_en)}</div>
+        <div class="cy">${r.year ? r.year + '년' : ''} · BGG ID ${esc(r.bgg_id)}</div>
+      </div>`).join('');
+    document.getElementById('ag-preview').innerHTML = '';
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    hideLoader();
+  }
+}
+
+function pickBgg(i) {
+  addGameState.bggPick = addGameState.bggCandidates[i];
+  document.querySelectorAll('#ag-candidates .cand').forEach(c =>
+    c.classList.toggle('on', Number(c.dataset.i) === i));
+  const p = addGameState.bggPick;
+  document.getElementById('ag-preview').innerHTML =
+    `<div class="card" style="margin-top:6px;">
+      <div style="font-weight:700;">${esc(p.name_en)} 선택됨</div>
+      <div class="hint">게임 추가 시 인원수·플레이타임·난이도·평점·요약(자동 한글번역)을 BGG에서 가져옵니다.</div>
+    </div>`;
+  // 한글명이 비어있으면 영문명으로 채움(ID 붙여넣기 placeholder는 제외)
+  const kr = document.getElementById('ag-namekr');
+  if (!kr.value && p.name_en && !/^BGG ID /.test(p.name_en)) kr.value = p.name_en;
 }
 
 // ===== 사진 업로드(썸네일 압축) =====
@@ -1122,16 +1210,24 @@ async function submitAddGame() {
     player_id: state.user.player_id, pin,
     name_kr: nameKr,
     name_en: document.getElementById('ag-nameen').value.trim(),
-    category,
-    min_players: document.getElementById('ag-min').value,
-    max_players: document.getElementById('ag-max').value,
-    playtime_min: document.getElementById('ag-time').value,
-    weight: document.getElementById('ag-weight').value,
-    image_url: photoState.ag || document.getElementById('ag-image').value.trim(),
-    summary_kr: document.getElementById('ag-summary').value
+    category
   };
 
-  showLoader('저장 중…');
+  if (addGameState.mode === 'bgg') {
+    if (!addGameState.bggPick) { toast('BGG 후보를 선택하거나 직접입력을 사용하세요.', true); return; }
+    payload.bgg_id = addGameState.bggPick.bgg_id;
+    const en = addGameState.bggPick.name_en;
+    if (!payload.name_en && en && !/^BGG ID /.test(en)) payload.name_en = en;
+  } else {
+    payload.min_players = document.getElementById('ag-min').value;
+    payload.max_players = document.getElementById('ag-max').value;
+    payload.playtime_min = document.getElementById('ag-time').value;
+    payload.weight = document.getElementById('ag-weight').value;
+    payload.image_url = photoState.ag || document.getElementById('ag-image').value.trim();
+    payload.summary_kr = document.getElementById('ag-summary').value;
+  }
+
+  showLoader(addGameState.mode === 'bgg' ? 'BGG 정보 수집·번역 중…' : '저장 중…');
   try {
     // payload는 api()의 URLSearchParams가 인코딩하므로 여기서 추가 인코딩하지 않음
     await api('addGame', { payload: JSON.stringify(payload) });
@@ -1334,7 +1430,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v11 (2026-07-05) 게임기록 분류검색';
+const APP_VERSION = 'v12 (2026-07-05) BGG 연동 재추가';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
