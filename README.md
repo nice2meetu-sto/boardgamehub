@@ -138,6 +138,58 @@ const API_URL = "https://script.google.com/macros/s/AKfyc.../exec";
 
 ---
 
+## 5-1. (선택) BGG 프록시 설정 — "BGG 연동 오류 401/403"이 뜰 때
+
+BGG(boardgamegeek.com)는 Cloudflare 뒤에 있어 **Google Apps Script 서버 IP를 차단**하는 경우가 있습니다.
+그러면 게임 검색/추가 시 `BGG 응답 오류: 401` 또는 `BGG 접속이 차단되어…` 가 뜹니다.
+(앱의 게임/플레이 데이터는 시트에서 읽으므로 이 문제와 무관합니다 — 오직 BGG 외부 연동만 영향받습니다.)
+
+`Code.gs`는 기본적으로 공개 프록시로 우회를 시도하지만, 공개 프록시는 불안정할 수 있습니다.
+**가장 확실한 방법은 무료 Cloudflare Worker로 "내 전용 프록시"를 만드는 것**입니다(5분).
+
+1. [dash.cloudflare.com](https://dash.cloudflare.com) 로그인 → 좌측 **Workers & Pages** → **Create** → **Create Worker**
+2. 이름 지정(예: `bgg-proxy`) → **Deploy** → **Edit code** 클릭
+3. 기존 코드를 지우고 아래를 붙여넣은 뒤 **Deploy**:
+
+```js
+export default {
+  async fetch(request) {
+    const cors = { 'Access-Control-Allow-Origin': '*' };
+    const target = new URL(request.url).searchParams.get('url');
+    if (!target) return new Response('missing url', { status: 400, headers: cors });
+    // 보안: boardgamegeek.com 요청만 허용
+    if (!/^https:\/\/boardgamegeek\.com\//i.test(target))
+      return new Response('forbidden', { status: 403, headers: cors });
+    const upstream = await fetch(target, {
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/xml, text/xml, */*' }
+    });
+    const body = await upstream.text();
+    return new Response(body, {
+      status: upstream.status,
+      headers: { ...cors, 'Content-Type': 'text/xml; charset=utf-8' }
+    });
+  }
+}
+```
+
+4. 배포되면 나오는 주소(예: `https://bgg-proxy.<계정>.workers.dev`)를 복사
+5. `Code.gs` 상단 `BGG_PROXY` 에 붙여넣기:
+
+```js
+var BGG_PROXY = 'https://bgg-proxy.<계정>.workers.dev';
+```
+
+6. Apps Script를 **새 버전으로 재배포** → 이제 BGG 요청이 내 Worker를 거쳐 안정적으로 동작합니다.
+
+> Worker는 게임 검색·상세 XML만 중계하며 boardgamegeek.com 외 요청은 거부하도록 제한돼 있습니다.
+> 무료 플랜(하루 10만 요청)으로 동아리 용도엔 충분합니다.
+
+### 게임 추가 시 BGG 링크 붙여넣기
+검색이 잘 안 될 때는, BGG에서 게임 페이지를 열어 **주소(URL)를 복사**해 검색창에 붙여넣으면
+검색을 건너뛰고 그 게임이 바로 선택됩니다. (단, 상세정보 수집은 위 프록시가 동작해야 완료됩니다.)
+
+---
+
 ## 6. GitHub Pages 배포
 
 1. 이 저장소를 GitHub에 푸시합니다. (`index.html`이 루트에 있어야 합니다.)

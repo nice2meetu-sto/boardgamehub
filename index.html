@@ -979,11 +979,12 @@ function renderAddGameForm() {
     </div>
     <div id="ag-bgg-section" style="display:${addGameState.mode==='bgg'?'block':'none'};">
       <div class="field">
-        <label>영문명으로 BGG 검색</label>
+        <label>영문명 검색 또는 BGG 링크/ID 붙여넣기</label>
         <div class="row2">
-          <input class="input" id="ag-bggquery" placeholder="예: Splendor" />
+          <input class="input" id="ag-bggquery" placeholder="예: Splendor 또는 boardgamegeek.com/boardgame/148228" />
           <button class="btn sm" style="flex:0 0 auto;" onclick="doBggSearch()">검색</button>
         </div>
+        <div class="hint">BGG에서 게임 페이지 주소를 복사해 붙여넣으면 검색 없이 바로 선택됩니다.</div>
       </div>
       <div id="ag-candidates"></div>
       <div id="ag-preview"></div>
@@ -1010,9 +1011,32 @@ function setAddGameMode(mode) {
   renderAddGameForm();
 }
 
+// BGG 게임 URL 또는 순수 숫자에서 게임 ID 추출
+function extractBggId(s) {
+  s = String(s || '').trim();
+  const m = s.match(/boardgamegeek\.com\/boardgame\/(\d+)/i);
+  if (m) return m[1];
+  if (/^\d+$/.test(s)) return s;
+  return null;
+}
+
 async function doBggSearch() {
   const q = document.getElementById('ag-bggquery').value.trim();
-  if (!q) { toast('검색어를 입력하세요.', true); return; }
+  if (!q) { toast('검색어 또는 BGG 링크/ID를 입력하세요.', true); return; }
+
+  // BGG 링크나 ID를 붙여넣은 경우: 검색을 건너뛰고 그 ID를 바로 선택
+  const pastedId = extractBggId(q);
+  if (pastedId) {
+    addGameState.bggCandidates = [{ bgg_id: pastedId, name_en: 'BGG ID ' + pastedId, year: '' }];
+    addGameState.bggPick = addGameState.bggCandidates[0];
+    document.getElementById('ag-candidates').innerHTML =
+      `<div class="cand on"><div class="cn">BGG ID ${esc(pastedId)} 선택됨</div>
+        <div class="cy">저장 시 이 ID로 상세정보를 가져옵니다.</div></div>`;
+    document.getElementById('ag-preview').innerHTML =
+      `<div class="hint">한글 게임명을 입력한 뒤 아래 '게임 추가'를 누르세요.</div>`;
+    return;
+  }
+
   showLoader('BGG 검색 중…');
   try {
     const results = await api('searchBgg', { query: q });

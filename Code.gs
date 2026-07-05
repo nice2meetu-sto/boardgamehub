@@ -11,6 +11,12 @@
 // ===== 설정 =====
 var SHEET_ID = ''; // 비워두면 컨테이너 바운드 스프레드시트(getActiveSpreadsheet) 사용
 
+// BGG가 구글 Apps Script 서버 IP를 차단할 때 우회할 "내 전용 프록시" 주소.
+// Cloudflare Worker 등을 만들어 여기에 붙여넣으면(예: 'https://bgg-proxy.내계정.workers.dev')
+// BGG 요청을 그 프록시로 먼저 보냅니다. 비워두면 직접+공개프록시만 시도.
+// (Worker 코드는 README 'BGG 프록시 설정' 참고)
+var BGG_PROXY = '';
+
 var SHEETS = {
   PLAYERS: 'Players',
   GAMES: 'Games',
@@ -676,13 +682,17 @@ function bggTryOnce(target) {
 
 function bggFetch(url) {
   // BGG가 Google Apps Script 서버 IP를 401/403으로 차단하는 경우가 있어,
-  // 직접 호출 실패 시 공개 프록시를 경유해 우회한다(공개 검색어만 전달, 민감정보 없음).
-  var targets = [
-    url, // 1) 직접
-    'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),       // 2) 프록시
-    'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(url), // 3) 프록시
-    'https://corsproxy.io/?url=' + encodeURIComponent(url)                 // 4) 프록시
-  ];
+  // 직접 호출 실패 시 프록시를 경유해 우회한다(공개 검색어만 전달, 민감정보 없음).
+  var targets = [];
+  // 1) 내 전용 프록시(설정돼 있으면 최우선 — 가장 안정적)
+  if (BGG_PROXY) {
+    var base = String(BGG_PROXY).replace(/\/+$/, '');
+    targets.push(base + '?url=' + encodeURIComponent(url));
+  }
+  targets.push(url); // 2) 직접
+  targets.push('https://api.allorigins.win/raw?url=' + encodeURIComponent(url));       // 3) 공개 프록시
+  targets.push('https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(url)); // 4) 공개 프록시
+  targets.push('https://corsproxy.io/?url=' + encodeURIComponent(url));                // 5) 공개 프록시
   var lastCode = 0;
   for (var t = 0; t < targets.length; t++) {
     var r = bggTryOnce(targets[t]);
