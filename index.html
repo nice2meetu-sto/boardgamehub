@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <meta name="theme-color" content="#534AB7" />
-<title>보드게임 동아리</title>
+<title>보드게임 Hub</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
@@ -315,7 +315,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 동아리 <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v11</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v11</span></h1>
     <div class="who" id="whoami">비로그인</div>
   </div>
 
@@ -590,7 +590,7 @@ function filteredGames() {
       (g.name_kr || '').toLowerCase().includes(f.search) ||
       (g.name_en || '').toLowerCase().includes(f.search));
   }
-  // 우리동아리평점 내림차순, 평점 없는 게임(-)은 하단
+  // 우리Hub평점 내림차순, 평점 없는 게임(-)은 하단
   list.sort((a, b) => {
     const ra = a.club_rating, rb = b.club_rating;
     if (ra == null && rb == null) return (a.name_kr || '').localeCompare(b.name_kr || '');
@@ -886,7 +886,7 @@ async function renderMyGames() {
     }
     state._myGamesList = games;
     el.innerHTML = `
-      <div class="hint" style="margin-bottom:10px;">내가 참가한 게임에 평점과 메모를 남겨보세요. 평점 평균이 '우리동아리평점'이 됩니다.</div>
+      <div class="hint" style="margin-bottom:10px;">내가 참가한 게임에 평점과 메모를 남겨보세요. 평점 평균이 '우리Hub평점'이 됩니다.</div>
       <div class="searchbox"><span>🔍</span><input id="my-games-search" placeholder="게임 이름·분류 검색 (예: 스플렌더, 전략)" oninput="filterMyGames()" /></div>
       <div id="my-games-cards"></div>`;
     filterMyGames();
