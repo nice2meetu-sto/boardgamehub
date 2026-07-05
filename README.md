@@ -39,8 +39,11 @@ Apps Script를 먼저 연결(2단계)한 뒤, 편집기에서 `setupSheets` 함�
 
 **`Players`**
 ```
-player_id | name | pin_hash | role | joined_at
+player_id | name | pin_hash | pin | role | joined_at
 ```
+> `pin`은 관리자가 시트에서 직접 확인할 수 있는 **평문 PIN**입니다(회원이 PIN을 잊었을 때 안내용).
+> 로그인 검증은 `pin_hash`(SHA-256)로 하고, `pin`은 조회 편의를 위한 보조 컬럼입니다.
+> 동아리 내부용 4자리 숫자라 노출해도 무방하지만, 시트 공유 범위는 관리자로 제한하세요.
 
 **`Games`**
 ```
@@ -181,8 +184,9 @@ const API_URL = "https://script.google.com/macros/s/AKfyc.../exec";
 | 증상 | 원인/해결 |
 |---|---|
 | 첫 응답이 2~3초 느림 | Apps Script 콜드스타트. 정상이며 로딩 스피너가 표시됩니다. |
-| `Unknown action` | 배포 후 코드 변경 시 **새 버전으로 재배포** 했는지 확인 |
+| `Unknown action` / 가입(signup) 안 됨 | 편집기의 `Code.gs`를 **최신으로 교체** 후 **배포 관리 → 편집 → 버전: 새 버전 → 배포**. (API_URL만 바꾸고 백엔드를 재배포 안 하면 새 기능이 반영되지 않습니다) |
 | 로그인 실패 | 닉네임·PIN 확인. 처음이면 **가입하기** 탭으로 먼저 가입 |
+| PIN 분실 | `Players` 시트의 `pin` 컬럼에서 평문 PIN 확인 후 안내 |
 | 관리자 지정 | 첫 가입자가 자동 admin. 이후 `Players` 시트 `role`을 `admin`으로 바꿔 추가 지정 |
 | BGG 검색 결과 없음 | 영문명으로 검색. BGG가 202(큐잉) 응답 시 백엔드가 자동 재시도 |
 | 게임 수정 버튼 안 보임 | `admin` 계정으로 로그인해야 노출됩니다 |

@@ -218,6 +218,7 @@ function actionSignup(params) {
     player_id: playerId,
     name: name,
     pin_hash: sha256Hex(pin),
+    pin: pin,               // 관리자가 시트에서 확인할 수 있게 평문도 저장(동아리 내부용)
     role: role,
     joined_at: todayStr()
   });
@@ -745,7 +746,7 @@ function translateToKo(text) {
 function setupSheets() {
   var ss = getSpreadsheet();
   var defs = {
-    'Players': ['player_id', 'name', 'pin_hash', 'role', 'joined_at'],
+    'Players': ['player_id', 'name', 'pin_hash', 'pin', 'role', 'joined_at'],
     'Games': ['game_id', 'name_kr', 'name_en', 'bgg_id', 'category', 'min_players',
       'max_players', 'playtime_min', 'weight', 'bgg_rating', 'summary_kr',
       'image_url', 'source', 'created_by', 'created_at'],
@@ -770,6 +771,7 @@ function addPlayerManual(playerId, name, pin, role) {
     player_id: playerId,
     name: name,
     pin_hash: sha256Hex(pin),
+    pin: pin,               // 평문 PIN(관리자 확인용)
     role: role || 'member',
     joined_at: todayStr()
   });
