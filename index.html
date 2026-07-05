@@ -315,7 +315,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 동아리 <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v9</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 동아리 <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v10</span></h1>
     <div class="who" id="whoami">비로그인</div>
   </div>
 
@@ -785,18 +785,24 @@ async function renderMyStats() {
       </div>`;
     }).join('');
 
-    const gameRows = stats.by_game.map((g, i) => `
+    const gameRows = stats.by_game.map((g, i) => {
+      const sc = myGameScores(g.game_id);
+      const scoreText = sc.has
+        ? `평균 ${sc.avg}점 · 최고 ${sc.max}점`
+        : '점수 없음';
+      return `
       <div class="grow">
         <div class="grow-rank">${i + 1}</div>
         <div class="grow-body">
           <div class="grow-name">${esc(g.game)}</div>
-          <div class="grow-sub">${g.plays}판 · ${g.wins}승</div>
+          <div class="grow-sub">${g.plays}판 · ${g.wins}승 · ${scoreText}</div>
           <div class="winbar"><i style="width:${g.win_rate}%"></i></div>
         </div>
         <div class="grow-rate"><div class="r">${g.win_rate}%</div><div class="rl">승률</div></div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
 
-    const mySessions = state.plays.filter(s =>
+    state._mySessions = state.plays.filter(s =>
       s.participants.some(p => p.player_id === state.user.player_id));
 
     el.innerHTML = `
@@ -814,14 +820,47 @@ async function renderMyStats() {
         ${gameRows || '<div class="empty">아직 플레이 기록이 없어요.</div>'}
       </div>
       <div class="section-title">내 플레이 기록</div>
+      <div class="searchbox">
+        <span>🔍</span>
+        <input id="my-play-search" placeholder="게임명 · 참가자 이름 검색" oninput="filterMyPlays()" />
+      </div>
       <div id="my-sessions"></div>
       <div style="text-align:center;margin-top:20px;">
         <button class="logout-link" onclick="logout()">로그아웃</button>
       </div>`;
-    renderSessionList('my-sessions', mySessions);
+    filterMyPlays();
   } catch (e) {
     el.innerHTML = `<div class="empty">통계를 불러오지 못했습니다.<br/>${esc(e.message)}</div>`;
   }
+}
+
+// 로그인한 본인이 특정 게임에서 낸 점수들의 평균/최고 (점수 없으면 has=false)
+function myGameScores(gameId) {
+  const scores = [];
+  state.plays.forEach(s => {
+    if (s.game_id !== gameId) return;
+    s.participants.forEach(p => {
+      if (p.player_id === state.user.player_id && p.score != null && p.score !== '') {
+        const n = Number(p.score);
+        if (!isNaN(n)) scores.push(n);
+      }
+    });
+  });
+  if (!scores.length) return { has: false };
+  const avg = Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10;
+  const max = Math.max(...scores);
+  return { has: true, avg, max };
+}
+
+// 내 플레이 기록 세션 검색(게임명 · 참가자 이름)
+function filterMyPlays() {
+  const all = state._mySessions || [];
+  const input = document.getElementById('my-play-search');
+  const term = (input ? input.value : '').trim().toLowerCase();
+  const list = !term ? all : all.filter(s =>
+    String(s.game_name || '').toLowerCase().includes(term) ||
+    s.participants.some(p => String(p.name || '').toLowerCase().includes(term)));
+  renderSessionList('my-sessions', list);
 }
 
 async function renderMyGames() {
@@ -845,11 +884,29 @@ async function renderMyGames() {
       el.innerHTML = `<div class="empty"><div class="big">🎮</div>아직 참가한 게임이 없어요.<br/>플레이 결과를 추가하면 여기에 표시됩니다.</div>`;
       return;
     }
-    el.innerHTML = `<div class="hint" style="margin-bottom:10px;">내가 참가한 게임에 평점과 메모를 남겨보세요. 평점 평균이 '우리동아리평점'이 됩니다.</div>` +
-      games.map(g => gameCardHtml(g, { ratingEditor: true })).join('');
+    state._myGamesList = games;
+    el.innerHTML = `
+      <div class="hint" style="margin-bottom:10px;">내가 참가한 게임에 평점과 메모를 남겨보세요. 평점 평균이 '우리동아리평점'이 됩니다.</div>
+      <div class="searchbox"><span>🔍</span><input id="my-games-search" placeholder="게임 이름 검색 (한글/영문)" oninput="filterMyGames()" /></div>
+      <div id="my-games-cards"></div>`;
+    filterMyGames();
   } catch (e) {
     el.innerHTML = `<div class="empty">불러오지 못했습니다.<br/>${esc(e.message)}</div>`;
   }
+}
+
+function filterMyGames() {
+  const all = state._myGamesList || [];
+  const input = document.getElementById('my-games-search');
+  const term = (input ? input.value : '').trim().toLowerCase();
+  const list = !term ? all : all.filter(g =>
+    String(g.name_kr || '').toLowerCase().includes(term) ||
+    String(g.name_en || '').toLowerCase().includes(term));
+  const cards = document.getElementById('my-games-cards');
+  if (!cards) return;
+  cards.innerHTML = list.length
+    ? list.map(g => gameCardHtml(g, { ratingEditor: true })).join('')
+    : `<div class="empty">검색 결과가 없어요.</div>`;
 }
 
 // ===== 별점 에디터 =====
@@ -1092,14 +1149,27 @@ async function submitAddGame() {
 // ----- 플레이 결과 추가 -----
 const addPlayState = { participants: [] };
 
+// 정확히 일치하는 게임/플레이어만 허용(데이터 오류 방지)
+function gameByExactName(name) {
+  name = (name || '').trim();
+  if (!name) return null;
+  return state.games.find(g => (g.name_kr || '') === name || (g.name_en || '') === name) || null;
+}
+function playerByExactName(name) {
+  name = (name || '').trim();
+  if (!name) return null;
+  return state.players.find(p => (p.name || '') === name) || null;
+}
+
 function renderAddPlayForm() {
   if (!addPlayState.participants.length) {
-    addPlayState.participants = [{ player_id: state.user.player_id, score: '', is_win: false }];
+    addPlayState.participants = [{ name: (state.user && state.user.name) || '', score: '', is_win: false }];
   }
   const el = document.getElementById('add-play-form');
-  const gameOpts = state.games.slice()
+  const gameListOpts = state.games.slice()
     .sort((a, b) => (a.name_kr || '').localeCompare(b.name_kr || ''))
-    .map(g => `<option value="${g.game_id}">${esc(g.name_kr || g.name_en)}</option>`).join('');
+    .map(g => `<option value="${esc(g.name_kr || g.name_en)}"></option>`).join('');
+  const playerListOpts = state.players.map(p => `<option value="${esc(p.name)}"></option>`).join('');
   const today = new Date().toISOString().substring(0, 10);
 
   el.innerHTML = `
@@ -1108,38 +1178,38 @@ function renderAddPlayForm() {
       <div class="field"><label>플레이 시간(분)</label><input class="input" id="ap-duration" type="number" inputmode="numeric" placeholder="예: 45" /></div>
     </div>
     <div class="field">
-      <label>게임 선택 *</label>
-      <select class="input" id="ap-game">${gameOpts || '<option value="">게임을 먼저 추가하세요</option>'}</select>
+      <label>게임 * (검색하거나 목록에서 선택)</label>
+      <input class="input" id="ap-game" list="ap-game-list" placeholder="게임명 입력/선택" autocomplete="off" />
+      <datalist id="ap-game-list">${gameListOpts}</datalist>
+      <div class="hint">목록에 있는 게임명과 정확히 일치해야 저장됩니다.</div>
     </div>
     <div class="field">
-      <label>참가자</label>
+      <label>참가자 (검색하거나 선택)</label>
       <div id="ap-participants"></div>
       <button class="btn ghost sm" style="margin-top:6px;" onclick="addParticipant()">+ 참가자 추가</button>
     </div>
+    <datalist id="ap-player-list">${playerListOpts}</datalist>
     <button class="btn" style="margin-top:8px;" onclick="submitAddPlay()">플레이 결과 저장</button>`;
   renderParticipants();
 }
 
 function renderParticipants() {
   const el = document.getElementById('ap-participants');
-  const playerOpts = state.players.map(p =>
-    `<option value="${p.player_id}">${esc(p.name)}</option>`).join('');
   el.innerHTML = addPlayState.participants.map((pt, i) => `
     <div class="ppart">
-      <select onchange="updatePart(${i}, 'player_id', this.value)">
-        ${state.players.map(p => `<option value="${p.player_id}" ${p.player_id === pt.player_id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}
-      </select>
-      <input type="number" inputmode="numeric" placeholder="점수" value="${pt.score}" onchange="updatePart(${i}, 'score', this.value)" />
+      <input list="ap-player-list" placeholder="이름 입력/선택" autocomplete="off" style="flex:2;min-width:0;"
+             value="${esc(pt.name)}" oninput="updatePart(${i}, 'name', this.value)" />
+      <input type="number" inputmode="numeric" placeholder="점수" value="${esc(pt.score)}" oninput="updatePart(${i}, 'score', this.value)" />
       <button class="wintoggle ${pt.is_win ? 'on' : ''}" onclick="toggleWin(${i})">${pt.is_win ? '승 👑' : '패'}</button>
       ${addPlayState.participants.length > 1 ? `<button class="rm-btn" onclick="removePart(${i})">×</button>` : ''}
     </div>`).join('');
 }
 
 function addParticipant() {
-  // 아직 안 들어간 플레이어 기본 선택
-  const used = new Set(addPlayState.participants.map(p => p.player_id));
-  const next = state.players.find(p => !used.has(p.player_id));
-  addPlayState.participants.push({ player_id: next ? next.player_id : (state.players[0] || {}).player_id, score: '', is_win: false });
+  // 아직 안 들어간 플레이어를 기본값으로
+  const used = new Set(addPlayState.participants.map(p => (p.name || '').trim()));
+  const next = state.players.find(p => !used.has(p.name));
+  addPlayState.participants.push({ name: next ? next.name : '', score: '', is_win: false });
   renderParticipants();
 }
 function removePart(i) { addPlayState.participants.splice(i, 1); renderParticipants(); }
@@ -1147,14 +1217,20 @@ function updatePart(i, field, val) { addPlayState.participants[i][field] = val; 
 function toggleWin(i) { addPlayState.participants[i].is_win = !addPlayState.participants[i].is_win; renderParticipants(); }
 
 async function submitAddPlay() {
-  const gameId = document.getElementById('ap-game').value;
-  if (!gameId) { toast('게임을 선택하세요.', true); return; }
+  const game = gameByExactName(document.getElementById('ap-game').value);
+  if (!game) { toast('게임을 목록에 있는 이름으로 정확히 입력/선택하세요.', true); return; }
   const playDate = document.getElementById('ap-date').value;
   const duration = document.getElementById('ap-duration').value;
-  const parts = addPlayState.participants.filter(p => p.player_id);
-  if (!parts.length) { toast('참가자를 추가하세요.', true); return; }
-  // 중복 참가자 체크
-  const ids = parts.map(p => p.player_id);
+
+  const rawParts = addPlayState.participants.filter(p => (p.name || '').trim());
+  if (!rawParts.length) { toast('참가자를 추가하세요.', true); return; }
+  const resolved = [];
+  for (const p of rawParts) {
+    const pl = playerByExactName(p.name);
+    if (!pl) { toast(`참가자 "${p.name}"은(는) 등록된 이름과 정확히 일치하지 않습니다.`, true); return; }
+    resolved.push({ player_id: pl.player_id, score: p.score, is_win: !!p.is_win });
+  }
+  const ids = resolved.map(p => p.player_id);
   if (new Set(ids).size !== ids.length) { toast('참가자가 중복되었습니다.', true); return; }
 
   const pin = await promptPin();
@@ -1162,8 +1238,8 @@ async function submitAddPlay() {
 
   const payload = {
     player_id: state.user.player_id, pin,
-    play_date: playDate, duration_min: duration, game_id: gameId,
-    participants: parts.map(p => ({ player_id: p.player_id, score: p.score, is_win: !!p.is_win }))
+    play_date: playDate, duration_min: duration, game_id: game.game_id,
+    participants: resolved
   };
 
   showLoader('저장 중…');
@@ -1257,7 +1333,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v9 (2026-07-05) 사진 업로드';
+const APP_VERSION = 'v10 (2026-07-05) 검색·점수통계';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
