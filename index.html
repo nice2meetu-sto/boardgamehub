@@ -315,7 +315,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v18</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v19</span></h1>
     <div class="who" id="whoami">비로그인</div>
   </div>
 
@@ -343,11 +343,16 @@
     <div id="my-login" style="display:none;"></div>
     <div id="my-content" style="display:none;">
       <div class="subtabs">
-        <button id="mytab-stats" class="on" onclick="switchMyTab('stats')">플레이 기록</button>
+        <button id="mytab-overview" class="on" onclick="switchMyTab('overview')">전체 기록</button>
+        <button id="mytab-plays" onclick="switchMyTab('plays')">플레이 기록</button>
         <button id="mytab-games" onclick="switchMyTab('games')">게임 기록</button>
       </div>
-      <div id="my-stats"></div>
+      <div id="my-overview"></div>
+      <div id="my-plays" style="display:none;"></div>
       <div id="my-games" style="display:none;"></div>
+      <div style="text-align:center;margin:20px 0 4px;">
+        <button class="logout-link" onclick="logout()">로그아웃</button>
+      </div>
     </div>
   </div>
 
@@ -399,7 +404,8 @@ const state = {
   plays: [],
   players: [],
   gameFilter: { category: null, playerCount: null, search: '' },
-  myTab: 'stats',
+  myTab: 'overview',
+  myGameSort: 'winrate',
   authMode: 'login',   // 'login' | 'signup'
 };
 
@@ -760,16 +766,18 @@ function renderMy() {
   if (!state.user) { renderLoginForm(); return; }
   document.getElementById('my-login').style.display = 'none';
   document.getElementById('my-content').style.display = 'block';
-  if (state.myTab === 'stats') { renderMyStats(); }
-  else { renderMyGames(); }
+  const tab = state.myTab || 'overview';
+  if (tab === 'overview') renderMyOverview();
+  else if (tab === 'plays') renderMyPlaysTab();
+  else renderMyGames();
 }
 
 function switchMyTab(tab) {
   state.myTab = tab;
-  document.getElementById('mytab-stats').classList.toggle('on', tab === 'stats');
-  document.getElementById('mytab-games').classList.toggle('on', tab === 'games');
-  document.getElementById('my-stats').style.display = tab === 'stats' ? 'block' : 'none';
-  document.getElementById('my-games').style.display = tab === 'games' ? 'block' : 'none';
+  ['overview', 'plays', 'games'].forEach(t => {
+    document.getElementById('mytab-' + t).classList.toggle('on', t === tab);
+    document.getElementById('my-' + t).style.display = t === tab ? 'block' : 'none';
+  });
   renderMy();
 }
 
@@ -873,11 +881,13 @@ function updateWhoami() {
   }
 }
 
-async function renderMyStats() {
-  const el = document.getElementById('my-stats');
+// ===== MY > 전체 기록 =====
+async function renderMyOverview() {
+  const el = document.getElementById('my-overview');
   el.innerHTML = `<div class="empty"><div class="spinner" style="margin:0 auto;"></div></div>`;
   try {
     const stats = await api('getPlayerStats', { playerId: state.user.player_id });
+    state._myStats = stats;
     const maxMonth = Math.max(1, ...stats.monthly.map(m => m.count));
     const bars = stats.monthly.map(m => {
       const h = Math.round(m.count / maxMonth * 74);
@@ -888,26 +898,7 @@ async function renderMyStats() {
       </div>`;
     }).join('');
 
-    const gameRows = stats.by_game.map((g, i) => {
-      const sc = myGameScores(g.game_id);
-      const scoreText = sc.has
-        ? `평균 ${sc.avg}점 · 최고 ${sc.max}점`
-        : '점수 없음';
-      return `
-      <div class="grow">
-        <div class="grow-rank">${i + 1}</div>
-        <div class="grow-body">
-          <div class="grow-name">${esc(g.game)}</div>
-          <div class="grow-sub">${g.plays}판 · ${g.wins}승 · ${scoreText}</div>
-          <div class="winbar"><i style="width:${g.win_rate}%"></i></div>
-        </div>
-        <div class="grow-rate"><div class="r">${g.win_rate}%</div><div class="rl">승률</div></div>
-      </div>`;
-    }).join('');
-
-    state._mySessions = state.plays.filter(s =>
-      s.participants.some(p => p.player_id === state.user.player_id));
-
+    const sort = state.myGameSort || 'winrate';
     el.innerHTML = `
       <div class="summary-row">
         <div class="stat hero"><div class="num">${stats.total_plays}</div><div class="lbl">총 플레이</div></div>
@@ -919,22 +910,79 @@ async function renderMyStats() {
         <div class="barchart">${bars}</div>
       </div>
       <div class="card">
-        <div class="section-title" style="margin-top:0;">게임별 승률 (내림차순)</div>
-        ${gameRows || '<div class="empty">아직 플레이 기록이 없어요.</div>'}
-      </div>
-      <div class="section-title">내 플레이 기록</div>
-      <div class="searchbox">
-        <span>🔍</span>
-        <input id="my-play-search" placeholder="게임명 · 참가자 이름 검색" oninput="filterMyPlays()" />
-      </div>
-      <div id="my-sessions"></div>
-      <div style="text-align:center;margin-top:20px;">
-        <button class="logout-link" onclick="logout()">로그아웃</button>
+        <div class="section-title" style="margin-top:0;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span>게임별 플레이</span>
+          <span style="display:flex;gap:6px;">
+            <span class="chip ${sort === 'winrate' ? 'on' : ''}" id="mgsort-winrate" style="cursor:pointer;" onclick="setMyGameSort('winrate')">승률순</span>
+            <span class="chip ${sort === 'plays' ? 'on' : ''}" id="mgsort-plays" style="cursor:pointer;" onclick="setMyGameSort('plays')">판수순</span>
+          </span>
+        </div>
+        <div class="searchbox"><span>🔍</span><input id="my-gamestat-search" placeholder="게임 이름 검색" oninput="renderMyGameStatList()" /></div>
+        <div id="my-gamestat-list"></div>
       </div>`;
-    filterMyPlays();
+    renderMyGameStatList();
   } catch (e) {
     el.innerHTML = `<div class="empty">통계를 불러오지 못했습니다.<br/>${esc(e.message)}</div>`;
   }
+}
+
+function setMyGameSort(sort) {
+  state.myGameSort = sort;
+  const w = document.getElementById('mgsort-winrate'), p = document.getElementById('mgsort-plays');
+  if (w) w.classList.toggle('on', sort === 'winrate');
+  if (p) p.classList.toggle('on', sort === 'plays');
+  renderMyGameStatList();
+}
+
+// 게임별 플레이 리스트(정렬: 승률순/판수순, 게임 이름 검색)
+function renderMyGameStatList() {
+  const stats = state._myStats;
+  if (!stats) return;
+  const sort = state.myGameSort || 'winrate';
+  const input = document.getElementById('my-gamestat-search');
+  const term = (input ? input.value : '').trim().toLowerCase();
+  let rows = stats.by_game.slice();
+  if (term) rows = rows.filter(g => String(g.game || '').toLowerCase().includes(term));
+  rows.sort((a, b) => sort === 'plays'
+    ? (b.plays - a.plays || b.win_rate - a.win_rate)
+    : (b.win_rate - a.win_rate || b.plays - a.plays));
+
+  const listEl = document.getElementById('my-gamestat-list');
+  if (!listEl) return;
+  if (!rows.length) {
+    listEl.innerHTML = `<div class="empty">${term ? '검색 결과가 없어요.' : '아직 플레이 기록이 없어요.'}</div>`;
+    return;
+  }
+  listEl.innerHTML = rows.map((g, i) => {
+    const sc = myGameScores(g.game_id);
+    const scoreText = sc.has ? `평균 ${sc.avg}점 · 최고 ${sc.max}점` : '점수 없음';
+    const rightNum = sort === 'plays' ? `${g.plays}` : `${g.win_rate}%`;
+    const rightLbl = sort === 'plays' ? '판수' : '승률';
+    return `<div class="grow">
+      <div class="grow-rank">${i + 1}</div>
+      <div class="grow-body">
+        <div class="grow-name">${esc(g.game)}</div>
+        <div class="grow-sub">${g.plays}판 · ${g.wins}승 · ${scoreText}</div>
+        <div class="winbar"><i style="width:${g.win_rate}%"></i></div>
+      </div>
+      <div class="grow-rate"><div class="r">${rightNum}</div><div class="rl">${rightLbl}</div></div>
+    </div>`;
+  }).join('');
+}
+
+// ===== MY > 플레이 기록 (내 플레이 기록만) =====
+function renderMyPlaysTab() {
+  const el = document.getElementById('my-plays');
+  state._mySessions = state.plays.filter(s =>
+    s.participants.some(p => p.player_id === state.user.player_id));
+  el.innerHTML = `
+    <div class="section-title" style="margin-top:0;">내 플레이 기록</div>
+    <div class="searchbox">
+      <span>🔍</span>
+      <input id="my-play-search" placeholder="게임명 · 참가자 이름 검색" oninput="filterMyPlays()" />
+    </div>
+    <div id="my-sessions"></div>`;
+  filterMyPlays();
 }
 
 // 로그인한 본인이 특정 게임에서 낸 점수들의 평균/최고 (점수 없으면 has=false)
@@ -1437,7 +1485,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v18 (2026-07-05) + 기본 플레이결과';
+const APP_VERSION = 'v19 (2026-07-05) MY 3탭 세분화';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
