@@ -315,7 +315,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v20</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v21</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -933,15 +933,15 @@ async function renderMyOverview() {
         <div class="section-title" style="margin-top:0;">월별 플레이 · 이번 달 ${stats.this_month_plays}판</div>
         <div class="barchart">${bars}</div>
       </div>
+      <div class="searchbox"><span>🔍</span><input id="my-gamestat-search" placeholder="게임 이름 검색" oninput="renderMyGameStatList()" /></div>
       <div class="card">
         <div class="section-title" style="margin-top:0;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
           <span>게임별 플레이</span>
           <span style="display:flex;gap:6px;">
-            <span class="chip ${sort === 'winrate' ? 'on' : ''}" id="mgsort-winrate" style="cursor:pointer;" onclick="setMyGameSort('winrate')">승률순</span>
-            <span class="chip ${sort === 'plays' ? 'on' : ''}" id="mgsort-plays" style="cursor:pointer;" onclick="setMyGameSort('plays')">판수순</span>
+            <span class="chip ${sort === 'winrate' ? 'on' : ''}" id="mgsort-winrate" style="cursor:pointer;" onclick="setMyGameSort('winrate')">승률</span>
+            <span class="chip ${sort === 'plays' ? 'on' : ''}" id="mgsort-plays" style="cursor:pointer;" onclick="setMyGameSort('plays')">판수</span>
           </span>
         </div>
-        <div class="searchbox"><span>🔍</span><input id="my-gamestat-search" placeholder="게임 이름 검색" oninput="renderMyGameStatList()" /></div>
         <div id="my-gamestat-list"></div>
       </div>`;
     renderMyGameStatList();
@@ -1517,7 +1517,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v20 (2026-07-05) 데이터 캐시·업데이트 버튼';
+const APP_VERSION = 'v21 (2026-07-05) 게임별플레이 검색분리';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
