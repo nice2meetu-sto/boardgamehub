@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#534AB7" />
+<title>보드게임 동아리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --main: #534AB7;
+    --main-dark: #3f379a;
+    --main-light: #ece9fb;
+    --bg: #f5f5f8;
+    --card: #ffffff;
+    --text: #1b1b21;
+    --text-sub: #6b6b78;
+    --border: #eaeaef;
+    --win: #f4b740;
+    --danger: #e2564d;
+    --ok: #2fa96b;
+    --radius: 16px;
+    --tabbar-h: 62px;
+    --maxw: 480px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #dcdce3;
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.45;
+  }
+  #app {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    min-height: 100vh;
+    background: var(--bg);
+    position: relative;
+    box-shadow: 0 0 40px rgba(0,0,0,.08);
+    display: flex;
+    flex-direction: column;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; }
+  input, select, textarea { font-family: inherit; font-size: 15px; }
+  a { color: var(--main); }
+
+  /* ===== Header ===== */
+  .appbar {
+    position: sticky; top: 0; z-index: 40;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px;
+  }
+  .appbar h1 { font-size: 18px; font-weight: 900; margin: 0; letter-spacing: -.02em; }
+  .appbar h1 .dice { color: var(--main); }
+  .appbar .who { font-size: 12px; color: var(--text-sub); }
+  .appbar .who b { color: var(--main); }
+
+  /* ===== Content ===== */
+  .view { flex: 1; padding: 16px 16px calc(var(--tabbar-h) + 84px); display: none; }
+  .view.active { display: block; }
+
+  /* ===== Cards / common ===== */
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .section-title { font-size: 13px; font-weight: 700; color: var(--text-sub); margin: 4px 2px 10px; }
+
+  /* summary blocks */
+  .summary-row { display: flex; gap: 10px; margin-bottom: 14px; }
+  .stat {
+    flex: 1; background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 10px; text-align: center;
+  }
+  .stat .num { font-size: 22px; font-weight: 900; color: var(--main); }
+  .stat .lbl { font-size: 11px; color: var(--text-sub); margin-top: 3px; }
+  .stat.hero { background: var(--main); border-color: var(--main); }
+  .stat.hero .num, .stat.hero .lbl { color: #fff; }
+
+  /* pills / badges */
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 8px;
+    border-radius: 999px; background: var(--main-light); color: var(--main);
+  }
+  .chip {
+    display: inline-flex; align-items: center; white-space: nowrap;
+    font-size: 13px; padding: 7px 14px; border-radius: 999px;
+    background: var(--card); border: 1px solid var(--border); color: var(--text-sub);
+    font-weight: 500;
+  }
+  .chip.on { background: var(--main); color: #fff; border-color: var(--main); }
+  .chip-row { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; -webkit-overflow-scrolling: touch; }
+  .chip-row::-webkit-scrollbar { display: none; }
+
+  /* inputs */
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; font-weight: 700; color: var(--text-sub); margin-bottom: 6px; }
+  .input, select.input, textarea.input {
+    width: 100%; padding: 12px 14px; border: 1px solid var(--border);
+    border-radius: 12px; background: #fafafc; color: var(--text); outline: none;
+  }
+  .input:focus { border-color: var(--main); background: #fff; }
+  textarea.input { resize: vertical; min-height: 72px; }
+  .btn {
+    width: 100%; padding: 14px; border-radius: 12px; background: var(--main);
+    color: #fff; font-weight: 700; font-size: 15px;
+  }
+  .btn:active { background: var(--main-dark); }
+  .btn.ghost { background: var(--main-light); color: var(--main); }
+  .btn.sm { width: auto; padding: 9px 16px; font-size: 13px; }
+  .btn:disabled { opacity: .5; }
+  .btn.danger { background: var(--danger); }
+
+  /* search box */
+  .searchbox {
+    display: flex; align-items: center; gap: 8px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;
+  }
+  .searchbox input { border: none; background: none; outline: none; width: 100%; }
+
+  /* ===== Play session card ===== */
+  .session {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px; margin-bottom: 12px;
+  }
+  .session-head { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+  .session-thumb {
+    width: 46px; height: 46px; border-radius: 12px; object-fit: cover; flex-shrink: 0;
+    background: var(--main-light);
+  }
+  .session-head .g-name { font-weight: 700; font-size: 15px; }
+  .session-head .g-meta { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
+  .participants { display: flex; flex-direction: column; gap: 6px; }
+  .prow {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 10px; border-radius: 10px; background: #fafafc;
+  }
+  .prow.win { background: #fff8e8; }
+  .prow .pname { font-weight: 500; font-size: 14px; }
+  .prow .pscore { font-size: 13px; color: var(--text-sub); font-weight: 700; }
+  .crown { margin-left: 4px; }
+
+  /* ===== Game card ===== */
+  .gcard {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px; margin-bottom: 12px; overflow: hidden;
+  }
+  .gcard-top { display: flex; gap: 12px; }
+  .gcard-img {
+    width: 68px; height: 68px; border-radius: 12px; object-fit: cover; flex-shrink: 0;
+    background: var(--main-light);
+  }
+  .gcard-body { flex: 1; min-width: 0; }
+  .gcard-name { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
+  .gcard-en { font-size: 11px; color: var(--text-sub); margin-top: 1px; }
+  .gcard-meta { font-size: 12px; color: var(--text-sub); margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+  .gcard-ratings { display: flex; gap: 14px; margin-top: 8px; align-items: center; }
+  .rate-club { font-weight: 900; font-size: 16px; color: var(--main); }
+  .rate-club .star { color: var(--win); }
+  .rate-club small { font-size: 11px; color: var(--text-sub); font-weight: 500; }
+  .rate-bgg { font-size: 12px; color: var(--text-sub); }
+  .gcard-detail { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; color: #444; white-space: pre-wrap; }
+  .gcard.open .gcard-detail { display: block; }
+
+  /* rating editor (MY 게임기록) */
+  .rate-edit { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
+  .stars { display: flex; gap: 2px; font-size: 26px; user-select: none; }
+  .stars .s { color: #dcdce3; cursor: pointer; line-height: 1; }
+  .stars .s.filled { color: var(--win); }
+  .stars .s.half { position: relative; color: #dcdce3; }
+  .stars .s.half::before { content: '★'; position: absolute; left: 0; width: 50%; overflow: hidden; color: var(--win); }
+  .rate-val { font-size: 13px; color: var(--text-sub); margin: 6px 0; font-weight: 700; }
+
+  /* monthly mini chart */
+  .barchart { display: flex; align-items: flex-end; gap: 8px; height: 90px; padding: 4px 2px 0; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  .bar {
+    width: 60%; max-width: 26px; background: var(--main); border-radius: 6px 6px 0 0; min-height: 3px;
+    transition: height .3s;
+  }
+  .bar-col .bc { font-size: 10px; color: var(--text-sub); }
+  .bar-col .bm { font-size: 10px; color: var(--text-sub); }
+
+  /* game-stat list rows (MY 플레이) */
+  .grow {
+    display: flex; align-items: center; gap: 12px; padding: 11px 4px; border-bottom: 1px solid var(--border);
+  }
+  .grow:last-child { border-bottom: none; }
+  .grow-rank { width: 22px; text-align: center; font-weight: 900; color: var(--text-sub); font-size: 13px; }
+  .grow-body { flex: 1; min-width: 0; }
+  .grow-name { font-weight: 700; font-size: 14px; }
+  .grow-sub { font-size: 12px; color: var(--text-sub); }
+  .grow-rate { text-align: right; }
+  .grow-rate .r { font-weight: 900; color: var(--main); font-size: 16px; }
+  .grow-rate .rl { font-size: 10px; color: var(--text-sub); }
+  .winbar { height: 5px; background: var(--border); border-radius: 3px; margin-top: 5px; overflow: hidden; }
+  .winbar > i { display: block; height: 100%; background: var(--main); border-radius: 3px; }
+
+  /* ===== Bottom tabbar ===== */
+  .tabbar {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: var(--maxw); height: var(--tabbar-h);
+    background: var(--card); border-top: 1px solid var(--border);
+    display: flex; z-index: 50;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; color: var(--text-sub); font-size: 11px; font-weight: 500;
+  }
+  .tab .ico { font-size: 20px; line-height: 1; }
+  .tab.on { color: var(--main); font-weight: 700; }
+  .fab {
+    position: fixed; bottom: calc(var(--tabbar-h) + 16px + env(safe-area-inset-bottom, 0)); z-index: 55;
+    left: 50%; margin-left: calc(var(--maxw) / 2 - 74px);
+    width: 56px; height: 56px; border-radius: 50%; background: var(--main); color: #fff;
+    font-size: 30px; font-weight: 300; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 18px rgba(83,74,183,.45);
+  }
+  @media (max-width: 480px) { .fab { left: auto; right: 18px; margin-left: 0; } }
+  .fab:active { background: var(--main-dark); }
+
+  /* ===== Modal / sheet ===== */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(20,20,30,.45); z-index: 100;
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  .overlay.show { display: flex; }
+  .sheet {
+    width: 100%; max-width: var(--maxw); background: var(--bg);
+    border-radius: 22px 22px 0 0; max-height: 92vh; overflow-y: auto;
+    padding: 8px 16px calc(24px + env(safe-area-inset-bottom, 0));
+    animation: slideup .25s ease;
+  }
+  @keyframes slideup { from { transform: translateY(30px); opacity: .6; } to { transform: translateY(0); opacity: 1; } }
+  .sheet-grip { width: 40px; height: 4px; background: #d3d3dc; border-radius: 3px; margin: 8px auto 12px; }
+  .sheet h2 { font-size: 18px; margin: 4px 2px 16px; font-weight: 900; }
+  .sheet-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .sheet-tabs button {
+    flex: 1; padding: 10px; border-radius: 10px; background: var(--card);
+    border: 1px solid var(--border); font-weight: 700; font-size: 14px; color: var(--text-sub);
+  }
+  .sheet-tabs button.on { background: var(--main); color: #fff; border-color: var(--main); }
+
+  /* bgg candidate list */
+  .cand { padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); margin-bottom: 8px; }
+  .cand.on { border-color: var(--main); background: var(--main-light); }
+  .cand .cn { font-weight: 700; font-size: 14px; }
+  .cand .cy { font-size: 12px; color: var(--text-sub); }
+
+  /* participant rows in addPlay */
+  .ppart { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .ppart select { flex: 2; }
+  .ppart input { flex: 1; min-width: 0; }
+  .wintoggle {
+    flex-shrink: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
+    background: #fafafc; font-weight: 700; font-size: 13px; color: var(--text-sub);
+  }
+  .wintoggle.on { background: var(--win); color: #fff; border-color: var(--win); }
+  .rm-btn { flex-shrink: 0; color: var(--danger); font-size: 20px; padding: 4px 8px; }
+
+  /* ===== Toast / loader ===== */
+  #toast {
+    position: fixed; left: 50%; bottom: calc(var(--tabbar-h) + 30px); transform: translateX(-50%);
+    background: #22222c; color: #fff; padding: 12px 20px; border-radius: 12px; font-size: 14px;
+    z-index: 200; opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none;
+    max-width: 88%; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+  #toast.err { background: var(--danger); }
+  #loader {
+    position: fixed; inset: 0; background: rgba(245,245,248,.7); z-index: 300;
+    display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px;
+  }
+  #loader.show { display: flex; }
+  .spinner {
+    width: 40px; height: 40px; border: 4px solid var(--main-light); border-top-color: var(--main);
+    border-radius: 50%; animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loader .ltxt { font-size: 13px; color: var(--text-sub); }
+
+  .empty { text-align: center; color: var(--text-sub); padding: 40px 20px; font-size: 14px; }
+  .empty .big { font-size: 34px; margin-bottom: 8px; }
+  .muted { color: var(--text-sub); }
+  .hint { font-size: 12px; color: var(--text-sub); margin-top: 4px; }
+  .center-login { padding: 30px 8px; }
+  .center-login .lg-ico { text-align: center; font-size: 46px; margin-bottom: 6px; }
+  .center-login h2 { text-align: center; font-size: 20px; margin: 0 0 24px; }
+  .subtabs { display: flex; gap: 6px; background: var(--main-light); padding: 4px; border-radius: 12px; margin-bottom: 14px; }
+  .subtabs button { flex: 1; padding: 9px; border-radius: 9px; font-weight: 700; font-size: 13px; color: var(--main); }
+  .subtabs button.on { background: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .row2 { display: flex; gap: 10px; }
+  .row2 > * { flex: 1; }
+  .logout-link { font-size: 12px; color: var(--danger); text-decoration: underline; background: none; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="appbar">
+    <h1><span class="dice">🎲</span> 보드게임 동아리</h1>
+    <div class="who" id="whoami">비로그인</div>
+  </div>
+
+  <!-- ===== VIEW: 플레이 ===== -->
+  <div class="view active" id="view-play">
+    <div class="summary-row" id="play-summary"></div>
+    <div class="section-title">전체 플레이 기록 (최신순)</div>
+    <div id="play-list"></div>
+  </div>
+
+  <!-- ===== VIEW: 게임 ===== -->
+  <div class="view" id="view-games">
+    <div class="searchbox">
+      <span>🔍</span>
+      <input id="game-search" placeholder="게임 이름 검색 (한글/영문)" />
+    </div>
+    <div class="chip-row" id="cat-filter"></div>
+    <div class="chip-row" id="player-filter"></div>
+    <div id="games-list"></div>
+  </div>
+
+  <!-- ===== VIEW: MY ===== -->
+  <div class="view" id="view-my">
+    <div id="my-login" style="display:none;"></div>
+    <div id="my-content" style="display:none;">
+      <div class="subtabs">
+        <button id="mytab-stats" class="on" onclick="switchMyTab('stats')">플레이 기록</button>
+        <button id="mytab-games" onclick="switchMyTab('games')">게임 기록</button>
+      </div>
+      <div id="my-stats"></div>
+      <div id="my-games" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- FAB -->
+  <button class="fab" onclick="openAddSheet()">+</button>
+
+  <!-- Tabbar -->
+  <div class="tabbar">
+    <button class="tab on" id="tab-play" onclick="switchView('play')"><span class="ico">📋</span>플레이</button>
+    <button class="tab" id="tab-games" onclick="switchView('games')"><span class="ico">🎯</span>게임</button>
+    <button class="tab" id="tab-my" onclick="switchView('my')"><span class="ico">👤</span>MY</button>
+  </div>
+</div>
+
+<!-- ===== Add Sheet (게임추가 / 플레이추가) ===== -->
+<div class="overlay" id="add-overlay">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-tabs">
+      <button id="addtab-game" class="on" onclick="switchAddTab('game')">🎯 게임 추가</button>
+      <button id="addtab-play" onclick="switchAddTab('play')">📋 플레이 결과</button>
+    </div>
+    <div id="add-game-form"></div>
+    <div id="add-play-form" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- ===== Generic detail sheet (게임 상세) ===== -->
+<div class="overlay" id="detail-overlay">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div id="detail-body"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="loader"><div class="spinner"></div><div class="ltxt">불러오는 중…</div></div>
+
+<script>
+// ============================================================
+//  설정: Apps Script 웹앱 배포 URL을 여기에 입력
+// ============================================================
+const API_URL = "여기에_배포_URL";
+
+// ===== 전역 상태 =====
+const state = {
+  user: null,          // {player_id, name, role}
+  games: [],
+  plays: [],
+  players: [],
+  gameFilter: { category: null, playerCount: null, search: '' },
+  myTab: 'stats',
+};
+
+// ===== API =====
+async function api(action, params = {}) {
+  const url = new URL(API_URL);
+  url.searchParams.set('action', action);
+  Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
+  const res = await fetch(url.toString(), { method: 'GET' });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || '요청 실패');
+  return json.data;
+}
+
+function showLoader(txt) {
+  const l = document.getElementById('loader');
+  l.querySelector('.ltxt').textContent = txt || '불러오는 중…';
+  l.classList.add('show');
+}
+function hideLoader() { document.getElementById('loader').classList.remove('show'); }
+
+let toastTimer;
+function toast(msg, isErr) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = isErr ? 'err show' : 'show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 2600);
+}
+
+// ===== 유틸 =====
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function fmtDate(d) {
+  if (!d) return '';
+  const s = String(d).substring(0, 10);
+  const parts = s.split('-');
+  if (parts.length === 3) return `${parts[1]}.${parts[2]}`;
+  return s;
+}
+function thumb(url, fallbackClass) {
+  if (url) return `<img class="${fallbackClass}" src="${esc(url)}" loading="lazy" onerror="this.style.visibility='hidden'"/>`;
+  return `<div class="${fallbackClass}" style="display:flex;align-items:center;justify-content:center;font-size:20px;">🎲</div>`;
+}
+function gameById(id) { return state.games.find(g => g.game_id === id); }
+
+// ===== 네비게이션 =====
+function switchView(name) {
+  ['play', 'games', 'my'].forEach(v => {
+    document.getElementById('view-' + v).classList.toggle('active', v === name);
+    document.getElementById('tab-' + v).classList.toggle('on', v === name);
+  });
+  if (name === 'my') renderMy();
+  if (name === 'games') renderGames();
+  if (name === 'play') renderPlay();
+}
+
+// ============================================================
+//  데이터 로드
+// ============================================================
+async function loadCore() {
+  showLoader('데이터 불러오는 중…');
+  try {
+    const [games, plays, players] = await Promise.all([
+      api('getGames'), api('getPlays'), api('getPlayers')
+    ]);
+    state.games = games;
+    state.plays = plays;
+    state.players = players;
+    renderPlay();
+    renderGames();
+  } catch (e) {
+    toast('연결 실패: ' + e.message, true);
+  } finally {
+    hideLoader();
+  }
+}
+
+// ============================================================
+//  VIEW: 플레이
+// ============================================================
+function renderPlay() {
+  // 요약
+  const nowYM = new Date().toISOString().substring(0, 7);
+  let thisMonth = 0;
+  const gameCount = {};
+  state.plays.forEach(s => {
+    if (String(s.play_date).substring(0, 7) === nowYM) thisMonth++;
+    gameCount[s.game_name] = (gameCount[s.game_name] || 0) + 1;
+  });
+  let topGame = '-';
+  let topN = 0;
+  Object.keys(gameCount).forEach(g => { if (gameCount[g] > topN) { topN = gameCount[g]; topGame = g; } });
+
+  document.getElementById('play-summary').innerHTML = `
+    <div class="stat hero"><div class="num">${thisMonth}</div><div class="lbl">이번 달 플레이</div></div>
+    <div class="stat"><div class="num">${state.plays.length}</div><div class="lbl">누적 플레이</div></div>
+    <div class="stat"><div class="num" style="font-size:14px;padding-top:6px;">${esc(topGame)}</div><div class="lbl">최다 플레이</div></div>`;
+
+  renderSessionList('play-list', state.plays);
+}
+
+function renderSessionList(containerId, sessions) {
+  const el = document.getElementById(containerId);
+  if (!sessions.length) {
+    el.innerHTML = `<div class="empty"><div class="big">🎲</div>아직 플레이 기록이 없어요.<br/>+ 버튼으로 결과를 추가해보세요.</div>`;
+    return;
+  }
+  el.innerHTML = sessions.map(s => {
+    const parts = s.participants.map(p => `
+      <div class="prow ${p.is_win ? 'win' : ''}">
+        <span class="pname">${esc(p.name)}${p.is_win ? '<span class="crown">👑</span>' : ''}</span>
+        <span class="pscore">${p.score == null ? '' : esc(p.score) + '점'}</span>
+      </div>`).join('');
+    const dur = s.duration_min ? ` · ${s.duration_min}분` : '';
+    return `<div class="session">
+      <div class="session-head">
+        ${thumb(s.game_image, 'session-thumb')}
+        <div style="flex:1;min-width:0;">
+          <div class="g-name">${esc(s.game_name)}</div>
+          <div class="g-meta">${esc(String(s.play_date).substring(0,10))}${dur} · ${s.participants.length}명</div>
+        </div>
+      </div>
+      <div class="participants">${parts}</div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+//  VIEW: 게임
+// ============================================================
+function renderGames() {
+  renderCategoryFilter();
+  renderPlayerCountFilter();
+  renderGameCards();
+}
+
+function renderCategoryFilter() {
+  const cats = [...new Set(state.games.map(g => g.category).filter(Boolean))];
+  const cur = state.gameFilter.category;
+  const el = document.getElementById('cat-filter');
+  el.innerHTML =
+    `<span class="chip ${!cur ? 'on' : ''}" onclick="setCatFilter(null)">전체</span>` +
+    cats.map(c => `<span class="chip ${cur === c ? 'on' : ''}" onclick="setCatFilter('${esc(c)}')">${esc(c)}</span>`).join('');
+}
+function setCatFilter(c) { state.gameFilter.category = c; renderGames(); }
+
+function renderPlayerCountFilter() {
+  const cur = state.gameFilter.playerCount;
+  const el = document.getElementById('player-filter');
+  const counts = [2, 3, 4, 5, 6];
+  el.innerHTML =
+    `<span class="chip ${!cur ? 'on' : ''}" onclick="setPcFilter(null)">인원 전체</span>` +
+    counts.map(n => `<span class="chip ${cur === n ? 'on' : ''}" onclick="setPcFilter(${n})">${n}명</span>`).join('') +
+    `<span class="chip ${cur === 7 ? 'on' : ''}" onclick="setPcFilter(7)">7명+</span>`;
+}
+function setPcFilter(n) { state.gameFilter.playerCount = n; renderGames(); }
+
+document.getElementById('game-search').addEventListener('input', e => {
+  state.gameFilter.search = e.target.value.trim().toLowerCase();
+  renderGameCards();
+});
+
+function filteredGames() {
+  const f = state.gameFilter;
+  let list = state.games.slice();
+  if (f.category) list = list.filter(g => g.category === f.category);
+  if (f.playerCount) {
+    const n = f.playerCount;
+    list = list.filter(g => {
+      const min = g.min_players, max = g.max_players;
+      if (min == null && max == null) return false;
+      const lo = min == null ? 1 : min;
+      const hi = max == null ? 99 : max;
+      return lo <= n && n <= hi;
+    });
+  }
+  if (f.search) {
+    list = list.filter(g =>
+      (g.name_kr || '').toLowerCase().includes(f.search) ||
+      (g.name_en || '').toLowerCase().includes(f.search));
+  }
+  // 우리동아리평점 내림차순, 평점 없는 게임(-)은 하단
+  list.sort((a, b) => {
+    const ra = a.club_rating, rb = b.club_rating;
+    if (ra == null && rb == null) return (a.name_kr || '').localeCompare(b.name_kr || '');
+    if (ra == null) return 1;
+    if (rb == null) return -1;
+    return rb - ra;
+  });
+  return list;
+}
+
+function gameCardHtml(g, opts = {}) {
+  const meta = [];
+  if (g.min_players || g.max_players) {
+    const mn = g.min_players || '?', mx = g.max_players || '?';
+    meta.push(`👥 ${mn}${mx !== mn ? '~' + mx : ''}명`);
+  }
+  if (g.playtime_min) meta.push(`⏱ ${g.playtime_min}분`);
+  if (g.weight) meta.push(`🧠 ${Number(g.weight).toFixed(2)}`);
+
+  const club = g.club_rating != null
+    ? `<span class="rate-club"><span class="star">★</span> ${g.club_rating.toFixed(1)} <small>(${g.rating_count})</small></span>`
+    : `<span class="rate-club muted"><span class="star" style="color:#dcdce3">★</span> - <small>평가없음</small></span>`;
+  const bgg = g.bgg_rating ? `<span class="rate-bgg">BGG ${Number(g.bgg_rating).toFixed(1)}</span>` : '';
+
+  const detail = g.summary_kr
+    ? `<div class="gcard-detail">${esc(g.summary_kr)}</div>`
+    : `<div class="gcard-detail muted">등록된 요약이 없습니다.</div>`;
+
+  return `<div class="gcard" data-gid="${g.game_id}">
+    <div class="gcard-top" onclick="toggleCard(this)">
+      ${thumb(g.image_url, 'gcard-img')}
+      <div class="gcard-body">
+        <div class="gcard-name">${esc(g.name_kr || g.name_en)}
+          ${g.category ? `<span class="badge" style="margin-left:6px;">${esc(g.category)}</span>` : ''}</div>
+        ${g.name_en && g.name_kr ? `<div class="gcard-en">${esc(g.name_en)}</div>` : ''}
+        <div class="gcard-meta">${meta.map(m => `<span>${m}</span>`).join('')}</div>
+        <div class="gcard-ratings">${club}${bgg}</div>
+      </div>
+    </div>
+    ${detail}
+    ${opts.ratingEditor ? ratingEditorHtml(g) : ''}
+    ${opts.adminEdit ? `<button class="btn ghost sm" style="margin-top:10px;" onclick="openEditGame('${g.game_id}')">✏️ 정보 수정 (admin)</button>` : ''}
+  </div>`;
+}
+
+function toggleCard(topEl) {
+  topEl.parentElement.classList.toggle('open');
+}
+
+function renderGameCards() {
+  const list = filteredGames();
+  const el = document.getElementById('games-list');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty"><div class="big">🎯</div>조건에 맞는 게임이 없어요.</div>`;
+    return;
+  }
+  const isAdmin = state.user && state.user.role === 'admin';
+  el.innerHTML = list.map(g => gameCardHtml(g, { adminEdit: isAdmin })).join('');
+}
+
+// ============================================================
+//  VIEW: MY
+// ============================================================
+function renderMy() {
+  if (!state.user) { renderLoginForm(); return; }
+  document.getElementById('my-login').style.display = 'none';
+  document.getElementById('my-content').style.display = 'block';
+  if (state.myTab === 'stats') { renderMyStats(); }
+  else { renderMyGames(); }
+}
+
+function switchMyTab(tab) {
+  state.myTab = tab;
+  document.getElementById('mytab-stats').classList.toggle('on', tab === 'stats');
+  document.getElementById('mytab-games').classList.toggle('on', tab === 'games');
+  document.getElementById('my-stats').style.display = tab === 'stats' ? 'block' : 'none';
+  document.getElementById('my-games').style.display = tab === 'games' ? 'block' : 'none';
+  renderMy();
+}
+
+function renderLoginForm() {
+  document.getElementById('my-content').style.display = 'none';
+  const el = document.getElementById('my-login');
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div class="center-login">
+      <div class="lg-ico">🔐</div>
+      <h2>MY 페이지 로그인</h2>
+      <div class="field">
+        <label>이름</label>
+        <input class="input" id="login-name" placeholder="이름" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label>PIN (비밀번호)</label>
+        <input class="input" id="login-pin" type="password" inputmode="numeric" placeholder="PIN" autocomplete="off" />
+      </div>
+      <button class="btn" id="login-btn" onclick="doLogin()">로그인</button>
+      <div class="hint" style="text-align:center;margin-top:14px;">동아리 관리자에게 계정을 요청하세요.</div>
+    </div>`;
+  el.querySelector('#login-pin').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+}
+
+async function doLogin() {
+  const name = document.getElementById('login-name').value.trim();
+  const pin = document.getElementById('login-pin').value.trim();
+  if (!name || !pin) { toast('이름과 PIN을 입력하세요.', true); return; }
+  showLoader('로그인 중…');
+  try {
+    const user = await api('login', { name, pin });
+    state.user = user;
+    sessionStorage.setItem('bg_user', JSON.stringify(user));
+    updateWhoami();
+    renderGames();
+    toast(`${user.name}님 환영합니다!`);
+    renderMy();
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    hideLoader();
+  }
+}
+
+function logout() {
+  state.user = null;
+  sessionStorage.removeItem('bg_user');
+  updateWhoami();
+  renderGames();
+  renderMy();
+  toast('로그아웃 되었습니다.');
+}
+
+function updateWhoami() {
+  const el = document.getElementById('whoami');
+  if (state.user) {
+    el.innerHTML = `<b>${esc(state.user.name)}</b>${state.user.role === 'admin' ? ' 👑' : ''}`;
+  } else {
+    el.textContent = '비로그인';
+  }
+}
+
+async function renderMyStats() {
+  const el = document.getElementById('my-stats');
+  el.innerHTML = `<div class="empty"><div class="spinner" style="margin:0 auto;"></div></div>`;
+  try {
+    const stats = await api('getPlayerStats', { playerId: state.user.player_id });
+    const maxMonth = Math.max(1, ...stats.monthly.map(m => m.count));
+    const bars = stats.monthly.map(m => {
+      const h = Math.round(m.count / maxMonth * 74);
+      return `<div class="bar-col">
+        <div class="bc">${m.count || ''}</div>
+        <div class="bar" style="height:${m.count ? Math.max(h, 4) : 3}px;${m.count ? '' : 'opacity:.3;'}"></div>
+        <div class="bm">${m.month.substring(5)}월</div>
+      </div>`;
+    }).join('');
+
+    const gameRows = stats.by_game.map((g, i) => `
+      <div class="grow">
+        <div class="grow-rank">${i + 1}</div>
+        <div class="grow-body">
+          <div class="grow-name">${esc(g.game)}</div>
+          <div class="grow-sub">${g.plays}판 · ${g.wins}승</div>
+          <div class="winbar"><i style="width:${g.win_rate}%"></i></div>
+        </div>
+        <div class="grow-rate"><div class="r">${g.win_rate}%</div><div class="rl">승률</div></div>
+      </div>`).join('');
+
+    const mySessions = state.plays.filter(s =>
+      s.participants.some(p => p.player_id === state.user.player_id));
+
+    el.innerHTML = `
+      <div class="summary-row">
+        <div class="stat hero"><div class="num">${stats.total_plays}</div><div class="lbl">총 플레이</div></div>
+        <div class="stat"><div class="num">${stats.total_wins}</div><div class="lbl">승수</div></div>
+        <div class="stat"><div class="num">${stats.win_rate}%</div><div class="lbl">전체 승률</div></div>
+      </div>
+      <div class="card">
+        <div class="section-title" style="margin-top:0;">월별 플레이 · 이번 달 ${stats.this_month_plays}판</div>
+        <div class="barchart">${bars}</div>
+      </div>
+      <div class="card">
+        <div class="section-title" style="margin-top:0;">게임별 승률 (내림차순)</div>
+        ${gameRows || '<div class="empty">아직 플레이 기록이 없어요.</div>'}
+      </div>
+      <div class="section-title">내 플레이 기록</div>
+      <div id="my-sessions"></div>
+      <div style="text-align:center;margin-top:20px;">
+        <button class="logout-link" onclick="logout()">로그아웃</button>
+      </div>`;
+    renderSessionList('my-sessions', mySessions);
+  } catch (e) {
+    el.innerHTML = `<div class="empty">통계를 불러오지 못했습니다.<br/>${esc(e.message)}</div>`;
+  }
+}
+
+async function renderMyGames() {
+  const el = document.getElementById('my-games');
+  el.innerHTML = `<div class="empty"><div class="spinner" style="margin:0 auto;"></div></div>`;
+  try {
+    const myRatings = await api('getMyRatings', { playerId: state.user.player_id });
+    const ratingMap = {};
+    myRatings.forEach(r => { ratingMap[r.game_id] = r; });
+    state._myRatings = ratingMap;
+
+    // 본인이 참가한 게임만
+    const playedGameIds = new Set();
+    state.plays.forEach(s => {
+      if (s.participants.some(p => p.player_id === state.user.player_id)) {
+        playedGameIds.add(s.game_id);
+      }
+    });
+    const games = state.games.filter(g => playedGameIds.has(g.game_id));
+    if (!games.length) {
+      el.innerHTML = `<div class="empty"><div class="big">🎮</div>아직 참가한 게임이 없어요.<br/>플레이 결과를 추가하면 여기에 표시됩니다.</div>`;
+      return;
+    }
+    el.innerHTML = `<div class="hint" style="margin-bottom:10px;">내가 참가한 게임에 평점과 메모를 남겨보세요. 평점 평균이 '우리동아리평점'이 됩니다.</div>` +
+      games.map(g => gameCardHtml(g, { ratingEditor: true })).join('');
+  } catch (e) {
+    el.innerHTML = `<div class="empty">불러오지 못했습니다.<br/>${esc(e.message)}</div>`;
+  }
+}
+
+// ===== 별점 에디터 =====
+function ratingEditorHtml(g) {
+  const existing = (state._myRatings && state._myRatings[g.game_id]) || null;
+  const val = existing ? existing.rating : 0;
+  const memo = existing ? existing.memo : '';
+  return `<div class="rate-edit" data-gid="${g.game_id}">
+    <label style="font-size:12px;font-weight:700;color:var(--text-sub);">내 평점 (1~10, 0.5 단위)</label>
+    <div class="stars" id="stars-${g.game_id}">${starsHtml(val)}</div>
+    <div class="rate-val" id="rateval-${g.game_id}">${val ? val.toFixed(1) + ' 점' : '평점을 선택하세요'}</div>
+    <textarea class="input" id="memo-${g.game_id}" placeholder="나만의 메모 (전략 노트 등)">${esc(memo)}</textarea>
+    <button class="btn sm" style="margin-top:8px;" onclick="saveRating('${g.game_id}')">평점 저장</button>
+  </div>`;
+}
+
+function starsHtml(val) {
+  // 10점 만점을 별 5개로 표시 (별 1개 = 2점, 0.5 별 = 1점)
+  let html = '';
+  for (let i = 1; i <= 5; i++) {
+    const full = val >= i * 2;
+    const half = !full && val >= i * 2 - 1;
+    html += `<span class="s ${full ? 'filled' : (half ? 'half' : '')}"
+      data-star="${i}"
+      onclick="pickStar(event, ${i})"
+      oncontextmenu="return false;">★</span>`;
+  }
+  return html;
+}
+
+// 별 왼쪽 절반 탭 = 0.5, 오른쪽 = 1.0 (즉 half/full)
+function pickStar(e, starIndex) {
+  const rect = e.target.getBoundingClientRect();
+  const isLeft = (e.clientX - rect.left) < rect.width / 2;
+  const val = starIndex * 2 - (isLeft ? 1 : 0); // 왼쪽=홀수(0.5칸), 오른쪽=짝수
+  const gid = e.target.closest('.rate-edit').dataset.gid;
+  const container = document.getElementById('stars-' + gid);
+  container.innerHTML = starsHtml(val);
+  container.dataset.val = val;
+  document.getElementById('rateval-' + gid).textContent = (val / 1).toFixed(1) + ' 점';
+}
+
+async function saveRating(gameId) {
+  if (!state.user) { toast('로그인이 필요합니다.', true); return; }
+  const pin = await promptPin();
+  if (pin == null) return;
+  const container = document.getElementById('stars-' + gameId);
+  const val = Number(container.dataset.val || 0);
+  if (!val) { toast('평점을 선택하세요.', true); return; }
+  const memo = document.getElementById('memo-' + gameId).value;
+  showLoader('저장 중…');
+  try {
+    await api('saveRating', {
+      playerId: state.user.player_id, pin, gameId, rating: val, memo
+    });
+    if (!state._myRatings) state._myRatings = {};
+    state._myRatings[gameId] = { game_id: gameId, rating: val, memo };
+    // 게임 목록 club_rating 갱신 위해 재로드
+    state.games = await api('getGames');
+    toast('평점이 저장되었습니다!');
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    hideLoader();
+  }
+}
+
+// PIN 재확인 (간단 prompt)
+function promptPin() {
+  return new Promise(resolve => {
+    const cached = sessionStorage.getItem('bg_pin');
+    if (cached) { resolve(cached); return; }
+    const pin = window.prompt('PIN을 입력하세요 (본인 확인)');
+    if (pin) sessionStorage.setItem('bg_pin', pin);
+    resolve(pin);
+  });
+}
+
+// ============================================================
+//  Add Sheet: 게임 추가 / 플레이 결과
+// ============================================================
+function openAddSheet() {
+  if (!state.user) {
+    toast('입력하려면 MY에서 로그인하세요.', true);
+    switchView('my');
+    return;
+  }
+  document.getElementById('add-overlay').classList.add('show');
+  switchAddTab('game');
+}
+function closeAddSheet() { document.getElementById('add-overlay').classList.remove('show'); }
+document.getElementById('add-overlay').addEventListener('click', e => {
+  if (e.target.id === 'add-overlay') closeAddSheet();
+});
+
+function switchAddTab(tab) {
+  document.getElementById('addtab-game').classList.toggle('on', tab === 'game');
+  document.getElementById('addtab-play').classList.toggle('on', tab === 'play');
+  document.getElementById('add-game-form').style.display = tab === 'game' ? 'block' : 'none';
+  document.getElementById('add-play-form').style.display = tab === 'play' ? 'block' : 'none';
+  if (tab === 'game') renderAddGameForm();
+  else renderAddPlayForm();
+}
+
+// ----- 게임 추가 -----
+const CATEGORIES = ['전략', '마피아', '트릭테이킹', '파티', '협력', '덱빌딩', '추리', '가족', '아브스트랙트', '기타'];
+const addGameState = { mode: 'bgg', bggPick: null, bggCandidates: [], bggDetail: null };
+
+function renderAddGameForm() {
+  const el = document.getElementById('add-game-form');
+  el.innerHTML = `
+    <div class="field">
+      <label>한글 게임명 *</label>
+      <input class="input" id="ag-namekr" placeholder="예: 스플렌더" />
+    </div>
+    <div class="field">
+      <label>보드게임 분류 *</label>
+      <select class="input" id="ag-category">
+        ${CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
+      </select>
+    </div>
+    <div class="subtabs">
+      <button id="agmode-bgg" class="${addGameState.mode==='bgg'?'on':''}" onclick="setAddGameMode('bgg')">BGG 연동</button>
+      <button id="agmode-manual" class="${addGameState.mode==='manual'?'on':''}" onclick="setAddGameMode('manual')">직접 입력</button>
+    </div>
+    <div id="ag-bgg-section" style="display:${addGameState.mode==='bgg'?'block':'none'};">
+      <div class="field">
+        <label>영문명으로 BGG 검색</label>
+        <div class="row2">
+          <input class="input" id="ag-bggquery" placeholder="예: Splendor" />
+          <button class="btn sm" style="flex:0 0 auto;" onclick="doBggSearch()">검색</button>
+        </div>
+      </div>
+      <div id="ag-candidates"></div>
+      <div id="ag-preview"></div>
+    </div>
+    <div id="ag-manual-section" style="display:${addGameState.mode==='manual'?'block':'none'};">
+      <div class="row2">
+        <div class="field"><label>최소 인원</label><input class="input" id="ag-min" type="number" inputmode="numeric" /></div>
+        <div class="field"><label>최대 인원</label><input class="input" id="ag-max" type="number" inputmode="numeric" /></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>플레이타임(분)</label><input class="input" id="ag-time" type="number" inputmode="numeric" /></div>
+        <div class="field"><label>난이도(weight)</label><input class="input" id="ag-weight" type="number" step="0.01" inputmode="decimal" /></div>
+      </div>
+      <div class="field"><label>BGG 평점(선택)</label><input class="input" id="ag-bggrating" type="number" step="0.1" inputmode="decimal" /></div>
+      <div class="field"><label>게임 요약</label><textarea class="input" id="ag-summary" placeholder="게임 설명"></textarea></div>
+    </div>
+    <button class="btn" style="margin-top:8px;" onclick="submitAddGame()">게임 추가</button>`;
+}
+
+function setAddGameMode(mode) {
+  addGameState.mode = mode;
+  addGameState.bggPick = null;
+  addGameState.bggDetail = null;
+  renderAddGameForm();
+}
+
+async function doBggSearch() {
+  const q = document.getElementById('ag-bggquery').value.trim();
+  if (!q) { toast('검색어를 입력하세요.', true); return; }
+  showLoader('BGG 검색 중…');
+  try {
+    const results = await api('searchBgg', { query: q });
+    addGameState.bggCandidates = results;
+    const el = document.getElementById('ag-candidates');
+    if (!results.length) { el.innerHTML = `<div class="hint">검색 결과가 없습니다.</div>`; return; }
+    el.innerHTML = results.map((r, i) =>
+      `<div class="cand" data-i="${i}" onclick="pickBgg(${i})">
+        <div class="cn">${esc(r.name_en)}</div>
+        <div class="cy">${r.year ? r.year + '년' : ''} · BGG ID ${esc(r.bgg_id)}</div>
+      </div>`).join('');
+    document.getElementById('ag-preview').innerHTML = '';
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    hideLoader();
+  }
+}
+
+function pickBgg(i) {
+  addGameState.bggPick = addGameState.bggCandidates[i];
+  document.querySelectorAll('#ag-candidates .cand').forEach(c =>
+    c.classList.toggle('on', Number(c.dataset.i) === i));
+  const p = addGameState.bggPick;
+  document.getElementById('ag-preview').innerHTML =
+    `<div class="card" style="margin-top:6px;">
+      <div style="font-weight:700;">${esc(p.name_en)} 선택됨</div>
+      <div class="hint">게임 추가 시 서버에서 인원수·플레이타임·난이도·평점·요약(자동 한글번역)을 가져옵니다.</div>
+    </div>`;
+  // 한글명이 비어있으면 영문명으로 채움
+  const kr = document.getElementById('ag-namekr');
+  if (!kr.value) kr.value = p.name_en;
+}
+
+async function submitAddGame() {
+  const nameKr = document.getElementById('ag-namekr').value.trim();
+  const category = document.getElementById('ag-category').value;
+  if (!nameKr) { toast('한글 게임명을 입력하세요.', true); return; }
+  const pin = await promptPin();
+  if (pin == null) return;
+
+  const payload = {
+    player_id: state.user.player_id, pin,
+    name_kr: nameKr, category
+  };
+
+  if (addGameState.mode === 'bgg') {
+    if (!addGameState.bggPick) { toast('BGG 후보를 선택하거나 직접입력을 사용하세요.', true); return; }
+    payload.bgg_id = addGameState.bggPick.bgg_id;
+    payload.name_en = addGameState.bggPick.name_en;
+  } else {
+    payload.min_players = document.getElementById('ag-min').value;
+    payload.max_players = document.getElementById('ag-max').value;
+    payload.playtime_min = document.getElementById('ag-time').value;
+    payload.weight = document.getElementById('ag-weight').value;
+    payload.bgg_rating = document.getElementById('ag-bggrating').value;
+    payload.summary_kr = document.getElementById('ag-summary').value;
+  }
+
+  showLoader(addGameState.mode === 'bgg' ? 'BGG 정보 수집·번역 중…' : '저장 중…');
+  try {
+    await api('addGame', { payload: encodeURIComponent(JSON.stringify(payload)) });
+    state.games = await api('getGames');
+    toast('게임이 추가되었습니다!');
+    closeAddSheet();
+    switchView('games');
+    renderGames();
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    hideLoader();
+  }
+}
+
+// ----- 플레이 결과 추가 -----
+const addPlayState = { participants: [] };
+
+function renderAddPlayForm() {
+  if (!addPlayState.participants.length) {
+    addPlayState.participants = [{ player_id: state.user.player_id, score: '', is_win: false }];
+  }
+  const el = document.getElementById('add-play-form');
+  const gameOpts = state.games.slice()
+    .sort((a, b) => (a.name_kr || '').localeCompare(b.name_kr || ''))
+    .map(g => `<option value="${g.game_id}">${esc(g.name_kr || g.name_en)}</option>`).join('');
+  const today = new Date().toISOString().substring(0, 10);
+
+  el.innerHTML = `
+    <div class="row2">
+      <div class="field"><label>플레이 일자</label><input class="input" id="ap-date" type="date" value="${today}" /></div>
+      <div class="field"><label>플레이 시간(분)</label><input class="input" id="ap-duration" type="number" inputmode="numeric" placeholder="예: 45" /></div>
+    </div>
+    <div class="field">
+      <label>게임 선택 *</label>
+      <select class="input" id="ap-game">${gameOpts || '<option value="">게임을 먼저 추가하세요</option>'}</select>
+    </div>
+    <div class="field">
+      <label>참가자</label>
+      <div id="ap-participants"></div>
+      <button class="btn ghost sm" style="margin-top:6px;" onclick="addParticipant()">+ 참가자 추가</button>
+    </div>
+    <button class="btn" style="margin-top:8px;" onclick="submitAddPlay()">플레이 결과 저장</button>`;
+  renderParticipants();
+}
+
+function renderParticipants() {
+  const el = document.getElementById('ap-participants');
+  const playerOpts = state.players.map(p =>
+    `<option value="${p.player_id}">${esc(p.name)}</option>`).join('');
+  el.innerHTML = addPlayState.participants.map((pt, i) => `
+    <div class="ppart">
+      <select onchange="updatePart(${i}, 'player_id', this.value)">
+        ${state.players.map(p => `<option value="${p.player_id}" ${p.player_id === pt.player_id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}
+      </select>
+      <input type="number" inputmode="numeric" placeholder="점수" value="${pt.score}" onchange="updatePart(${i}, 'score', this.value)" />
+      <button class="wintoggle ${pt.is_win ? 'on' : ''}" onclick="toggleWin(${i})">${pt.is_win ? '승 👑' : '패'}</button>
+      ${addPlayState.participants.length > 1 ? `<button class="rm-btn" onclick="removePart(${i})">×</button>` : ''}
+    </div>`).join('');
+}
+
+function addParticipant() {
+  // 아직 안 들어간 플레이어 기본 선택
+  const used = new Set(addPlayState.participants.map(p => p.player_id));
+  const next = state.players.find(p => !used.has(p.player_id));
+  addPlayState.participants.push({ player_id: next ? next.player_id : (state.players[0] || {}).player_id, score: '', is_win: false });
+  renderParticipants();
+}
+function removePart(i) { addPlayState.participants.splice(i, 1); renderParticipants(); }
+function updatePart(i, field, val) { addPlayState.participants[i][field] = val; }
+function toggleWin(i) { addPlayState.participants[i].is_win = !addPlayState.participants[i].is_win; renderParticipants(); }
+
+async function submitAddPlay() {
+  const gameId = document.getElementById('ap-game').value;
+  if (!gameId) { toast('게임을 선택하세요.', true); return; }
+  const playDate = document.getElementById('ap-date').value;
+  const duration = document.getElementById('ap-duration').value;
+  const parts = addPlayState.participants.filter(p => p.player_id);
+  if (!parts.length) { toast('참가자를 추가하세요.', true); return; }
+  // 중복 참가자 체크
+  const ids = parts.map(p => p.player_id);
+  if (new Set(ids).size !== ids.length) { toast('참가자가 중복되었습니다.', true); return; }
+
+  const pin = await promptPin();
+  if (pin == null) return;
+
+  const payload = {
+    player_id: state.user.player_id, pin,
+    play_date: playDate, duration_min: duration, game_id: gameId,
+    participants: parts.map(p => ({ player_id: p.player_id, score: p.score, is_win: !!p.is_win }))
+  };
+
+  showLoader('저장 중…');
+  try {
+    await api('addPlay', { payload: encodeURIComponent(JSON.stringify(payload)) });
+    state.plays = await api('getPlays');
+    state.games = await api('getGames');
+    addPlayState.participants = [];
+    toast('플레이 결과가 저장되었습니다!');
+    closeAddSheet();
+    switchView('play');
+    renderPlay();
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    hideLoader();
+  }
+}
+
+// ============================================================
+//  Admin: 게임 정보 수정
+// ============================================================
+function openEditGame(gameId) {
+  const g = gameById(gameId);
+  if (!g) return;
+  const el = document.getElementById('detail-body');
+  el.innerHTML = `
+    <h2>게임 정보 수정</h2>
+    <div class="field"><label>한글명</label><input class="input" id="eg-namekr" value="${esc(g.name_kr)}" /></div>
+    <div class="field"><label>영문명</label><input class="input" id="eg-nameen" value="${esc(g.name_en)}" /></div>
+    <div class="field"><label>분류</label>
+      <select class="input" id="eg-category">
+        ${CATEGORIES.map(c => `<option value="${c}" ${g.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+      </select>
+    </div>
+    <div class="row2">
+      <div class="field"><label>최소 인원</label><input class="input" id="eg-min" type="number" value="${g.min_players ?? ''}" /></div>
+      <div class="field"><label>최대 인원</label><input class="input" id="eg-max" type="number" value="${g.max_players ?? ''}" /></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>플레이타임(분)</label><input class="input" id="eg-time" type="number" value="${g.playtime_min ?? ''}" /></div>
+      <div class="field"><label>난이도(weight)</label><input class="input" id="eg-weight" type="number" step="0.01" value="${g.weight ?? ''}" /></div>
+    </div>
+    <div class="field"><label>BGG 평점</label><input class="input" id="eg-bggrating" type="number" step="0.1" value="${g.bgg_rating ?? ''}" /></div>
+    <div class="field"><label>이미지 URL</label><input class="input" id="eg-image" value="${esc(g.image_url)}" /></div>
+    <div class="field"><label>게임 요약</label><textarea class="input" id="eg-summary">${esc(g.summary_kr)}</textarea></div>
+    <button class="btn" onclick="submitEditGame('${g.game_id}')">수정 저장</button>`;
+  document.getElementById('detail-overlay').classList.add('show');
+}
+document.getElementById('detail-overlay').addEventListener('click', e => {
+  if (e.target.id === 'detail-overlay') e.currentTarget.classList.remove('show');
+});
+
+async function submitEditGame(gameId) {
+  const pin = await promptPin();
+  if (pin == null) return;
+  const payload = {
+    game_id: gameId,
+    name_kr: document.getElementById('eg-namekr').value,
+    name_en: document.getElementById('eg-nameen').value,
+    category: document.getElementById('eg-category').value,
+    min_players: document.getElementById('eg-min').value,
+    max_players: document.getElementById('eg-max').value,
+    playtime_min: document.getElementById('eg-time').value,
+    weight: document.getElementById('eg-weight').value,
+    bgg_rating: document.getElementById('eg-bggrating').value,
+    image_url: document.getElementById('eg-image').value,
+    summary_kr: document.getElementById('eg-summary').value
+  };
+  showLoader('저장 중…');
+  try {
+    await api('updateGame', {
+      playerId: state.user.player_id, pin,
+      payload: encodeURIComponent(JSON.stringify(payload))
+    });
+    state.games = await api('getGames');
+    toast('수정되었습니다!');
+    document.getElementById('detail-overlay').classList.remove('show');
+    renderGames();
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    hideLoader();
+  }
+}
+
+// ============================================================
+//  초기화
+// ============================================================
+function init() {
+  const saved = sessionStorage.getItem('bg_user');
+  if (saved) { try { state.user = JSON.parse(saved); } catch (e) {} }
+  updateWhoami();
+  if (!API_URL || API_URL === '여기에_배포_URL' || !/^https?:\/\//.test(API_URL)) {
+    document.getElementById('play-list').innerHTML =
+      `<div class="empty"><div class="big">⚙️</div>API_URL이 아직 설정되지 않았습니다.<br/>` +
+      `<span class="hint">index.html 상단의 <b>const API_URL</b>을 Apps Script 웹앱 배포 URL로 교체하세요. (README 5단계)</span></div>`;
+    toast('API_URL을 설정하세요 (index.html 상단)', true);
+    return;
+  }
+  loadCore();
+}
+init();
+</script>
+</body>
+</html>
