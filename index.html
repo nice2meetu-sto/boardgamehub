@@ -315,7 +315,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0100</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0111</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -579,9 +579,16 @@ function renderPlay() {
   document.getElementById('play-list-title').textContent =
     scope === 'month' ? '이번 달 게임별 플레이 횟수' : '게임별 플레이 횟수';
 
-  // 게임별 순위(선택 범위 기준, 횟수 내림차순)
+  // 게임별 순위(선택 범위 기준, 횟수 내림차순). 평점은 매 렌더 시 state.games에서 조회 → 새 게임에도 자동 반영
   const list = Object.keys(agg)
-    .map(gid => ({ id: agg[gid].id, name: agg[gid].name, image: agg[gid].image, count: scope === 'month' ? agg[gid].month : agg[gid].all }))
+    .map(gid => {
+      const gm = gameById(agg[gid].id) || {};
+      return {
+        id: agg[gid].id, name: agg[gid].name, image: agg[gid].image,
+        count: scope === 'month' ? agg[gid].month : agg[gid].all,
+        club_rating: gm.club_rating, rating_count: gm.rating_count
+      };
+    })
     .filter(g => g.count > 0)
     .sort((a, b) => b.count - a.count || String(a.name).localeCompare(String(b.name)));
 
@@ -596,9 +603,16 @@ function renderPlay() {
       ${thumb(g.image, 'session-thumb')}
       <div style="flex:1;min-width:0;">
         <div class="g-name" style="font-weight:700;">${esc(g.name)}</div>
-        <div class="g-meta">${g.count}판</div>
+        <div class="g-meta">${g.count}판 · ${clubRatingMini(g.club_rating, g.rating_count)}</div>
       </div>
     </div>`).join('');
+}
+
+// 게임 카드처럼 컴팩트한 평점 표시(★ 8.5 (3) / 평가없음)
+function clubRatingMini(rating, count) {
+  return (rating != null)
+    ? `<span style="color:var(--win);">★</span> <b style="color:var(--main);">${Number(rating).toFixed(1)}</b> <span class="muted">(${count || 0})</span>`
+    : `<span class="muted">★ 평가없음</span>`;
 }
 
 // 게임 정보 보기(읽기 전용 시트)
@@ -1544,7 +1558,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v0100 난이도 필터';
+const APP_VERSION = 'v0111 플레이랭킹 평점표시';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
