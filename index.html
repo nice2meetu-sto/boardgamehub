@@ -1202,7 +1202,7 @@ async function renderMyGames() {
     }
     state._myGamesList = games;
     el.innerHTML = `
-      <div class="hint" style="margin-bottom:10px;">내가 참가한 게임에 평점과 메모를 남겨보세요. 평점 평균이 '우리Hub평점'이 됩니다.</div>
+      <div class="hint" style="margin-bottom:10px;">내가 참가한 게임에 평점과 메모를 남겨보세요. <br>평점 평균이 '우리Hub평점'이 됩니다.</div>
       <div class="searchbox"><span>🔍</span><input id="my-games-search" placeholder="게임 이름·분류 검색 (예: 스플렌더, 전략)" oninput="filterMyGames()" /></div>
       <div id="my-games-cards"></div>`;
     filterMyGames();
