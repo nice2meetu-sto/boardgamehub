@@ -160,9 +160,18 @@
 
   /* ===== Game card ===== */
   .gcard {
+    position: relative;
     background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 12px; margin-bottom: 12px; overflow: hidden;
   }
+  .gcard-edit {
+    position: absolute; top: 8px; right: 8px; z-index: 2;
+    width: 28px; height: 28px; border-radius: 8px; padding: 0;
+    background: var(--main-light); color: var(--main); font-size: 14px; line-height: 1;
+  }
+  .gcard-edit:active { background: #ddd7f7; }
+  .rate-mine { font-size: 13px; font-weight: 700; color: var(--ok); }
+  .rate-mine .star { color: var(--win); }
   .gcard-top { display: flex; gap: 12px; }
   .gcard-img {
     width: 68px; height: 68px; border-radius: 12px;
@@ -178,9 +187,11 @@
   .rate-bgg { font-size: 12px; color: var(--text-sub); }
   .gcard-detail { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; color: #444; white-space: pre-wrap; }
   .gcard.open .gcard-detail { display: block; }
+  .gcard-editwrap { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .gcard.open .gcard-editwrap { display: block; }
 
   /* rating editor (MY 게임기록) */
-  .rate-edit { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
+  .rate-edit { }
   .stars { display: flex; gap: 1px; font-size: 22px; user-select: none; }
   .stars .s { color: #dcdce3; cursor: pointer; line-height: 1; }
   .stars .s.filled { color: var(--win); }
@@ -315,7 +326,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0124</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0131</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -869,11 +880,24 @@ function gameCardHtml(g, opts = {}) {
     ? `<span class="rate-club"><span class="star">★</span> ${g.club_rating.toFixed(1)} <small>(${g.rating_count})</small></span>`
     : `<span class="rate-club muted"><span class="star" style="color:#dcdce3">★</span> - <small>평가없음</small></span>`;
 
-  const detail = g.summary_kr
-    ? `<div class="gcard-detail">${esc(g.summary_kr)}</div>`
-    : `<div class="gcard-detail muted">등록된 요약이 없습니다.</div>`;
+  // 내 게임기록에서만: Hub 평점 옆에 내 평점 표시(접힌 상태에서도)
+  let mine = '';
+  if (opts.ratingEditor) {
+    const r = (state._myRatings && state._myRatings[g.game_id]) ? state._myRatings[g.game_id].rating : null;
+    mine = (r != null)
+      ? `<span class="rate-mine">나 <span class="star">★</span> ${Number(r).toFixed(1)}</span>`
+      : `<span style="font-size:12px;color:var(--text-sub);">내 평점 없음</span>`;
+  }
+
+  // 펼침 영역: 내 게임기록은 '평점 에디터', 그 외는 '게임 요약'
+  const detail = opts.ratingEditor
+    ? `<div class="gcard-editwrap">${ratingEditorHtml(g)}</div>`
+    : (g.summary_kr
+        ? `<div class="gcard-detail">${esc(g.summary_kr)}</div>`
+        : `<div class="gcard-detail muted">등록된 요약이 없습니다.</div>`);
 
   return `<div class="gcard" data-gid="${g.game_id}">
+    ${opts.adminEdit ? `<button class="gcard-edit" title="정보 수정 (admin)" onclick="event.stopPropagation(); openEditGame('${g.game_id}')">✏️</button>` : ''}
     <div class="gcard-top" onclick="toggleCard(this)">
       ${thumb(g.image_url, 'gcard-img')}
       <div class="gcard-body">
@@ -881,12 +905,10 @@ function gameCardHtml(g, opts = {}) {
           ${g.category ? `<span class="badge" style="margin-left:6px;">${esc(g.category)}</span>` : ''}</div>
         ${g.name_en && g.name_kr ? `<div class="gcard-en">${esc(g.name_en)}</div>` : ''}
         <div class="gcard-meta">${meta.map(m => `<span>${m}</span>`).join('')}</div>
-        <div class="gcard-ratings">${club}</div>
+        <div class="gcard-ratings">${club}${mine}</div>
       </div>
     </div>
     ${detail}
-    ${opts.ratingEditor ? ratingEditorHtml(g) : ''}
-    ${opts.adminEdit ? `<button class="btn ghost sm" style="margin-top:10px;" onclick="openEditGame('${g.game_id}')">✏️ 정보 수정 (admin)</button>` : ''}
   </div>`;
 }
 
@@ -1284,6 +1306,8 @@ async function saveRating(gameId) {
     // 게임 목록 club_rating 갱신 위해 재로드
     state.games = await api('getGames');
     toast('평점이 저장되었습니다!');
+    // 내 게임기록 카드 갱신(Hub 평점 옆 '내 평점' 반영)
+    if (state.myTab === 'games' && document.getElementById('my-games-cards')) filterMyGames();
   } catch (e) {
     toast(e.message, true);
   } finally {
@@ -1667,7 +1691,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v0124 재배포';
+const APP_VERSION = 'v0131 게임카드 UI개선';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
