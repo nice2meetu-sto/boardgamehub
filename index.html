@@ -315,7 +315,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0014</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0037</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -1387,7 +1387,7 @@ function playerByExactName(name) {
 
 function renderAddPlayForm() {
   if (!addPlayState.participants.length) {
-    addPlayState.participants = [{ name: (state.user && state.user.name) || '', score: '', is_win: false, is_guest: false }];
+    addPlayState.participants = [{ name: '', score: '', is_win: false, is_guest: false }];
   }
   const el = document.getElementById('add-play-form');
   const gameListOpts = state.games.slice()
@@ -1436,10 +1436,7 @@ function renderParticipants() {
 }
 
 function addParticipant() {
-  // 아직 안 들어간 회원을 기본값으로
-  const used = new Set(addPlayState.participants.map(p => (p.name || '').trim()));
-  const next = state.players.find(p => !used.has(p.name));
-  addPlayState.participants.push({ name: next ? next.name : '', score: '', is_win: false, is_guest: false });
+  addPlayState.participants.push({ name: '', score: '', is_win: false, is_guest: false });
   renderParticipants();
 }
 function removePart(i) { addPlayState.participants.splice(i, 1); renderParticipants(); }
@@ -1577,7 +1574,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v0014 게스트 참가자';
+const APP_VERSION = 'v0037 참가자 기본빈칸';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
