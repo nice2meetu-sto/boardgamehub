@@ -349,9 +349,12 @@ function actionGetPlays(params) {
       order.push(sid);
     }
     var pl = playerMap[p.player_id] || {};
+    var isGuest = !p.player_id || !playerMap[p.player_id];
     sessions[sid].participants.push({
       player_id: p.player_id,
-      name: pl.name || p.player_id,
+      // 이름은 player_name(비회원 포함) 우선, 없으면 회원명, 그래도 없으면 player_id
+      name: (p.player_name && String(p.player_name).trim()) || pl.name || p.player_id,
+      is_guest: isGuest,
       score: (p.score === '' || p.score === undefined) ? null : toNum(p.score),
       is_win: String(p.is_win).toUpperCase() === 'TRUE'
     });
@@ -539,7 +542,8 @@ function actionAddPlay(params) {
       play_date: playDate,
       game_id: payload.game_id,
       duration_min: duration,
-      player_id: pt.player_id,
+      player_id: pt.player_id || '',                 // 게스트는 빈값
+      player_name: pt.player_name || '',             // 회원/게스트 모두 표시 이름 저장
       score: (pt.score === '' || pt.score === undefined || pt.score === null) ? '' : pt.score,
       is_win: pt.is_win ? 'TRUE' : 'FALSE',
       created_at: createdAt
@@ -639,7 +643,7 @@ function setupSheets() {
       'image_url', 'source', 'created_by', 'created_at'],
     'Ratings': ['player_id', 'game_id', 'rating', 'memo', 'updated_at'],
     'PlayLogs': ['record_id', 'session_id', 'play_date', 'game_id', 'duration_min',
-      'player_id', 'score', 'is_win', 'created_at']
+      'player_id', 'player_name', 'score', 'is_win', 'created_at']
   };
   Object.keys(defs).forEach(function (name) {
     var sh = ss.getSheetByName(name);

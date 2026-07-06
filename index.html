@@ -315,7 +315,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0111</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0014</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -1387,7 +1387,7 @@ function playerByExactName(name) {
 
 function renderAddPlayForm() {
   if (!addPlayState.participants.length) {
-    addPlayState.participants = [{ name: (state.user && state.user.name) || '', score: '', is_win: false }];
+    addPlayState.participants = [{ name: (state.user && state.user.name) || '', score: '', is_win: false, is_guest: false }];
   }
   const el = document.getElementById('add-play-form');
   const gameListOpts = state.games.slice()
@@ -1420,25 +1420,32 @@ function renderAddPlayForm() {
 function renderParticipants() {
   const el = document.getElementById('ap-participants');
   el.innerHTML = addPlayState.participants.map((pt, i) => `
-    <div class="ppart">
-      <input list="ap-player-list" placeholder="이름 입력/선택" autocomplete="off" style="flex:2;min-width:0;"
-             value="${esc(pt.name)}" oninput="updatePart(${i}, 'name', this.value)" />
-      <input type="number" inputmode="numeric" placeholder="점수" value="${esc(pt.score)}" oninput="updatePart(${i}, 'score', this.value)" />
-      <button class="wintoggle ${pt.is_win ? 'on' : ''}" onclick="toggleWin(${i})">${pt.is_win ? '승 👑' : '패'}</button>
-      ${addPlayState.participants.length > 1 ? `<button class="rm-btn" onclick="removePart(${i})">×</button>` : ''}
+    <div style="margin-bottom:10px;">
+      <div class="ppart" style="margin-bottom:4px;">
+        <input ${pt.is_guest ? '' : 'list="ap-player-list"'} placeholder="${pt.is_guest ? '게스트 닉네임' : '회원 이름 입력/선택'}" autocomplete="off" style="flex:2;min-width:0;"
+               value="${esc(pt.name)}" oninput="updatePart(${i}, 'name', this.value)" />
+        <input type="number" inputmode="numeric" placeholder="점수" value="${esc(pt.score)}" oninput="updatePart(${i}, 'score', this.value)" />
+        <button class="wintoggle ${pt.is_win ? 'on' : ''}" onclick="toggleWin(${i})">${pt.is_win ? '승 👑' : '패'}</button>
+        ${addPlayState.participants.length > 1 ? `<button class="rm-btn" onclick="removePart(${i})">×</button>` : ''}
+      </div>
+      <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-sub);cursor:pointer;padding-left:2px;">
+        <input type="checkbox" ${pt.is_guest ? 'checked' : ''} onchange="toggleGuest(${i}, this.checked)" style="width:15px;height:15px;margin:0;" />
+        비회원(게스트)
+      </label>
     </div>`).join('');
 }
 
 function addParticipant() {
-  // 아직 안 들어간 플레이어를 기본값으로
+  // 아직 안 들어간 회원을 기본값으로
   const used = new Set(addPlayState.participants.map(p => (p.name || '').trim()));
   const next = state.players.find(p => !used.has(p.name));
-  addPlayState.participants.push({ name: next ? next.name : '', score: '', is_win: false });
+  addPlayState.participants.push({ name: next ? next.name : '', score: '', is_win: false, is_guest: false });
   renderParticipants();
 }
 function removePart(i) { addPlayState.participants.splice(i, 1); renderParticipants(); }
 function updatePart(i, field, val) { addPlayState.participants[i][field] = val; }
 function toggleWin(i) { addPlayState.participants[i].is_win = !addPlayState.participants[i].is_win; renderParticipants(); }
+function toggleGuest(i, checked) { addPlayState.participants[i].is_guest = checked; renderParticipants(); }
 
 async function submitAddPlay() {
   const game = gameByExactName(document.getElementById('ap-game').value);
@@ -1449,13 +1456,25 @@ async function submitAddPlay() {
   const rawParts = addPlayState.participants.filter(p => (p.name || '').trim());
   if (!rawParts.length) { toast('참가자를 추가하세요.', true); return; }
   const resolved = [];
+  const seen = new Set();
   for (const p of rawParts) {
-    const pl = playerByExactName(p.name);
-    if (!pl) { toast(`참가자 "${p.name}"은(는) 등록된 이름과 정확히 일치하지 않습니다.`, true); return; }
-    resolved.push({ player_id: pl.player_id, score: p.score, is_win: !!p.is_win });
+    const nm = p.name.trim();
+    let player_id = '', player_name = nm;
+    if (p.is_guest) {
+      // 게스트: 자유 닉네임 그대로 저장(회원 계정 연결 안 함)
+      player_id = '';
+      player_name = nm;
+    } else {
+      const pl = playerByExactName(nm);
+      if (!pl) { toast(`"${nm}"은(는) 회원 명단에 없어요. 비회원이면 아래 '비회원(게스트)'를 체크하세요.`, true); return; }
+      player_id = pl.player_id;
+      player_name = pl.name;
+    }
+    const key = player_id ? ('m:' + player_id) : ('g:' + player_name);
+    if (seen.has(key)) { toast('참가자가 중복되었습니다.', true); return; }
+    seen.add(key);
+    resolved.push({ player_id, player_name, score: p.score, is_win: !!p.is_win });
   }
-  const ids = resolved.map(p => p.player_id);
-  if (new Set(ids).size !== ids.length) { toast('참가자가 중복되었습니다.', true); return; }
 
   const pin = await promptPin();
   if (pin == null) return;
@@ -1558,7 +1577,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v0111 플레이랭킹 평점표시';
+const APP_VERSION = 'v0014 게스트 참가자';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
