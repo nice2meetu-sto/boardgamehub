@@ -41,6 +41,8 @@ function doGet(e) {
       case 'addGame':        data = actionAddGame(params); break;
       case 'saveRating':     data = actionSaveRating(params); break;
       case 'addPlay':        data = actionAddPlay(params); break;
+      case 'updatePlay':     data = actionUpdatePlay(params); break;
+      case 'deletePlay':     data = actionDeletePlay(params); break;
       case 'updateGame':     data = actionUpdateGame(params); break;
       default:
         return jsonOutput({ ok: false, error: 'Unknown action: ' + action });
@@ -344,6 +346,7 @@ function actionGetPlays(params) {
         game_name: g.name_kr || g.name_en || '(알 수 없는 게임)',
         game_image: g.image_url || '',
         duration_min: toNum(p.duration_min),
+        created_by: p.created_by || '',   // 입력자(본인 수정/삭제 판별용)
         participants: []
       };
       order.push(sid);
@@ -351,6 +354,7 @@ function actionGetPlays(params) {
     var pl = playerMap[p.player_id] || {};
     var isGuest = !p.player_id || !playerMap[p.player_id];
     sessions[sid].participants.push({
+      record_id: p.record_id,
       player_id: p.player_id,
       // 이름은 player_name(비회원 포함) 우선, 없으면 회원명, 그래도 없으면 player_id
       name: (p.player_name && String(p.player_name).trim()) || pl.name || p.player_id,
@@ -546,11 +550,71 @@ function actionAddPlay(params) {
       player_name: pt.player_name || '',             // 회원/게스트 모두 표시 이름 저장
       score: (pt.score === '' || pt.score === undefined || pt.score === null) ? '' : pt.score,
       is_win: pt.is_win ? 'TRUE' : 'FALSE',
+      created_by: authId,                            // 입력자(본인만 수정/삭제 가능)
       created_at: createdAt
     });
   });
 
   return { session_id: sessionId, count: participants.length };
+}
+
+// 플레이 세션 수정(날짜·시간·점수·승패). 입력자 본인만 가능.
+function actionUpdatePlay(params) {
+  var payload = JSON.parse(params.payload || '{}');
+  var authId = params.playerId || payload.player_id;
+  var pin = params.pin || payload.pin;
+  if (!authId || !pin) throw new Error('인증 정보가 필요합니다.');
+  verifyByPlayerId(authId, pin);
+
+  var sid = payload.session_id;
+  if (!sid) throw new Error('session_id가 필요합니다.');
+
+  var sh = getSheet(SHEETS.PLAYLOGS);
+  var read = readSheet(SHEETS.PLAYLOGS);
+  var map = headerIndexMap(sh);
+  var rows = read.rows.filter(function (r) { return String(r.session_id) === String(sid); });
+  if (!rows.length) throw new Error('기록을 찾을 수 없습니다.');
+  if (String(rows[0].created_by) !== String(authId)) throw new Error('본인이 입력한 기록만 수정할 수 있습니다.');
+
+  var playDate = payload.play_date;
+  var duration = (payload.duration_min === '' || payload.duration_min === undefined || payload.duration_min === null)
+    ? '' : toNum(payload.duration_min);
+  var editMap = {};
+  (payload.rows || []).forEach(function (e) { editMap[e.record_id] = e; });
+
+  rows.forEach(function (r) {
+    var rowIdx = r._rowIndex;
+    if (playDate && map.play_date !== undefined) sh.getRange(rowIdx, map.play_date + 1).setValue(playDate);
+    if (map.duration_min !== undefined) sh.getRange(rowIdx, map.duration_min + 1).setValue(duration);
+    var e = editMap[r.record_id];
+    if (e) {
+      if (map.score !== undefined) sh.getRange(rowIdx, map.score + 1).setValue((e.score === '' || e.score === null || e.score === undefined) ? '' : e.score);
+      if (map.is_win !== undefined) sh.getRange(rowIdx, map.is_win + 1).setValue(e.is_win ? 'TRUE' : 'FALSE');
+    }
+  });
+  return { session_id: sid, updated: rows.length };
+}
+
+// 플레이 세션 삭제(그 세션의 모든 참가자 행 삭제). 입력자 본인만 가능.
+function actionDeletePlay(params) {
+  var authId = params.playerId;
+  var pin = params.pin;
+  var sid = params.sessionId;
+  if (!sid && params.payload) { try { sid = JSON.parse(params.payload).session_id; } catch (e) {} }
+  if (!authId || !pin) throw new Error('인증 정보가 필요합니다.');
+  verifyByPlayerId(authId, pin);
+  if (!sid) throw new Error('session_id가 필요합니다.');
+
+  var sh = getSheet(SHEETS.PLAYLOGS);
+  var read = readSheet(SHEETS.PLAYLOGS);
+  var rows = read.rows.filter(function (r) { return String(r.session_id) === String(sid); });
+  if (!rows.length) throw new Error('기록을 찾을 수 없습니다.');
+  if (String(rows[0].created_by) !== String(authId)) throw new Error('본인이 입력한 기록만 삭제할 수 있습니다.');
+
+  // 아래 행부터 삭제(인덱스 밀림 방지)
+  var idxs = rows.map(function (r) { return r._rowIndex; }).sort(function (a, b) { return b - a; });
+  idxs.forEach(function (ri) { sh.deleteRow(ri); });
+  return { session_id: sid, deleted: idxs.length };
 }
 
 function actionAddGame(params) {
@@ -643,7 +707,7 @@ function setupSheets() {
       'image_url', 'source', 'created_by', 'created_at'],
     'Ratings': ['player_id', 'game_id', 'rating', 'memo', 'updated_at'],
     'PlayLogs': ['record_id', 'session_id', 'play_date', 'game_id', 'duration_min',
-      'player_id', 'player_name', 'score', 'is_win', 'created_at']
+      'player_id', 'player_name', 'score', 'is_win', 'created_by', 'created_at']
   };
   Object.keys(defs).forEach(function (name) {
     var sh = ss.getSheetByName(name);

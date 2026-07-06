@@ -69,11 +69,12 @@ category
 
 **`PlayLogs`**
 ```
-record_id | session_id | play_date | game_id | duration_min | player_id | player_name | score | is_win | created_at
+record_id | session_id | play_date | game_id | duration_min | player_id | player_name | score | is_win | created_by | created_at
 ```
 > `player_name`에는 참가자 표시 이름이 저장됩니다. **회원**은 `player_id`(P00X)와 이름이 함께,
 > **비회원(게스트)** 은 `player_id`가 빈값이고 `player_name`에 입력한 닉네임만 저장됩니다.
 > 게스트는 개인 통계/로그인 대상이 아니며, 회원들의 통계·게임 평점에는 영향을 주지 않습니다.
+> `created_by`에는 그 기록을 입력한 회원의 `player_id`가 저장되며, **입력자 본인만** 해당 세션을 수정/삭제할 수 있습니다.
 
 > 💡 날짜 컬럼(`joined_at`, `play_date` 등)은 **서식을 '일반' 또는 '텍스트'** 로 두면
 > 시트의 자동 날짜 변환을 피할 수 있습니다. 백엔드는 `getDisplayValues()`로 읽어 안전하게 처리합니다.
@@ -182,6 +183,8 @@ const API_URL = "https://script.google.com/macros/s/AKfyc.../exec";
 | `addGame` | payload(JSON) | 수동 입력값으로 게임 저장 |
 | `saveRating` | playerId, pin, gameId, rating, memo | 본인 인증 후 upsert |
 | `addPlay` | payload(JSON) | 세션 생성 후 참가자별 행 추가(회원=player_id, 게스트=player_name만) |
+| `updatePlay` | playerId, pin, payload | 세션의 날짜·시간·점수·승패 수정 (**입력자 본인만**, `created_by` 대조) |
+| `deletePlay` | playerId, pin, sessionId | 세션의 모든 참가자 행 삭제 (**입력자 본인만**) |
 | `updateGame` | playerId, pin, payload | **admin만** 게임 세부정보 수정 |
 
 공통 응답: `{ ok: true, data: ... }` 또는 `{ ok: false, error: "메시지" }`

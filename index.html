@@ -315,7 +315,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0037</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0104</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -653,12 +653,41 @@ function renderSessionList(containerId, sessions) {
     return;
   }
   el.innerHTML = sessions.map(s => {
+    const canEdit = state.user && s.created_by && String(s.created_by) === String(state.user.player_id);
+    const editing = state._editSid === s.session_id;
+    const dur = s.duration_min ? ` · ${s.duration_min}분` : '';
+
+    if (editing) {
+      const eparts = s.participants.map(p => `
+        <div class="prow" data-rid="${esc(p.record_id)}" style="gap:8px;">
+          <span class="pname" style="flex:1;min-width:0;">${esc(p.name)}</span>
+          <input type="number" inputmode="numeric" class="edit-score" placeholder="점수" value="${p.score == null ? '' : esc(p.score)}"
+                 style="width:64px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:#fff;" />
+          <button type="button" class="wintoggle edit-win ${p.is_win ? 'on' : ''}" data-win="${p.is_win ? '1' : '0'}" onclick="toggleEditWin(this)" style="padding:6px 10px;">${p.is_win ? '승 👑' : '패'}</button>
+        </div>`).join('');
+      return `<div class="session" data-sid="${esc(s.session_id)}">
+        <div class="session-head">
+          ${thumb(s.game_image, 'session-thumb')}
+          <div style="flex:1;min-width:0;"><div class="g-name">${esc(s.game_name)}</div></div>
+          <button class="btn sm" style="padding:6px 14px;flex:0 0 auto;" onclick="saveEditSession('${esc(s.session_id)}')">저장</button>
+        </div>
+        <div class="row2" style="margin:8px 0;">
+          <div class="field" style="margin:0;"><label>날짜</label><input class="input edit-date" type="date" value="${esc(String(s.play_date).substring(0,10))}" /></div>
+          <div class="field" style="margin:0;"><label>시간(분)</label><input class="input edit-duration" type="number" inputmode="numeric" value="${s.duration_min || ''}" /></div>
+        </div>
+        <div class="participants">${eparts}</div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="btn danger sm" style="flex:1;" onclick="deleteSession('${esc(s.session_id)}')">🗑 삭제</button>
+          <button class="btn ghost sm" style="flex:1;" onclick="cancelEditSession()">취소</button>
+        </div>
+      </div>`;
+    }
+
     const parts = s.participants.map(p => `
       <div class="prow ${p.is_win ? 'win' : ''}">
         <span class="pname">${esc(p.name)}${p.is_win ? '<span class="crown">👑</span>' : ''}</span>
         <span class="pscore">${p.score == null ? '' : esc(p.score) + '점'}</span>
       </div>`).join('');
-    const dur = s.duration_min ? ` · ${s.duration_min}분` : '';
     return `<div class="session">
       <div class="session-head">
         ${thumb(s.game_image, 'session-thumb')}
@@ -666,10 +695,73 @@ function renderSessionList(containerId, sessions) {
           <div class="g-name">${esc(s.game_name)}</div>
           <div class="g-meta">${esc(String(s.play_date).substring(0,10))}${dur} · ${s.participants.length}명</div>
         </div>
+        ${canEdit ? `<button class="btn ghost sm" style="padding:5px 12px;font-size:12px;flex:0 0 auto;" onclick="startEditSession('${esc(s.session_id)}')">수정</button>` : ''}
       </div>
       <div class="participants">${parts}</div>
     </div>`;
   }).join('');
+}
+
+// ===== 내 플레이 기록: 수정/삭제 (입력자 본인만) =====
+function refreshMySessions() {
+  state._mySessions = state.plays.filter(s =>
+    s.participants.some(p => p.player_id === state.user.player_id));
+  filterMyPlays();
+}
+function startEditSession(sid) { state._editSid = sid; filterMyPlays(); }
+function cancelEditSession() { state._editSid = null; filterMyPlays(); }
+function toggleEditWin(btn) {
+  const on = btn.getAttribute('data-win') === '1';
+  btn.setAttribute('data-win', on ? '0' : '1');
+  btn.classList.toggle('on', !on);
+  btn.textContent = on ? '패' : '승 👑';
+}
+
+async function saveEditSession(sid) {
+  if (!state.user) return;
+  const card = document.querySelector(`.session[data-sid="${sid}"]`);
+  if (!card) return;
+  const play_date = card.querySelector('.edit-date').value;
+  const duration_min = card.querySelector('.edit-duration').value;
+  const rows = Array.from(card.querySelectorAll('.prow[data-rid]')).map(row => ({
+    record_id: row.getAttribute('data-rid'),
+    score: row.querySelector('.edit-score').value,
+    is_win: row.querySelector('.edit-win').getAttribute('data-win') === '1'
+  }));
+  const pin = await promptPin();
+  if (pin == null) return;
+  showLoader('저장 중…');
+  try {
+    await api('updatePlay', { playerId: state.user.player_id, pin, payload: JSON.stringify({ session_id: sid, play_date, duration_min, rows }) });
+    state.plays = await api('getPlays');
+    state._myStats = null;
+    state._editSid = null;
+    toast('수정되었습니다.');
+    refreshMySessions();
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    hideLoader();
+  }
+}
+
+async function deleteSession(sid) {
+  if (!confirm('이 기록을 삭제하면 함께 플레이한 모든 참가자의 기록에서도 사라집니다.\n정말 삭제할까요?')) return;
+  const pin = await promptPin();
+  if (pin == null) return;
+  showLoader('삭제 중…');
+  try {
+    await api('deletePlay', { playerId: state.user.player_id, pin, sessionId: sid });
+    state.plays = await api('getPlays');
+    state._myStats = null;
+    state._editSid = null;
+    toast('삭제되었습니다.');
+    refreshMySessions();
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    hideLoader();
+  }
 }
 
 // ============================================================
@@ -1039,6 +1131,7 @@ function renderMyGameStatList() {
 // ===== MY > 플레이 기록 (내 플레이 기록만) =====
 function renderMyPlaysTab() {
   const el = document.getElementById('my-plays');
+  state._editSid = null;   // 탭 진입 시 수정 모드 해제
   state._mySessions = state.plays.filter(s =>
     s.participants.some(p => p.player_id === state.user.player_id));
   el.innerHTML = `
@@ -1574,7 +1667,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v0037 참가자 기본빈칸';
+const APP_VERSION = 'v0104 플레이 수정·삭제';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
