@@ -165,11 +165,11 @@
     padding: 12px; margin-bottom: 12px; overflow: hidden;
   }
   .gcard-edit {
-    position: absolute; top: 8px; right: 8px; z-index: 2;
-    width: 28px; height: 28px; border-radius: 8px; padding: 0;
-    background: var(--main-light); color: var(--main); font-size: 14px; line-height: 1;
+    position: absolute; top: 6px; right: 6px; z-index: 2;
+    width: 20px; height: 20px; border-radius: 6px; padding: 0;
+    background: transparent; color: var(--text-sub); font-size: 12px; line-height: 1; opacity: .6;
   }
-  .gcard-edit:active { background: #ddd7f7; }
+  .gcard-edit:active { opacity: 1; }
   .rate-mine { font-size: 13px; font-weight: 700; color: var(--ok); }
   .rate-mine .star { color: var(--win); }
   .gcard-top { display: flex; gap: 12px; }
@@ -339,16 +339,16 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2020</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2027</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
-      <div class="who" id="whoami">비로그인</div>
+      <div class="who" id="whoami" onclick="switchView('my')" style="cursor:pointer;">비로그인</div>
     </div>
   </div>
 
   <!-- ===== VIEW: 플레이 ===== -->
-  <div class="view" id="view-play">
+  <div class="view active" id="view-play">
     <div class="summary-row" id="play-summary"></div>
     <div id="play-catchart"></div>
     <div class="section-title" id="play-list-title">게임별 플레이 횟수</div>
@@ -368,7 +368,7 @@
   </div>
 
   <!-- ===== VIEW: MY ===== -->
-  <div class="view active" id="view-my">
+  <div class="view" id="view-my">
     <div id="my-login" style="display:none;"></div>
     <div id="my-content" style="display:none;">
       <div class="subtabs">
@@ -390,9 +390,9 @@
 
   <!-- Tabbar -->
   <div class="tabbar">
-    <button class="tab" id="tab-play" onclick="switchView('play')"><span class="ico">📋</span>플레이</button>
+    <button class="tab on" id="tab-play" onclick="switchView('play')"><span class="ico">📋</span>플레이</button>
     <button class="tab" id="tab-games" onclick="switchView('games')"><span class="ico">🎯</span>게임</button>
-    <button class="tab on" id="tab-my" onclick="switchView('my')"><span class="ico">👤</span>MY</button>
+    <button class="tab" id="tab-my" onclick="switchView('my')"><span class="ico">👤</span>MY</button>
   </div>
 </div>
 
@@ -1808,7 +1808,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2020 기본 진입 탭 MY + 일자별 요약 카드 배경';
+const APP_VERSION = 'v2027 기본탭 플레이 복귀 + 비로그인 클릭 + 연필 축소';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
@@ -1821,7 +1821,6 @@ function init() {
     toast('API_URL을 설정하세요 (index.html 상단)', true);
     return;
   }
-  renderMy();   // 기본 진입 탭은 MY (로그인 폼 또는 내 데이터 즉시 표시)
   loadCore();
 }
 init();
