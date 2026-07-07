@@ -191,8 +191,10 @@
   .gcard.open .gcard-editwrap { display: block; }
 
   /* MY 게임기록: 일자별 플레이 요약 */
-  .pdate-head { font-size: 13px; font-weight: 800; color: var(--text-sub); margin: 16px 0 6px; }
-  .pdate-list { display: flex; flex-direction: column; gap: 6px; }
+  /* 게임 정보 + 요약 제목은 시트 상단에 고정, 아래 리스트만 스크롤 */
+  .mgstat-head { position: sticky; top: 0; z-index: 2; background: var(--bg); padding-bottom: 4px; }
+  .pdate-head { font-size: 13px; font-weight: 800; color: var(--text-sub); margin: 14px 0 8px; }
+  .pdate-list { display: flex; flex-direction: column; gap: 6px; padding-bottom: 2px; }
   .pdate-row { display: flex; align-items: center; gap: 8px; padding: 9px 10px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; font-size: 13px; }
   .pdate-row:active { background: #f0f0f3; }
   .pdate-d { font-weight: 700; flex: 0 0 auto; }
@@ -344,7 +346,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2036</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2053</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -711,9 +713,11 @@ function myGameDetailHtml(g) {
     }).join('');
   }
 
-  // 헤더는 '게임 기록' 카드(펼치기 전) 모습 그대로: 사진 옆 정보 정렬 + 내 평점, 요약 없음
-  return `<div class="gcard-top" style="margin-bottom:4px;">${gameCardTopHtml(g, true)}</div>
-    <div class="pdate-head">📅 일자별 플레이 요약</div>
+  // 헤더(게임 정보 + 요약 제목)는 상단 고정, 아래 일자별 리스트만 스크롤
+  return `<div class="mgstat-head">
+      <div class="gcard-top">${gameCardTopHtml(g, true)}</div>
+      <div class="pdate-head">📅 일자별 플레이 요약</div>
+    </div>
     <div class="pdate-list">${rows}</div>`;
 }
 
@@ -1813,7 +1817,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2036 게임 추가/수정 시트 높이 82vh + 저장버튼 하단 고정';
+const APP_VERSION = 'v2053 게임 상세 헤더 고정 + 일자별 리스트만 스크롤';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
