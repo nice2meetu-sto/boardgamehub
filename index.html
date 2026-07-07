@@ -339,7 +339,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1957</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2003</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -705,7 +705,8 @@ function myGameDetailHtml(g) {
     }).join('');
   }
 
-  return `${gameInfoInnerHtml(g)}
+  // 헤더는 '게임 기록' 카드(펼치기 전) 모습 그대로: 사진 옆 정보 정렬 + 내 평점, 요약 없음
+  return `<div class="gcard-top" style="margin-bottom:4px;">${gameCardTopHtml(g, true)}</div>
     <div class="pdate-head">📅 일자별 플레이 요약</div>
     <div class="pdate-list">${rows}</div>`;
 }
@@ -959,7 +960,9 @@ function filteredGames() {
   return list;
 }
 
-function gameCardHtml(g, opts = {}) {
+// 게임 카드 헤더(사진 옆 정보 정렬): 이름·분류·메타·Hub평점(+내 평점)
+// showMine=true 이면 Hub 평점 옆에 '나 ★ X.X' 표시(게임 기록 카드와 동일)
+function gameCardTopHtml(g, showMine) {
   const meta = [];
   if (g.min_players || g.max_players) {
     const mn = g.min_players || '?', mx = g.max_players || '?';
@@ -972,15 +975,25 @@ function gameCardHtml(g, opts = {}) {
     ? `<span class="rate-club"><span class="star">★</span> ${g.club_rating.toFixed(1)} <small>(${g.rating_count})</small></span>`
     : `<span class="rate-club muted"><span class="star" style="color:#dcdce3">★</span> - <small>평가없음</small></span>`;
 
-  // 내 게임기록에서만: Hub 평점 옆에 내 평점 표시(접힌 상태에서도)
   let mine = '';
-  if (opts.ratingEditor) {
+  if (showMine) {
     const r = (state._myRatings && state._myRatings[g.game_id]) ? state._myRatings[g.game_id].rating : null;
     mine = (r != null)
       ? `<span class="rate-mine">나 <span class="star">★</span> ${Number(r).toFixed(1)}</span>`
       : `<span style="font-size:12px;color:var(--text-sub);">내 평점 없음</span>`;
   }
 
+  return `${thumb(g.image_url, 'gcard-img')}
+      <div class="gcard-body">
+        <div class="gcard-name">${esc(g.name_kr || g.name_en)}
+          ${g.category ? `<span class="badge" style="margin-left:6px;">${esc(g.category)}</span>` : ''}</div>
+        ${g.name_en && g.name_kr ? `<div class="gcard-en">${esc(g.name_en)}</div>` : ''}
+        <div class="gcard-meta">${meta.map(m => `<span>${m}</span>`).join('')}</div>
+        <div class="gcard-ratings">${club}${mine}</div>
+      </div>`;
+}
+
+function gameCardHtml(g, opts = {}) {
   // 펼침 영역: 내 게임기록은 '평점 에디터', 그 외는 '게임 요약'
   const detail = opts.ratingEditor
     ? `<div class="gcard-editwrap">${ratingEditorHtml(g)}</div>`
@@ -991,14 +1004,7 @@ function gameCardHtml(g, opts = {}) {
   return `<div class="gcard" data-gid="${g.game_id}">
     ${opts.adminEdit ? `<button class="gcard-edit" title="정보 수정 (admin)" onclick="event.stopPropagation(); openEditGame('${g.game_id}')">✏️</button>` : ''}
     <div class="gcard-top" onclick="toggleCard(this)">
-      ${thumb(g.image_url, 'gcard-img')}
-      <div class="gcard-body">
-        <div class="gcard-name">${esc(g.name_kr || g.name_en)}
-          ${g.category ? `<span class="badge" style="margin-left:6px;">${esc(g.category)}</span>` : ''}</div>
-        ${g.name_en && g.name_kr ? `<div class="gcard-en">${esc(g.name_en)}</div>` : ''}
-        <div class="gcard-meta">${meta.map(m => `<span>${m}</span>`).join('')}</div>
-        <div class="gcard-ratings">${club}${mine}</div>
-      </div>
+      ${gameCardTopHtml(g, opts.ratingEditor)}
     </div>
     ${detail}
   </div>`;
@@ -1783,7 +1789,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1957 전체기록 게임카드 일자별 요약';
+const APP_VERSION = 'v2003 전체기록 상세 헤더=게임카드형';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
