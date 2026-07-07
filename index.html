@@ -269,9 +269,14 @@
   .overlay.show { display: flex; }
   .sheet {
     width: 100%; max-width: var(--maxw); background: var(--bg);
-    border-radius: 22px 22px 0 0; max-height: 92vh; overflow-y: auto;
+    border-radius: 22px 22px 0 0; max-height: 82vh; overflow-y: auto;
     padding: 8px 16px calc(24px + env(safe-area-inset-bottom, 0));
     animation: slideup .25s ease;
+  }
+  /* 저장 버튼을 시트 하단에 고정 — 스크롤 위치와 관계없이 항상 눌리게 */
+  .sheet-save {
+    position: sticky; bottom: 0; z-index: 3; margin-top: 14px;
+    box-shadow: 0 -12px 16px 10px var(--bg);
   }
   @keyframes slideup { from { transform: translateY(30px); opacity: .6; } to { transform: translateY(0); opacity: 1; } }
   .sheet-grip { width: 40px; height: 4px; background: #d3d3dc; border-radius: 3px; margin: 8px auto 12px; }
@@ -339,7 +344,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2027</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2036</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -1505,7 +1510,7 @@ function renderAddGameForm() {
     </div>
     <div class="field"><label>이미지 URL (선택)</label><input class="input" id="ag-image" placeholder="https://..." /></div>
     <div class="field"><label>게임 요약</label><textarea class="input" id="ag-summary" placeholder="게임 설명"></textarea></div>
-    <button class="btn" style="margin-top:8px;" onclick="submitAddGame()">게임 추가</button>`;
+    <button class="btn sheet-save" onclick="submitAddGame()">게임 추가</button>`;
   photoState.ag = '';
 }
 
@@ -1647,7 +1652,7 @@ function renderAddPlayForm() {
       <button class="btn ghost sm" style="margin-top:6px;" onclick="addParticipant()">+ 참가자 추가</button>
     </div>
     <datalist id="ap-player-list">${playerListOpts}</datalist>
-    <button class="btn" style="margin-top:8px;" onclick="submitAddPlay()">플레이 결과 저장</button>`;
+    <button class="btn sheet-save" onclick="submitAddPlay()">플레이 결과 저장</button>`;
   renderParticipants();
 }
 
@@ -1765,7 +1770,7 @@ function openEditGame(gameId) {
     </div>
     <div class="field"><label>이미지 URL</label><input class="input" id="eg-image" value="${esc(g.image_url)}" /></div>
     <div class="field"><label>게임 요약</label><textarea class="input" id="eg-summary">${esc(g.summary_kr)}</textarea></div>
-    <button class="btn" onclick="submitEditGame('${g.game_id}')">수정 저장</button>`;
+    <button class="btn sheet-save" onclick="submitEditGame('${g.game_id}')">수정 저장</button>`;
   photoState.eg = '';
   document.getElementById('detail-overlay').classList.add('show');
 }
@@ -1808,7 +1813,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2027 기본탭 플레이 복귀 + 비로그인 클릭 + 연필 축소';
+const APP_VERSION = 'v2036 게임 추가/수정 시트 높이 82vh + 저장버튼 하단 고정';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
