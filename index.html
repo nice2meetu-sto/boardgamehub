@@ -339,7 +339,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2003</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2007</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -698,7 +698,7 @@ function myGameDetailHtml(g) {
       return `<div class="pdate-row" onclick="showSessionDetail('${esc(s.session_id)}')">
         <span class="pdate-d">${esc(String(s.play_date).substring(0, 10))}</span>
         <span class="pdate-wl ${win ? 'win' : 'loss'}">${win ? '승 👑' : '패'}</span>
-        <span class="pdate-s">내 ${myScore == null ? '-' : esc(myScore) + '점'}</span>
+        <span class="pdate-s">나 ${myScore == null ? '-' : esc(myScore) + '점'}</span>
         <span class="pdate-s muted">최고 ${top == null ? '-' : top + '점'}</span>
         <span class="pdate-arrow">›</span>
       </div>`;
@@ -1789,7 +1789,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2003 전체기록 상세 헤더=게임카드형';
+const APP_VERSION = 'v2007 일자별 요약 내점수 라벨 나';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
