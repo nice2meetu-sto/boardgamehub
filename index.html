@@ -190,6 +190,19 @@
   .gcard-editwrap { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
   .gcard.open .gcard-editwrap { display: block; }
 
+  /* MY 게임기록: 일자별 플레이 요약 */
+  .pdate-head { font-size: 13px; font-weight: 800; color: var(--text-sub); margin: 16px 0 6px; }
+  .pdate-list { display: flex; flex-direction: column; gap: 6px; }
+  .pdate-row { display: flex; align-items: center; gap: 8px; padding: 9px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; font-size: 13px; }
+  .pdate-row:active { background: #eee; }
+  .pdate-d { font-weight: 700; flex: 0 0 auto; }
+  .pdate-wl { flex: 0 0 auto; font-weight: 700; font-size: 12px; padding: 1px 8px; border-radius: 999px; }
+  .pdate-wl.win { color: var(--win); background: #fff7e6; }
+  .pdate-wl.loss { color: var(--text-sub); background: #f0f0f3; }
+  .pdate-s { flex: 1 1 auto; text-align: right; white-space: nowrap; }
+  .pdate-s.muted { flex: 0 0 auto; }
+  .pdate-arrow { flex: 0 0 auto; color: var(--text-sub); font-size: 16px; }
+
   /* rating editor (MY 게임기록) */
   .rate-edit { }
   .stars { display: flex; gap: 1px; font-size: 22px; user-select: none; }
@@ -326,7 +339,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0135</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1952</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -626,10 +639,8 @@ function clubRatingMini(rating, count) {
     : `<span class="muted">★ 평가없음</span>`;
 }
 
-// 게임 정보 보기(읽기 전용 시트)
-function showGameInfo(gameId) {
-  const g = gameById(gameId);
-  if (!g) { toast('게임 정보를 찾을 수 없습니다.', true); return; }
+// 게임 기본 정보 블록(재사용): 썸네일 + 이름/분류 + 메타 + 우리Hub평점 + 요약
+function gameInfoInnerHtml(g) {
   const meta = [];
   if (g.min_players || g.max_players) {
     const mn = g.min_players || '?', mx = g.max_players || '?';
@@ -642,7 +653,7 @@ function showGameInfo(gameId) {
     ? `<span class="rate-club"><span class="star">★</span> ${g.club_rating.toFixed(1)}</span> <small class="muted">우리Hub평점 (평가 ${g.rating_count || 0})</small>`
     : `<span class="muted">우리Hub평점 없음</span>`;
 
-  document.getElementById('detail-body').innerHTML = `
+  return `
     <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;">
       ${thumb(g.image_url, 'gcard-img')}
       <div style="flex:1;min-width:0;">
@@ -654,6 +665,79 @@ function showGameInfo(gameId) {
     <div class="gcard-meta" style="margin-bottom:8px;">${meta.map(m => `<span>${m}</span>`).join('')}</div>
     <div style="margin-bottom:12px;">${club}</div>
     <div style="white-space:pre-wrap;font-size:13px;color:#444;">${g.summary_kr ? esc(g.summary_kr) : '<span class="muted">등록된 요약이 없습니다.</span>'}</div>`;
+}
+
+// 게임 정보 보기(읽기 전용 시트)
+function showGameInfo(gameId) {
+  const g = gameById(gameId);
+  if (!g) { toast('게임 정보를 찾을 수 없습니다.', true); return; }
+  document.getElementById('detail-body').innerHTML = gameInfoInnerHtml(g);
+  document.getElementById('detail-overlay').classList.add('show');
+}
+
+// MY-게임기록 펼침: 게임 기본 정보 + 일자별 플레이 요약(일자·승패·내점수·최고점수)
+function myGameDetailHtml(g) {
+  const uid = state.user ? state.user.player_id : null;
+  const mine = state.plays
+    .filter(s => s.game_id === g.game_id && s.participants.some(p => p.player_id === uid))
+    .slice()
+    .sort((a, b) => String(b.play_date).localeCompare(String(a.play_date)));
+
+  let rows;
+  if (!mine.length) {
+    rows = `<div class="muted" style="font-size:12px;padding:6px 2px;">플레이 기록이 없어요.</div>`;
+  } else {
+    rows = mine.map(s => {
+      const me = s.participants.find(p => p.player_id === uid) || {};
+      const scores = s.participants
+        .map(p => p.score == null || p.score === '' ? null : Number(p.score))
+        .filter(v => v != null && !isNaN(v));
+      const top = scores.length ? Math.max(...scores) : null;
+      const myScore = (me.score == null || me.score === '') ? null : me.score;
+      const win = me.is_win;
+      return `<div class="pdate-row" onclick="showSessionDetail('${esc(s.session_id)}')">
+        <span class="pdate-d">${esc(String(s.play_date).substring(0, 10))}</span>
+        <span class="pdate-wl ${win ? 'win' : 'loss'}">${win ? '승 👑' : '패'}</span>
+        <span class="pdate-s">내 ${myScore == null ? '-' : esc(myScore) + '점'}</span>
+        <span class="pdate-s muted">최고 ${top == null ? '-' : top + '점'}</span>
+        <span class="pdate-arrow">›</span>
+      </div>`;
+    }).join('');
+  }
+
+  return `${gameInfoInnerHtml(g)}
+    <div class="pdate-head">📅 일자별 플레이 요약</div>
+    <div class="pdate-list">${rows}</div>`;
+}
+
+// 단일 세션 세부 기록(참가자 전체) 보기 — MY 플레이 기록과 동일 형식
+function showSessionDetail(sid) {
+  const s = state.plays.find(x => String(x.session_id) === String(sid));
+  if (!s) { toast('플레이 기록을 찾을 수 없습니다.', true); return; }
+  const dur = s.duration_min ? ` · ${s.duration_min}분` : '';
+  const parts = s.participants.map(p => `
+    <div class="prow ${p.is_win ? 'win' : ''}">
+      <span class="pname">${esc(p.name)}${p.is_win ? '<span class="crown">👑</span>' : ''}</span>
+      <span class="pscore">${p.score == null || p.score === '' ? '' : esc(p.score) + '점'}</span>
+    </div>`).join('');
+  document.getElementById('detail-body').innerHTML = `
+    <div class="session-head" style="margin-bottom:10px;">
+      ${thumb(s.game_image, 'session-thumb')}
+      <div style="flex:1;min-width:0;">
+        <div class="g-name">${esc(s.game_name)}</div>
+        <div class="g-meta">${esc(String(s.play_date).substring(0, 10))}${dur} · ${s.participants.length}명</div>
+      </div>
+    </div>
+    <div class="participants">${parts}</div>
+    <button class="btn ghost sm" style="margin-top:14px;width:100%;" onclick="showGameInfoBackFromSession('${esc(s.game_id)}')">‹ 게임 정보로</button>`;
+  document.getElementById('detail-overlay').classList.add('show');
+}
+
+// 세션 세부 → 게임 상세(일자별 요약 포함)로 돌아가기
+function showGameInfoBackFromSession(gameId) {
+  const g = gameById(gameId);
+  if (!g) { showGameInfo(gameId); return; }
+  document.getElementById('detail-body').innerHTML = myGameDetailHtml(g);
   document.getElementById('detail-overlay').classList.add('show');
 }
 
@@ -889,9 +973,9 @@ function gameCardHtml(g, opts = {}) {
       : `<span style="font-size:12px;color:var(--text-sub);">내 평점 없음</span>`;
   }
 
-  // 펼침 영역: 내 게임기록은 '평점 에디터', 그 외는 '게임 요약'
+  // 펼침 영역: 내 게임기록은 '게임 정보 + 일자별 요약 + 평점 에디터', 그 외는 '게임 요약'
   const detail = opts.ratingEditor
-    ? `<div class="gcard-editwrap">${ratingEditorHtml(g)}</div>`
+    ? `<div class="gcard-editwrap">${myGameDetailHtml(g)}${ratingEditorHtml(g)}</div>`
     : (g.summary_kr
         ? `<div class="gcard-detail">${esc(g.summary_kr)}</div>`
         : `<div class="gcard-detail muted">등록된 요약이 없습니다.</div>`);
@@ -1691,7 +1775,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v0135 재배포';
+const APP_VERSION = 'v1952 MY-게임기록 일자별 요약';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
