@@ -339,7 +339,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2007</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2011</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -516,6 +516,7 @@ async function loadCore(manual) {
     // 개인 통계/평점 캐시 무효화 → 다음 렌더 시 새로 로드
     state._myStats = null;
     state._myRatings = null;
+    state._myRatingsPromise = null;
     renderPlay();
     renderGames();
     if (state.user && document.getElementById('view-my').classList.contains('active')) renderMy();
@@ -1032,6 +1033,8 @@ function renderMy() {
   if (!state.user) { renderLoginForm(); return; }
   document.getElementById('my-login').style.display = 'none';
   document.getElementById('my-content').style.display = 'block';
+  // 게임기록 탭 데이터(내 평점)를 전체기록 통계와 병렬로 미리 로드 → 탭 전환 시 즉시 표시
+  ensureMyRatings().catch(() => {});
   const tab = state.myTab || 'overview';
   if (tab === 'overview') renderMyOverview();
   else if (tab === 'plays') renderMyPlaysTab();
@@ -1092,6 +1095,7 @@ function applyAuth(user, pin, welcome) {
   sessionStorage.setItem('bg_pin', pin);
   state._myStats = null;   // 사용자별 캐시 초기화
   state._myRatings = null;
+  state._myRatingsPromise = null;
   updateWhoami();
   renderGames();
   toast(welcome);
@@ -1135,6 +1139,7 @@ function logout() {
   state.user = null;
   state._myStats = null;
   state._myRatings = null;
+  state._myRatingsPromise = null;
   sessionStorage.removeItem('bg_user');
   updateWhoami();
   renderGames();
@@ -1292,16 +1297,30 @@ function filterMyPlays() {
   renderSessionList('my-sessions', list);
 }
 
+// 내 평점을 (중복 없이) 한 번만 불러오는 공용 로더.
+// MY 진입 시 전체기록 통계와 '병렬로' 미리 당겨두어 게임기록 탭을 즉시 표시.
+function ensureMyRatings() {
+  if (state._myRatings) return Promise.resolve(state._myRatings);
+  if (state._myRatingsPromise) return state._myRatingsPromise;
+  state._myRatingsPromise = api('getMyRatings', { playerId: state.user.player_id })
+    .then(list => {
+      const map = {};
+      (list || []).forEach(r => { map[r.game_id] = r; });
+      state._myRatings = map;
+      state._myRatingsPromise = null;
+      return map;
+    })
+    .catch(e => { state._myRatingsPromise = null; throw e; });
+  return state._myRatingsPromise;
+}
+
 async function renderMyGames() {
   const el = document.getElementById('my-games');
-  // 캐시가 있으면 서버 호출 없이 렌더
+  // 캐시가 없으면 로드(진입 시 미리 당겨뒀다면 즉시 완료)
   if (!state._myRatings) {
     el.innerHTML = `<div class="empty"><div class="spinner" style="margin:0 auto;"></div></div>`;
     try {
-      const myRatings = await api('getMyRatings', { playerId: state.user.player_id });
-      const ratingMap = {};
-      myRatings.forEach(r => { ratingMap[r.game_id] = r; });
-      state._myRatings = ratingMap;
+      await ensureMyRatings();
     } catch (e) {
       el.innerHTML = `<div class="empty">불러오지 못했습니다.<br/>${esc(e.message)}</div>`;
       return;
@@ -1789,7 +1808,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2007 일자별 요약 내점수 라벨 나';
+const APP_VERSION = 'v2011 MY 진입 시 게임기록(내평점) 병렬 프리페치';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
