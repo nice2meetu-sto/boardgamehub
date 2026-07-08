@@ -346,7 +346,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2053</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0754</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -1271,7 +1271,7 @@ function renderMyPlaysTab() {
   el.innerHTML = `
     <div class="searchbox" style="margin-top:2px;">
       <span>🔍</span>
-      <input id="my-play-search" placeholder="게임명 · 참가자 이름 검색" oninput="filterMyPlays()" />
+      <input id="my-play-search" placeholder="일자 · 게임명 · 참가자 검색 (쉼표로 여러 조건: 07-09, 오딘, 슈슈)" oninput="filterMyPlays()" />
     </div>
     <div id="my-sessions"></div>`;
   filterMyPlays();
@@ -1295,14 +1295,21 @@ function myGameScores(gameId) {
   return { has: true, avg, max };
 }
 
-// 내 플레이 기록 세션 검색(게임명 · 참가자 이름)
+// 내 플레이 기록 세션 검색: 쉼표(,)로 여러 조건 AND 검색
+// 각 조건은 일자 · 게임명 · 참가자 이름 어디든 포함되면 매칭, 모든 조건을 만족해야 표시.
 function filterMyPlays() {
   const all = state._mySessions || [];
   const input = document.getElementById('my-play-search');
-  const term = (input ? input.value : '').trim().toLowerCase();
-  const list = !term ? all : all.filter(s =>
-    String(s.game_name || '').toLowerCase().includes(term) ||
-    s.participants.some(p => String(p.name || '').toLowerCase().includes(term)));
+  const raw = input ? input.value : '';
+  const terms = raw.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+  const list = !terms.length ? all : all.filter(s => {
+    const hay = [
+      String(s.play_date || ''),
+      String(s.game_name || ''),
+      ...s.participants.map(p => String(p.name || ''))
+    ].join(' ').toLowerCase();
+    return terms.every(t => hay.includes(t));
+  });
   renderSessionList('my-sessions', list);
 }
 
@@ -1817,7 +1824,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2053 게임 상세 헤더 고정 + 일자별 리스트만 스크롤';
+const APP_VERSION = 'v0754 플레이기록 쉼표 다중조건 검색';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
