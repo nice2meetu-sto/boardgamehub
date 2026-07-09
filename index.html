@@ -307,6 +307,19 @@
   .wintoggle.on { background: var(--win); color: #fff; border-color: var(--win); }
   .rm-btn { flex-shrink: 0; color: var(--danger); font-size: 20px; padding: 4px 8px; }
 
+  /* 접두어 자동완성 드롭다운 */
+  .ac-wrap { position: relative; }
+  .ac-wrap > input { width: 100%; }
+  .ac-menu {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20;
+    background: #fff; border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(20,20,40,.14); max-height: 190px; overflow-y: auto;
+  }
+  .ac-menu.show { display: block; }
+  .ac-item { padding: 10px 12px; font-size: 14px; cursor: pointer; border-bottom: 1px solid var(--border); }
+  .ac-item:last-child { border-bottom: none; }
+  .ac-item:active { background: var(--main-light); color: var(--main); }
+
   /* ===== Toast / loader ===== */
   #toast {
     position: fixed; left: 50%; bottom: calc(var(--tabbar-h) + 30px); transform: translateX(-50%);
@@ -346,7 +359,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0754</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1913</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -1640,10 +1653,6 @@ function renderAddPlayForm() {
     addPlayState.participants = [{ name: '', score: '', is_win: false, is_guest: false }];
   }
   const el = document.getElementById('add-play-form');
-  const gameListOpts = state.games.slice()
-    .sort((a, b) => (a.name_kr || '').localeCompare(b.name_kr || ''))
-    .map(g => `<option value="${esc(g.name_kr || g.name_en)}"></option>`).join('');
-  const playerListOpts = state.players.map(p => `<option value="${esc(p.name)}"></option>`).join('');
   const today = new Date().toISOString().substring(0, 10);
 
   el.innerHTML = `
@@ -1652,19 +1661,60 @@ function renderAddPlayForm() {
       <div class="field"><label>플레이 시간(분)</label><input class="input" id="ap-duration" type="number" inputmode="numeric" placeholder="예: 45" /></div>
     </div>
     <div class="field">
-      <label>게임 * (검색하거나 목록에서 선택)</label>
-      <input class="input" id="ap-game" list="ap-game-list" placeholder="게임명 입력/선택" autocomplete="off" />
-      <datalist id="ap-game-list">${gameListOpts}</datalist>
+      <label>게임 * (이름을 입력하면 자동완성)</label>
+      <div class="ac-wrap">
+        <input class="input" id="ap-game" placeholder="게임명 입력" autocomplete="off"
+               oninput="acRender(this,'game')" onblur="acHide(this)" />
+        <div class="ac-menu"></div>
+      </div>
       <div class="hint">목록에 있는 게임명과 정확히 일치해야 저장됩니다.</div>
     </div>
     <div class="field">
-      <label>참가자 (검색하거나 선택)</label>
+      <label>참가자 (이름을 입력하면 자동완성)</label>
       <div id="ap-participants"></div>
       <button class="btn ghost sm" style="margin-top:6px;" onclick="addParticipant()">+ 참가자 추가</button>
     </div>
-    <datalist id="ap-player-list">${playerListOpts}</datalist>
     <button class="btn sheet-save" onclick="submitAddPlay()">플레이 결과 저장</button>`;
   renderParticipants();
+}
+
+// ===== 접두어 자동완성 (입력한 글자로 '시작하는' 항목만 표시) =====
+function acNames(kind) {
+  if (kind === 'game') return state.games.map(g => g.name_kr || g.name_en).filter(Boolean);
+  return (state.players || []).map(p => p.name).filter(Boolean);
+}
+function acRender(inp, kind) {
+  const wrap = inp.closest('.ac-wrap');
+  const menu = wrap && wrap.querySelector('.ac-menu');
+  if (!menu) return;
+  const term = inp.value.trim().toLowerCase();
+  if (!term) { menu.classList.remove('show'); menu.innerHTML = ''; return; }
+  const seen = new Set();
+  const matches = acNames(kind).filter(n => {
+    const low = n.toLowerCase();
+    if (!low.startsWith(term) || seen.has(low)) return false;
+    seen.add(low); return true;
+  }).sort((a, b) => a.localeCompare(b)).slice(0, 8);
+  // 후보가 없거나, 이미 정확히 일치하는 하나뿐이면 표시하지 않음
+  if (!matches.length || (matches.length === 1 && matches[0].toLowerCase() === term)) {
+    menu.classList.remove('show'); menu.innerHTML = ''; return;
+  }
+  menu.innerHTML = matches.map(n => `<div class="ac-item" onmousedown="acPick(event, this)">${esc(n)}</div>`).join('');
+  menu.classList.add('show');
+}
+function acPick(e, item) {
+  e.preventDefault();   // 클릭 시 input이 blur되지 않도록 → 포커스 유지
+  const wrap = item.closest('.ac-wrap');
+  const inp = wrap.querySelector('input');
+  inp.value = item.textContent;
+  const menu = wrap.querySelector('.ac-menu');
+  menu.classList.remove('show'); menu.innerHTML = '';
+  inp.dispatchEvent(new Event('input', { bubbles: true }));  // 상태 갱신(updatePart 등)
+}
+function acHide(inp) {
+  const wrap = inp.closest('.ac-wrap');
+  const menu = wrap && wrap.querySelector('.ac-menu');
+  if (menu) setTimeout(() => menu.classList.remove('show'), 120);
 }
 
 function renderParticipants() {
@@ -1672,8 +1722,14 @@ function renderParticipants() {
   el.innerHTML = addPlayState.participants.map((pt, i) => `
     <div style="margin-bottom:10px;">
       <div class="ppart" style="margin-bottom:4px;">
-        <input ${pt.is_guest ? '' : 'list="ap-player-list"'} placeholder="${pt.is_guest ? '게스트 닉네임' : '회원 이름 입력/선택'}" autocomplete="off" style="flex:2;min-width:0;"
-               value="${esc(pt.name)}" oninput="updatePart(${i}, 'name', this.value)" />
+        ${pt.is_guest
+          ? `<input placeholder="게스트 닉네임" autocomplete="off" style="flex:2;min-width:0;"
+               value="${esc(pt.name)}" oninput="updatePart(${i}, 'name', this.value)" />`
+          : `<div class="ac-wrap" style="flex:2;min-width:0;">
+               <input placeholder="회원 이름 입력" autocomplete="off"
+                 value="${esc(pt.name)}" oninput="updatePart(${i}, 'name', this.value); acRender(this,'player')" onblur="acHide(this)" />
+               <div class="ac-menu"></div>
+             </div>`}
         <input type="number" inputmode="numeric" placeholder="점수" value="${esc(pt.score)}" oninput="updatePart(${i}, 'score', this.value)" />
         <button class="wintoggle ${pt.is_win ? 'on' : ''}" onclick="toggleWin(${i})">${pt.is_win ? '승 👑' : '패'}</button>
         ${addPlayState.participants.length > 1 ? `<button class="rm-btn" onclick="removePart(${i})">×</button>` : ''}
@@ -1824,7 +1880,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v0754 플레이기록 쉼표 다중조건 검색';
+const APP_VERSION = 'v1913 플레이 입력 게임/참가자 접두어 자동완성';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
