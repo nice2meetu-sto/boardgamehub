@@ -188,7 +188,7 @@
   .gcard-name { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
   .gcard-en { font-size: 11px; color: var(--text-sub); margin-top: 1px; }
   .gcard-meta { font-size: 12px; color: var(--text-sub); margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
-  .gcard-ratings { display: flex; gap: 14px; margin-top: 8px; align-items: center; }
+  .gcard-ratings { display: flex; gap: 14px; margin-top: 5px; align-items: center; }
   .rate-club { font-weight: 900; font-size: 16px; color: var(--main); }
   .rate-club .star { color: var(--win); }
   .rate-club small { font-size: 11px; color: var(--text-sub); font-weight: 500; }
@@ -448,7 +448,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2346</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0008</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -928,7 +928,7 @@ function gameInfoInnerHtml(g) {
         ${g.name_en && g.name_kr ? `<div class="muted" style="font-size:12px;margin-top:2px;">${esc(g.name_en)}</div>` : ''}
       </div>
     </div>
-    <div class="gcard-meta" style="margin-bottom:8px;">${meta.map(m => `<span>${m}</span>`).join('')}</div>
+    <div class="gcard-meta" style="margin-bottom:5px;">${meta.map(m => `<span>${m}</span>`).join('')}</div>
     <div style="margin-bottom:12px;">${club}</div>
     <div style="white-space:pre-wrap;font-size:13px;color:#444;">${g.summary_kr ? esc(g.summary_kr) : '<span class="muted">등록된 요약이 없습니다.</span>'}</div>`;
 }
@@ -2199,10 +2199,10 @@ function renderAddPlayForm() {
       <label>게임 * (게임이 없다면 추가해 주세요)</label>
       <div class="ac-wrap">
         <input class="input" id="ap-game" placeholder="게임명 입력" autocomplete="off"
-               oninput="acRender(this,'game')" onblur="acHide(this)" />
+               oninput="acRender(this,'game'); updateGameBadge()" onblur="acHide(this)" />
         <div class="ac-menu"></div>
       </div>
-      <div class="hint">목록에 있는 게임명과 정확히 일치해야 저장됩니다.</div>
+      <div class="mchk no" id="gmchk" style="margin-top:4px;">일치하는 게임이 없어요 · 등록된 게임명과 정확히 일치해야 저장됩니다</div>
     </div>
     <div class="field">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">
@@ -2254,6 +2254,16 @@ function acHide(inp) {
   if (menu) setTimeout(() => menu.classList.remove('show'), 120);
 }
 
+// 게임명 일치 배지: 정확히 일치하는 게임이면 초록, 아니면 회색 안내
+function updateGameBadge() {
+  const el = document.getElementById('gmchk');
+  const inp = document.getElementById('ap-game');
+  if (!el || !inp) return;
+  const ok = !!gameByExactName(inp.value.trim());
+  el.textContent = ok ? '✓ 등록된 게임이에요' : '일치하는 게임이 없어요 · 등록된 게임명과 정확히 일치해야 저장됩니다';
+  el.className = 'mchk ' + (ok ? 'ok' : 'no');
+}
+
 // 회원 일치 배지: 정확히 일치하는 회원이면 초록 '회원이에요', 아니면 '일치하는 회원이 없어요'
 function memberBadgeHtml(i, pt) {
   if (pt.is_guest) return '';
@@ -2274,14 +2284,14 @@ function renderParticipants() {
     <div style="margin-bottom:10px;">
       <div class="ppart" style="margin-bottom:4px;">
         ${pt.is_guest
-          ? `<input placeholder="게스트 닉네임" autocomplete="off" style="flex:2;min-width:0;"
+          ? `<input class="input" placeholder="게스트 닉네임" autocomplete="off" style="flex:2;min-width:0;"
                value="${esc(pt.name)}" oninput="updatePart(${i}, 'name', this.value)" />`
           : `<div class="ac-wrap" style="flex:2;min-width:0;">
-               <input placeholder="회원 이름 입력" autocomplete="off"
+               <input class="input" placeholder="회원 이름 입력" autocomplete="off"
                  value="${esc(pt.name)}" oninput="updatePart(${i}, 'name', this.value); acRender(this,'player')" onblur="acHide(this)" />
                <div class="ac-menu"></div>
              </div>`}
-        <input type="number" inputmode="numeric" placeholder="점수" value="${esc(pt.score)}" oninput="updatePart(${i}, 'score', this.value)" />
+        <input class="input" type="number" inputmode="numeric" placeholder="점수" value="${esc(pt.score)}" oninput="updatePart(${i}, 'score', this.value)" style="flex:1;min-width:0;" />
         <button class="wintoggle ${pt.is_win ? 'on' : ''}" onclick="toggleWin(${i})">${pt.is_win ? '승 👑' : '패 🥈'}</button>
         ${addPlayState.participants.length > 1 ? `<button class="rm-btn" onclick="removePart(${i})">×</button>` : ''}
       </div>
@@ -2655,7 +2665,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2346 bgg 잔재 제거';
+const APP_VERSION = 'v0008 게임 일치 배지 + 입력칸 스타일 통일';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
