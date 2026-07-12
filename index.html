@@ -585,7 +585,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 // 카테고리 탭 로드 실패 시 폴백
 const DEFAULT_CATEGORIES_FALLBACK =
-  ['전략', '마피아', '트릭테이킹', '파티', '협력', '덱빌딩', '추리', '가족', '아브스트랙트', '기타'];
+  ['전략', '마피아', '파티게임', '트릭테이킹', '1대1 게임', '카드게임', '경매게임', '협력게임'];
 
 // Supabase 클라이언트
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -2648,7 +2648,7 @@ async function openCategoryManager() {
         <button class="btn sm" style="padding:8px 12px;flex:0 0 auto;" onclick="saveCategoryRow(this)">저장</button>
       </div>`).join('');
     body.innerHTML = `<h2 style="font-size:17px;font-weight:900;margin:2px 2px 6px;">🏷 카테고리 관리</h2>
-      <div class="hint" style="margin-bottom:12px;">이름을 바꾸면 그 분류를 쓰는 게임들도 함께 변경됩니다. 숫자는 정렬 순서예요.</div>
+      <div class="hint" style="margin-bottom:12px;">이름을 바꾸면 그 분류를 쓰는 게임들도 함께 변경됩니다.<br/>숫자는 정렬 순서예요.</div>
       ${rows}
       <div class="cat-row" style="margin-top:14px;" data-old="">
         <input class="input cname" placeholder="새 분류 이름" />
