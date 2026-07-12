@@ -278,7 +278,7 @@
   .gd-memo-card { width: 100%; max-width: 420px; background: var(--card); border-radius: 16px; padding: 16px; }
   .gd-memo-card h3 { font-size: 15px; font-weight: 800; margin: 0 0 4px; }
   .gd-memo-card .muted { font-size: 12px; }
-  .gd-memo-card textarea { width: 100%; min-height: 100px; margin-top: 10px; }
+  .gd-memo-card textarea { width: 100%; min-height: 200px; margin-top: 10px; }
   .gd-top { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
   .gd-mystat { font-size: 12.5px; color: var(--text-sub); margin-top: 6px; }
   .gd-sec { margin-top: 18px; }
@@ -449,7 +449,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0044</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0808</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -1303,7 +1303,7 @@ function renderSessionList(containerId, sessions, opts = {}) {
         <div class="session-head">
           ${thumb(s.game_image, 'session-thumb')}
           <div style="flex:1;min-width:0;"><div class="g-name">${esc(s.game_name)}</div></div>
-          <button class="btn sm" style="padding:6px 14px;flex:0 0 auto;" onclick="saveEditSession('${esc(s.session_id)}')">저장</button>
+          <button class="btn ghost sm" style="padding:6px 14px;flex:0 0 auto;" onclick="cancelEditSession()">취소</button>
         </div>
         <div class="row2" style="margin:8px 0;">
           <div class="field" style="margin:0;"><label>날짜</label><input class="input edit-date" type="date" value="${esc(String(s.play_date).substring(0,10))}" /></div>
@@ -1312,7 +1312,7 @@ function renderSessionList(containerId, sessions, opts = {}) {
         <div class="participants">${eparts}</div>
         <div style="display:flex;gap:8px;margin-top:10px;">
           <button class="btn danger sm" style="flex:1;" onclick="deleteSession('${esc(s.session_id)}')">🗑 삭제</button>
-          <button class="btn ghost sm" style="flex:1;" onclick="cancelEditSession()">취소</button>
+          <button class="btn sm" style="flex:1;" onclick="saveEditSession('${esc(s.session_id)}')">저장</button>
         </div>
       </div>`;
     }
@@ -2771,7 +2771,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v0044 게임명 중복 공백무시 + 추가창 자동완성';
+const APP_VERSION = 'v0808 세션수정 버튼 동작 스왑 + 메모팝업 세로 확대';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
