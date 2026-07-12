@@ -2272,13 +2272,13 @@ function renderAddPlayForm() {
       <div class="field"><label>플레이 시간(분)</label><input class="input" id="ap-duration" type="number" inputmode="numeric" placeholder="예: 45" /></div>
     </div>
     <div class="field">
-      <label>게임 * (등록된 게임만 저장 가능합니다)</label>
+      <label>게임 *</label>
       <div class="ac-wrap">
         <input class="input" id="ap-game" placeholder="게임명 입력" autocomplete="off"
                oninput="acRender(this,'game'); updateGameBadge()" onblur="acHide(this)" />
         <div class="ac-menu"></div>
       </div>
-      <div class="mchk no" id="gmchk" style="margin-top:4px;">일치하는 게임이 없어요 · 없는 게임은 추가해 주세요</div>
+      <div class="mchk no" id="gmchk" style="margin-top:4px;">등록된 게임만 저장 가능합니다 · 없는 게임은 추가해 주세요</div>
     </div>
     <div class="field">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">
@@ -2336,7 +2336,7 @@ function updateGameBadge() {
   const inp = document.getElementById('ap-game');
   if (!el || !inp) return;
   const ok = !!gameByExactName(inp.value.trim());
-  el.textContent = ok ? '✓ 등록된 게임이에요' : '일치하는 게임이 없어요 · 등록된 게임명과 정확히 일치해야 저장됩니다';
+  el.textContent = ok ? '✓ 등록된 게임이에요' : '일치하는 게임이 없어요 · 이름을 확인해 주세요';
   el.className = 'mchk ' + (ok ? 'ok' : 'no');
 }
 
