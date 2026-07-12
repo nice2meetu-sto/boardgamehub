@@ -394,6 +394,7 @@
   .mchk { font-size: 12px; }
   .mchk.ok { color: var(--ok); font-weight: 700; }
   .mchk.no { color: var(--text-sub); }
+  .mchk.dup { color: var(--danger); font-weight: 700; }
 
   /* 접두어 자동완성 드롭다운 */
   .ac-wrap { position: relative; }
@@ -448,7 +449,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0008</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0025</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -660,6 +661,8 @@ async function api(action, params = {}) {
       return sbrpc('admin_add_category', { p_player_id: P.playerId, p_pin: P.pin, p_name: P.name, p_sort: Number(P.sort) || 0 });
     case 'adminUpdateCategory':
       return sbrpc('admin_update_category', { p_player_id: P.playerId, p_pin: P.pin, p_old_name: P.oldName, p_new_name: P.newName, p_sort: Number(P.sort) || 0 });
+    case 'adminDeleteGame':
+      return sbrpc('admin_delete_game', { p_player_id: P.playerId, p_pin: P.pin, p_game_id: P.gameId });
     case 'getCategoriesFull': {
       const { data, error } = await sb.from('categories').select('name,sort_order').order('sort_order').order('name');
       if (error) throw new Error(acErr(error));
@@ -2041,7 +2044,8 @@ function renderAddGameForm() {
   el.innerHTML = `
     <div class="field">
       <label>한글 게임명 *</label>
-      <input class="input" id="ag-namekr" placeholder="예: 스컬킹" />
+      <input class="input" id="ag-namekr" placeholder="예: 스컬킹" oninput="checkNewGameName()" />
+      <div class="mchk" id="ag-namecheck" style="margin-top:4px;display:none;"></div>
     </div>
     <div class="field">
       <label>영문 게임명 (선택)</label>
@@ -2136,6 +2140,10 @@ async function submitAddGame() {
   const nameKr = document.getElementById('ag-namekr').value.trim();
   const category = document.getElementById('ag-category').value;
   if (!nameKr) { toast('한글 게임명을 입력하세요.', true); return; }
+  // 중복 게임명 등록 차단(닉네임 중복 방지와 동일)
+  if (state.games.some(g => (g.name_kr || '').trim() === nameKr)) {
+    toast('이미 등록된 게임명입니다.', true); return;
+  }
   const pin = await promptPin();
   if (pin == null) return;
 
@@ -2170,6 +2178,74 @@ async function submitAddGame() {
 
 // ----- 플레이 결과 추가 -----
 const addPlayState = { participants: [] };
+
+// 한글 자모 분해 → 오타 유사도(레벤슈타인) 계산용
+function decomposeHangul(str) {
+  const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+  const JUNG = 'ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ';
+  const JONG = ' ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ';
+  let out = '';
+  for (const ch of String(str)) {
+    const c = ch.charCodeAt(0);
+    if (c >= 0xAC00 && c <= 0xD7A3) {
+      const s = c - 0xAC00;
+      out += CHO[Math.floor(s / 588)] + JUNG[Math.floor((s % 588) / 28)] + JONG[s % 28];
+    } else out += ch;
+  }
+  return out.replace(/\s/g, '');
+}
+function editDistance(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
+// 오타 수준으로 비슷한 기존 게임명 찾기(자모 기준 편집거리 ≤ 2, 길이 비례)
+function similarGameName(name) {
+  const q = decomposeHangul(name.trim());
+  if (q.length < 2) return null;
+  let best = null, bestD = Infinity;
+  state.games.forEach(g => {
+    [g.name_kr, g.name_en].forEach(nm => {
+      if (!nm) return;
+      const d = editDistance(q, decomposeHangul(String(nm).trim()));
+      if (d < bestD) { bestD = d; best = nm; }
+    });
+  });
+  const limit = q.length <= 4 ? 1 : 2;   // 짧은 이름은 더 엄격
+  return (best && bestD > 0 && bestD <= limit) ? best : null;
+}
+
+// 게임 추가: 한글명 실시간 중복/유사 검사
+function checkNewGameName() {
+  const el = document.getElementById('ag-namecheck');
+  const inp = document.getElementById('ag-namekr');
+  if (!el || !inp) return;
+  const name = inp.value.trim();
+  if (!name) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  const dup = state.games.find(g => (g.name_kr || '').trim() === name);
+  if (dup) {
+    el.className = 'mchk dup';
+    el.textContent = '⚠ 이미 등록된 게임명이에요 — 추가할 수 없어요';
+    return;
+  }
+  const sim = similarGameName(name);
+  if (sim) {
+    el.className = 'mchk no';
+    el.textContent = `혹시 "${sim}"인가요? (없으면 그대로 추가하셔도 돼요)`;
+  } else {
+    el.className = 'mchk ok';
+    el.textContent = '✓ 등록 가능한 새 게임명이에요';
+  }
+}
 
 // 정확히 일치하는 게임/플레이어만 허용(데이터 오류 방지)
 function gameByExactName(name) {
@@ -2404,7 +2480,10 @@ function openEditGame(gameId) {
       <input class="input" id="eg-photo" type="file" accept="image/*" onchange="onPhotoPick(this,'eg')" />
   			<div id="eg-photo-preview"></div>
     </div>
-    <button class="btn sheet-save" onclick="submitEditGame('${g.game_id}')">수정 저장</button>`;
+    <div class="sheet-save" style="display:flex;gap:8px;">
+      <button class="btn danger" style="flex:1;" onclick="deleteGameAdmin('${g.game_id}')">🗑 삭제</button>
+      <button class="btn" style="flex:1;" onclick="submitEditGame('${g.game_id}')">수정 저장</button>
+    </div>`;
   photoState.eg = '';
   showDetailSheet();
 }
@@ -2415,6 +2494,24 @@ document.getElementById('detail-overlay').addEventListener('click', e => {
 document.getElementById('gd-session-overlay').addEventListener('click', e => {
   if (e.target.id === 'gd-session-overlay') closeOverlay();
 });
+
+async function deleteGameAdmin(gameId) {
+  const g = gameById(gameId);
+  const nm = g ? (g.name_kr || g.name_en) : gameId;
+  if (!confirm(`"${nm}" 게임을 삭제할까요?\n이 게임의 평점·후기도 함께 삭제됩니다.\n(플레이 기록은 남아 있어요)`)) return;
+  const pin = await promptPin();
+  if (pin == null) return;
+  showLoader('삭제 중…');
+  try {
+    await api('adminDeleteGame', { playerId: state.user.player_id, pin, gameId });
+    state.games = await api('getGames');
+    state._myRatings = null; state._myRatingsPromise = null;
+    toast('삭제되었습니다.');
+    closeOverlay();
+    renderGames();
+    if (document.getElementById('admin-page').classList.contains('show')) adminGameSearch();
+  } catch (e) { toast(e.message, true); } finally { hideLoader(); }
+}
 
 async function submitEditGame(gameId) {
   const pin = await promptPin();
@@ -2665,7 +2762,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v0008 게임 일치 배지 + 입력칸 스타일 통일';
+const APP_VERSION = 'v0025 관리자 게임삭제 + 게임명 중복/유사 검증';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');

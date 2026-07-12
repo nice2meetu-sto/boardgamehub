@@ -509,6 +509,9 @@ as $$
 declare v_id text; v_now text := to_char(now(), 'YYYY-MM-DD HH24:MI:SS');
 begin
   perform public._verify(p_player_id, p_pin);
+  if btrim(coalesce(p_payload->>'name_kr','')) = '' then raise exception '한글 게임명을 입력하세요.'; end if;
+  if exists (select 1 from public.games where btrim(name_kr) = btrim(coalesce(p_payload->>'name_kr',''))) then
+    raise exception '이미 등록된 게임명입니다.'; end if;
   v_id := public._next_id('G', 3, 'games', 'game_id');
 
   insert into public.games(
@@ -517,7 +520,7 @@ begin
     summary_kr, image_url, source, created_by, created_at)
   values(
     v_id,
-    coalesce(p_payload->>'name_kr',''), coalesce(p_payload->>'name_en',''),
+    btrim(coalesce(p_payload->>'name_kr','')), coalesce(p_payload->>'name_en',''),
     coalesce(p_payload->>'category',''),
     nullif(p_payload->>'min_players','')::numeric,
     nullif(p_payload->>'max_players','')::numeric,
@@ -713,5 +716,22 @@ grant execute on function public.admin_get_players(text, text)                  
 grant execute on function public.admin_update_pin(text, text, text, text)            to anon;
 grant execute on function public.admin_add_category(text, text, text, int)           to anon;
 grant execute on function public.admin_update_category(text, text, text, text, int)  to anon;
+
+-- 게임 삭제(관리자 전용): 게임 + 그 게임의 평점/후기 삭제. 플레이 기록은 보존.
+create or replace function public.admin_delete_game(p_player_id text, p_pin text, p_game_id text)
+returns json
+language plpgsql security definer
+set search_path = public, extensions
+as $$
+begin
+  perform public._verify_admin(p_player_id, p_pin);
+  if coalesce(p_game_id,'') = '' then raise exception 'game_id가 필요합니다.'; end if;
+  if not exists (select 1 from public.games where game_id = p_game_id) then
+    raise exception '게임을 찾을 수 없습니다.'; end if;
+  delete from public.ratings where game_id = p_game_id;
+  delete from public.games   where game_id = p_game_id;
+  return json_build_object('game_id', p_game_id, 'deleted', true);
+end $$;
+grant execute on function public.admin_delete_game(text, text, text)                   to anon;
 
 -- 끝. (데이터는 README의 CSV import 단계에서 채웁니다.)
