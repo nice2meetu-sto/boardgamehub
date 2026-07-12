@@ -234,6 +234,8 @@
     font-size: 11px; font-weight: 800; line-height: 1.4; white-space: nowrap; }
   .gcard-pill:active { background: #ddd7f7; }
   .gcard-pill.edit { padding: 4px 8px; }
+  .gcard-pill.review { background: transparent; }
+  .gcard-pill.review:active { background: var(--main-light); }
   /* 후기 목록 시트 */
   .rv-row { padding: 11px 2px; border-bottom: 1px solid var(--border); }
   .rv-row:last-child { border-bottom: none; }
@@ -241,9 +243,10 @@
   .rv-name .rv-when { font-weight: 500; font-size: 11px; color: var(--text-sub); margin-left: 6px; }
   .rv-text { font-size: 13px; color: #444; margin-top: 3px; white-space: pre-wrap; word-break: break-word; }
   /* 게임메모 편집 오버레이 (게임 상세 위) */
-  #gd-memo-overlay { position: fixed; inset: 0; z-index: 150; background: rgba(20,20,30,.45);
+  #gd-memo-overlay, #gd-session-overlay { position: fixed; inset: 0; z-index: 150; background: rgba(20,20,30,.45);
     display: none; align-items: center; justify-content: center; padding: 20px; }
-  #gd-memo-overlay.show { display: flex; }
+  #gd-memo-overlay.show, #gd-session-overlay.show { display: flex; }
+  #gd-session-card h3 { font-size: 15px; font-weight: 800; margin: 0 0 2px; }
   .gd-memo-card { width: 100%; max-width: 420px; background: var(--card); border-radius: 16px; padding: 16px; }
   .gd-memo-card h3 { font-size: 15px; font-weight: 800; margin: 0 0 4px; }
   .gd-memo-card .muted { font-size: 12px; }
@@ -418,7 +421,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1815</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1834</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -514,6 +517,10 @@
         <button class="btn sm" style="flex:1;" onclick="saveMemo()">저장</button>
       </div>
     </div>
+  </div>
+  <!-- 막대 클릭 → 그날 참가자 점수 오버레이 -->
+  <div id="gd-session-overlay">
+    <div class="gd-memo-card" id="gd-session-card"></div>
   </div>
 </div>
 
@@ -946,40 +953,60 @@ function gamePlayerStats(gid) {
 }
 
 // 최근 6판: 막대=그 판 베스트 점수, 추이선=내 점수
+// Catmull-Rom → cubic bezier 로 부드러운 곡선 path 생성
+function smoothPath(pts) {
+  if (!pts.length) return '';
+  if (pts.length === 1) { const p = pts[0]; return `M${(p.x - 0.1).toFixed(1)},${p.y.toFixed(1)} L${(p.x + 0.1).toFixed(1)},${p.y.toFixed(1)}`; }
+  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || pts[i + 1];
+    const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+
+// 상단만 둥근 막대 path
+function topRoundRect(x, yy, w, h, r) {
+  r = Math.max(0, Math.min(r, w / 2, h));
+  return `M${x.toFixed(1)},${(yy + h).toFixed(1)} L${x.toFixed(1)},${(yy + r).toFixed(1)} Q${x.toFixed(1)},${yy.toFixed(1)} ${(x + r).toFixed(1)},${yy.toFixed(1)} L${(x + w - r).toFixed(1)},${yy.toFixed(1)} Q${(x + w).toFixed(1)},${yy.toFixed(1)} ${(x + w).toFixed(1)},${(yy + r).toFixed(1)} L${(x + w).toFixed(1)},${(yy + h).toFixed(1)} Z`;
+}
+
 function gameChartSvg(sessions, uid) {
   const pts = sessions.map(s => {
     const scores = s.participants.map(p => (p.score == null || p.score === '') ? null : Number(p.score)).filter(v => v != null && !isNaN(v));
     const me = s.participants.find(p => p.player_id === uid) || {};
     const mine = (me.score == null || me.score === '') ? null : Number(me.score);
-    return { date: String(s.play_date).substring(5, 10), best: scores.length ? Math.max(...scores) : null, mine };
+    return { date: String(s.play_date).substring(5, 10), best: scores.length ? Math.max(...scores) : null, mine, sid: s.session_id };
   });
   if (!pts.length) return `<div class="muted" style="font-size:12px;padding:10px 2px;text-align:center;">점수 기록이 없어요.</div>`;
-  const W = 320, H = 138, padT = 20, padB = 24, padX = 12;
+  const W = 340, H = 116, padT = 24, padB = 20, padX = 8;
   const plotH = H - padT - padB, baseY = padT + plotH;
   const n = pts.length, slot = (W - padX * 2) / n;
   const maxV = Math.max(1, ...pts.map(p => Math.max(p.best || 0, p.mine || 0)));
   const y = v => padT + plotH * (1 - v / maxV);
   const cx = i => padX + slot * (i + 0.5);
-  const bw = Math.min(slot * 0.5, 34);
-  let bars = '', labels = '', dots = '';
-  const linePts = [];
+  const bw = Math.min(slot * 0.56, 26);
+  let bars = '', labels = '';
+  const line = [];
   pts.forEach((p, i) => {
     const x = cx(i);
     if (p.best != null) {
       const by = y(p.best);
-      bars += `<rect x="${(x - bw / 2).toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${(baseY - by).toFixed(1)}" rx="4" fill="#d9d5f3"/>`;
-      labels += `<text x="${x.toFixed(1)}" y="${(by - 4).toFixed(1)}" text-anchor="middle" font-size="10" fill="#8a86a8">${p.best}</text>`;
+      bars += `<path d="${topRoundRect(x - bw / 2, by, bw, baseY - by, 5)}" fill="#d9d5f3" style="cursor:pointer;" onclick="showBarSession('${esc(p.sid)}')"/>`;
+      labels += `<text x="${x.toFixed(1)}" y="${(by - 8).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="#8a86a8" style="pointer-events:none;">${p.best}</text>`;
     }
     if (p.mine != null) {
       const my = y(p.mine);
-      linePts.push(`${x.toFixed(1)},${my.toFixed(1)}`);
-      dots += `<circle cx="${x.toFixed(1)}" cy="${my.toFixed(1)}" r="3.4" fill="var(--main)"/>`;
-      labels += `<text x="${x.toFixed(1)}" y="${(my + 14).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--main)">${p.mine}</text>`;
+      line.push({ x, y: my });
+      labels += `<text x="${x.toFixed(1)}" y="${(my + 13).toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--main)" style="pointer-events:none;">${p.mine}</text>`;
     }
-    labels += `<text x="${x.toFixed(1)}" y="${(H - 7).toFixed(1)}" text-anchor="middle" font-size="10" fill="#9a97a8">${p.date}</text>`;
+    labels += `<text x="${x.toFixed(1)}" y="${(H - 5).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9a97a8" style="pointer-events:none;">${p.date}</text>`;
   });
-  const line = linePts.length > 1 ? `<polyline points="${linePts.join(' ')}" fill="none" stroke="var(--main)" stroke-width="2"/>` : '';
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;">${bars}${line}${dots}${labels}</svg>`;
+  const curve = smoothPath(line);
+  const path = curve ? `<path d="${curve}" fill="none" stroke="var(--main)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"/>` : '';
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;">${bars}${path}${labels}</svg>`;
 }
 
 function openGameDetail(gameId) {
@@ -992,6 +1019,31 @@ function openGameDetail(gameId) {
 function closeGameDetail() {
   document.getElementById('gd-page').classList.remove('show');
 }
+
+// 차트 막대 클릭 → 그날 참가자 점수 표
+function showBarSession(sid) {
+  const s = state.plays.find(x => String(x.session_id) === String(sid));
+  if (!s) return;
+  const uid = state.user ? state.user.player_id : null;
+  const rows = s.participants.slice().sort((a, b) => {
+    const av = (a.score == null || a.score === '') ? -Infinity : Number(a.score);
+    const bv = (b.score == null || b.score === '') ? -Infinity : Number(b.score);
+    return bv - av;
+  }).map(p => {
+    const isMe = p.player_id && p.player_id === uid;
+    return `<tr class="${isMe ? 'me' : ''}">
+      <td>${esc(p.name)}${p.is_win ? ' 👑' : ''}${isMe ? ' <span style="color:var(--main);font-size:10px;">나</span>' : ''}</td>
+      <td style="text-align:right;">${p.score == null || p.score === '' ? '-' : esc(p.score) + '점'}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('gd-session-card').innerHTML = `
+    <h3>${esc(String(s.play_date).substring(0, 10))} 기록</h3>
+    <div class="muted" style="font-size:12px;">${esc(s.game_name)} · ${s.participants.length}명</div>
+    <table class="gd-table" style="margin-top:10px;"><tbody>${rows}</tbody></table>
+    <button class="btn ghost sm" style="margin-top:14px;width:100%;" onclick="closeBarSession()">닫기</button>`;
+  document.getElementById('gd-session-overlay').classList.add('show');
+}
+function closeBarSession() { document.getElementById('gd-session-overlay').classList.remove('show'); }
 
 // 게임 탭: [후기] 버튼 → 사람들이 남긴 후기(닉네임 + 코멘트)
 async function openReviews(gameId) {
@@ -1077,11 +1129,12 @@ function renderGameDetail() {
   const mine = state.plays
     .filter(s => s.game_id === gd.gid && s.participants.some(p => p.player_id === uid))
     .sort((a, b) => String(a.play_date).localeCompare(String(b.play_date)));
-  const recent = mine.slice(-6);
+  const recent = mine.slice(-10);
   const chart = `<div class="gd-sec">
     <div class="gd-sec-title">📈 최근 ${recent.length}판 점수 추이</div>
     <div class="gd-chart">${gameChartSvg(recent, uid)}</div>
     <div class="gd-legend"><span><i style="background:#d9d5f3;"></i>그 판 베스트</span><span><i style="background:var(--main);"></i>내 점수</span></div>
+    <div class="muted" style="text-align:center;font-size:11px;margin-top:4px;">막대를 누르면 그날 참가자 점수가 나와요</div>
   </div>`;
 
   // 3) 플레이어 통계 표(정렬 가능)
@@ -1368,7 +1421,7 @@ function gameCardHtml(g, opts = {}) {
 
   const acts = [];
   if (opts.ratingEditor) acts.push(`<button class="gcard-pill" onclick="event.stopPropagation(); openGameDetail('${g.game_id}')">상세</button>`);
-  if (opts.review) acts.push(`<button class="gcard-pill" onclick="event.stopPropagation(); openReviews('${g.game_id}')">💬 후기</button>`);
+  if (opts.review) acts.push(`<button class="gcard-pill review" onclick="event.stopPropagation(); openReviews('${g.game_id}')">💬 후기</button>`);
   if (opts.adminEdit) acts.push(`<button class="gcard-pill edit" title="정보 수정 (admin)" onclick="event.stopPropagation(); openEditGame('${g.game_id}')">✏️</button>`);
   const actsHtml = acts.length ? `<div class="gcard-actions">${acts.join('')}</div>` : '';
 
@@ -1750,11 +1803,13 @@ function ratingEditorHtml(g) {
   const review = existing ? (existing.review || '') : '';
   return `<div class="rate-edit" data-gid="${g.game_id}">
     <label style="font-size:12px;font-weight:700;color:var(--text-sub);">내 평점 (1~10, 0.5 단위)</label>
-    <div class="stars" id="stars-${g.game_id}" data-val="${val || ''}">${starsHtml(val)}</div>
-    <div class="rate-val" id="rateval-${g.game_id}">${val ? val.toFixed(1) + ' 점' : '평점을 선택하세요'}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <div class="stars" id="stars-${g.game_id}" data-val="${val || ''}">${starsHtml(val)}</div>
+      <div class="rate-val" id="rateval-${g.game_id}" style="margin:0;white-space:nowrap;">${val ? val.toFixed(1) + ' 점' : '평점 선택'}</div>
+    </div>
     <label style="font-size:12px;font-weight:700;color:var(--text-sub);display:block;margin-top:10px;">한줄 후기 <span class="muted" style="font-weight:500;">(게임 탭에 공개돼요)</span></label>
     <textarea class="input" id="review-${g.game_id}" placeholder="이 게임 어땠나요? 함께 플레이한 사람들에게 공유해요">${esc(review)}</textarea>
-    <button class="btn" style="margin-top:12px;width:100%;" onclick="saveRating('${g.game_id}')">평점·후기 저장</button>
+    <button class="btn" style="margin-top:12px;width:100%;padding:9px;" onclick="saveRating('${g.game_id}')">평점·후기 저장</button>
   </div>`;
 }
 
@@ -2234,7 +2289,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1815 평점·후기 독립 저장 + 저장버튼 풀너비';
+const APP_VERSION = 'v1834 차트 개편(10판·곡선·막대클릭) + 평점UI 정리';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
