@@ -421,7 +421,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1856</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1857</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -818,15 +818,25 @@ function renderPlay() {
     el.innerHTML = `<div class="empty"><div class="big">🎲</div>${scope === 'month' ? '이번 달 플레이 기록이 없어요.' : '아직 플레이 기록이 없어요.'}<br/>+ 버튼으로 결과를 추가해보세요.</div>`;
     return;
   }
+  const ranks = competitionRanks(list, g => g.count);   // 동일 판수 = 공동 순위
   el.innerHTML = list.map((g, i) => `
     <div class="session" style="display:flex;align-items:center;gap:12px;${g.id ? 'cursor:pointer;' : ''}" ${g.id ? `onclick="showGameInfo('${g.id}')"` : ''}>
-      <div class="grow-rank">${i + 1}</div>
+      <div class="grow-rank">${ranks[i]}</div>
       ${thumb(g.image, 'session-thumb')}
       <div style="flex:1;min-width:0;">
         <div class="g-name" style="font-weight:700;">${esc(g.name)}</div>
         <div class="g-meta">${g.count}판 · ${clubRatingMini(g.club_rating, g.rating_count)}</div>
       </div>
     </div>`).join('');
+}
+
+// 동점 공동 순위: 정렬된 배열에서 기준값이 같으면 같은 순위(1,2,2,2,5 방식)
+function competitionRanks(list, keyFn) {
+  const ranks = [];
+  list.forEach((item, i) => {
+    ranks.push(i > 0 && keyFn(item) === keyFn(list[i - 1]) ? ranks[i - 1] : i + 1);
+  });
+  return ranks;
 }
 
 // 게임 카드처럼 컴팩트한 평점 표시(★ 8.5 (3) / 평가없음)
@@ -1692,13 +1702,15 @@ function renderMyGameStatList() {
     listEl.innerHTML = `<div class="empty">${term ? '검색 결과가 없어요.' : '아직 플레이 기록이 없어요.'}</div>`;
     return;
   }
+  // 동일 값(정렬 기준) = 공동 순위. 승률순이면 승률, 판수순이면 판수 기준
+  const ranks = competitionRanks(rows, g => sort === 'plays' ? g.plays : g.win_rate);
   listEl.innerHTML = rows.map((g, i) => {
     const sc = myGameScores(g.game_id);
     const scoreText = sc.has ? `평균 ${sc.avg}점 · 최고 ${sc.max}점` : '점수 없음';
     const rightNum = sort === 'plays' ? `${g.plays}` : `${g.win_rate}%`;
     const rightLbl = sort === 'plays' ? '판수' : '승률';
     return `<div class="grow" style="cursor:pointer;" onclick="showMyGameStat('${esc(g.game_id)}')">
-      <div class="grow-rank">${i + 1}</div>
+      <div class="grow-rank">${ranks[i]}</div>
       <div class="grow-body">
         <div class="grow-name">${esc(g.game)}</div>
         <div class="grow-sub">${g.plays}판 · ${g.wins}승 · ${scoreText}</div>
@@ -2326,7 +2338,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1856 뒤로가기(히스토리) + 세션팝업 바깥탭 닫기';
+const APP_VERSION = 'v1857 동점 공동 순위';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
