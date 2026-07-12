@@ -2074,7 +2074,7 @@ function renderAddGameForm() {
       <label>게임 사진 (선택 — 찍거나 앨범에서 선택)</label>
       <input class="input" id="ag-photo" type="file" accept="image/*" onchange="onPhotoPick(this,'ag')" />
       <div id="ag-photo-preview"></div>
-      <div class="hint">사진을 올리면 작게 압축해서 저장합니다. 안 올리면 아래 URL(선택)을 씁니다.</div>
+      <div class="hint">사진을 올리면 작게 압축해서 저장합니다. 올리면 url 대신 사용합니다</div>
     </div>
     <button class="btn sheet-save" onclick="submitAddGame()">게임 추가</button>`;
   photoState.ag = '';
