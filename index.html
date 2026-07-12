@@ -213,6 +213,26 @@
   .pdate-s.muted { flex: 0 0 auto; }
   .pdate-arrow { flex: 0 0 auto; color: var(--text-sub); font-size: 16px; }
 
+  /* 게임 상세 페이지 */
+  .gd-open { display: block; width: 100%; text-align: left; padding: 11px 12px; margin-bottom: 12px;
+    background: var(--main-light); color: var(--main); border-radius: 10px; font-weight: 700; font-size: 13px; }
+  .gd-open:active { background: #ddd7f7; }
+  .gd-top { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
+  .gd-mystat { font-size: 12.5px; color: var(--text-sub); margin-top: 6px; }
+  .gd-sec { margin-top: 18px; }
+  .gd-sec-title { font-size: 13px; font-weight: 800; color: var(--text-sub); margin: 0 0 8px; }
+  .gd-chart { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 6px 4px; }
+  .gd-legend { display: flex; gap: 16px; justify-content: center; font-size: 11px; color: var(--text-sub); margin-top: 8px; }
+  .gd-legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: middle; margin-right: 4px; }
+  .gd-table-wrap { overflow-x: auto; }
+  .gd-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .gd-table th, .gd-table td { padding: 9px 6px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--border); }
+  .gd-table th:first-child, .gd-table td:first-child { text-align: left; }
+  .gd-table th { color: var(--text-sub); font-weight: 700; font-size: 11px; cursor: pointer; user-select: none; }
+  .gd-table th.act { color: var(--main); }
+  .gd-table tbody tr.me { background: var(--main-light); }
+  .gd-table td:first-child { font-weight: 600; }
+
   /* rating editor (MY 게임기록) */
   .rate-edit { }
   .stars { display: flex; gap: 1px; font-size: 22px; user-select: none; }
@@ -367,7 +387,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1607</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1624</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -835,6 +855,151 @@ function showGameInfoBackFromSession(gameId) {
   document.getElementById('detail-overlay').classList.add('show');
 }
 
+// ============================================================
+//  게임 상세 페이지 (MY-게임기록 카드 → 게임명 탭)
+// ============================================================
+// 이 게임을 함께 플레이한 플레이어별 통계(나 포함, 게스트 포함)
+function gamePlayerStats(gid) {
+  const uid = state.user ? state.user.player_id : null;
+  const map = new Map();
+  state.plays.forEach(s => {
+    if (s.game_id !== gid) return;
+    s.participants.forEach(p => {
+      const key = p.player_id ? ('m:' + p.player_id) : ('g:' + (p.name || ''));
+      let r = map.get(key);
+      if (!r) { r = { name: p.name || '(이름없음)', wins: 0, games: 0, scores: [], isMe: p.player_id && p.player_id === uid }; map.set(key, r); }
+      r.games += 1;
+      if (p.is_win) r.wins += 1;
+      const sc = (p.score == null || p.score === '') ? null : Number(p.score);
+      if (sc != null && !isNaN(sc)) r.scores.push(sc);
+    });
+  });
+  return Array.from(map.values()).map(r => ({
+    name: r.name, isMe: r.isMe, wins: r.wins, games: r.games,
+    winrate: r.games ? Math.round(r.wins / r.games * 1000) / 10 : 0,
+    avg: r.scores.length ? Math.round(r.scores.reduce((a, b) => a + b, 0) / r.scores.length * 10) / 10 : null,
+    best: r.scores.length ? Math.max(...r.scores) : null
+  }));
+}
+
+// 최근 6판: 막대=그 판 베스트 점수, 추이선=내 점수
+function gameChartSvg(sessions, uid) {
+  const pts = sessions.map(s => {
+    const scores = s.participants.map(p => (p.score == null || p.score === '') ? null : Number(p.score)).filter(v => v != null && !isNaN(v));
+    const me = s.participants.find(p => p.player_id === uid) || {};
+    const mine = (me.score == null || me.score === '') ? null : Number(me.score);
+    return { date: String(s.play_date).substring(5, 10), best: scores.length ? Math.max(...scores) : null, mine };
+  });
+  if (!pts.length) return `<div class="muted" style="font-size:12px;padding:10px 2px;text-align:center;">점수 기록이 없어요.</div>`;
+  const W = 320, H = 172, padT = 24, padB = 28, padX = 12;
+  const plotH = H - padT - padB, baseY = padT + plotH;
+  const n = pts.length, slot = (W - padX * 2) / n;
+  const maxV = Math.max(1, ...pts.map(p => Math.max(p.best || 0, p.mine || 0)));
+  const y = v => padT + plotH * (1 - v / maxV);
+  const cx = i => padX + slot * (i + 0.5);
+  const bw = Math.min(slot * 0.5, 34);
+  let bars = '', labels = '', dots = '';
+  const linePts = [];
+  pts.forEach((p, i) => {
+    const x = cx(i);
+    if (p.best != null) {
+      const by = y(p.best);
+      bars += `<rect x="${(x - bw / 2).toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${(baseY - by).toFixed(1)}" rx="4" fill="#d9d5f3"/>`;
+      labels += `<text x="${x.toFixed(1)}" y="${(by - 4).toFixed(1)}" text-anchor="middle" font-size="10" fill="#8a86a8">${p.best}</text>`;
+    }
+    if (p.mine != null) {
+      const my = y(p.mine);
+      linePts.push(`${x.toFixed(1)},${my.toFixed(1)}`);
+      dots += `<circle cx="${x.toFixed(1)}" cy="${my.toFixed(1)}" r="3.6" fill="var(--main)"/>`;
+      labels += `<text x="${x.toFixed(1)}" y="${(my + 15).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--main)">${p.mine}</text>`;
+    }
+    labels += `<text x="${x.toFixed(1)}" y="${(H - 9).toFixed(1)}" text-anchor="middle" font-size="10" fill="#9a97a8">${p.date}</text>`;
+  });
+  const line = linePts.length > 1 ? `<polyline points="${linePts.join(' ')}" fill="none" stroke="var(--main)" stroke-width="2"/>` : '';
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;">${bars}${line}${dots}${labels}</svg>`;
+}
+
+function openGameDetail(gameId) {
+  state._gd = { gid: gameId, col: 'games', dir: 'desc' };
+  renderGameDetail();
+}
+
+function sortGameDetail(col) {
+  const gd = state._gd; if (!gd) return;
+  if (gd.col === col) gd.dir = gd.dir === 'desc' ? 'asc' : 'desc';
+  else { gd.col = col; gd.dir = col === 'name' ? 'asc' : 'desc'; }
+  renderGameDetail();
+}
+
+function renderGameDetail() {
+  const gd = state._gd; if (!gd) return;
+  const g = gameById(gd.gid);
+  if (!g) { toast('게임 정보를 찾을 수 없습니다.', true); return; }
+  const uid = state.user ? state.user.player_id : null;
+
+  // 1) 상단: 사진 + 내 통계(판수·승수·평균·최고)
+  let myGames = 0, myWins = 0; const myScores = [];
+  state.plays.forEach(s => {
+    if (s.game_id !== gd.gid) return;
+    const me = s.participants.find(p => p.player_id === uid);
+    if (me) {
+      myGames++; if (me.is_win) myWins++;
+      const sc = (me.score == null || me.score === '') ? null : Number(me.score);
+      if (sc != null && !isNaN(sc)) myScores.push(sc);
+    }
+  });
+  const myAvg = myScores.length ? Math.round(myScores.reduce((a, b) => a + b, 0) / myScores.length * 10) / 10 : null;
+  const myBest = myScores.length ? Math.max(...myScores) : null;
+  const scoreTxt = myScores.length ? `평균 ${myAvg}점 · 최고 ${myBest}점` : '점수 없음';
+  const top = `<div class="gd-top">
+    ${thumb(g.image_url, 'gcard-img')}
+    <div style="flex:1;min-width:0;">
+      <div class="gcard-name">${esc(g.name_kr || g.name_en)}
+        ${g.category ? `<span class="badge" style="margin-left:6px;">${esc(g.category)}</span>` : ''}</div>
+      <div class="gd-mystat">${myGames}판 · ${myWins}승 · ${scoreTxt}</div>
+    </div>
+  </div>`;
+
+  // 2) 최근 6판 차트(내가 참가한 세션)
+  const mine = state.plays
+    .filter(s => s.game_id === gd.gid && s.participants.some(p => p.player_id === uid))
+    .sort((a, b) => String(a.play_date).localeCompare(String(b.play_date)));
+  const recent = mine.slice(-6);
+  const chart = `<div class="gd-sec">
+    <div class="gd-sec-title">📈 최근 ${recent.length}판 점수 추이</div>
+    <div class="gd-chart">${gameChartSvg(recent, uid)}</div>
+    <div class="gd-legend"><span><i style="background:#d9d5f3;"></i>그 판 베스트</span><span><i style="background:var(--main);"></i>내 점수</span></div>
+  </div>`;
+
+  // 3) 플레이어 통계 표(정렬 가능)
+  const players = gamePlayerStats(gd.gid);
+  const dir = gd.dir === 'asc' ? 1 : -1;
+  players.sort((a, b) => {
+    if (gd.col === 'name') return a.name.localeCompare(b.name) * dir;
+    const av = a[gd.col], bv = b[gd.col];
+    const an = av == null, bn = bv == null;
+    if (an && bn) return 0; if (an) return 1; if (bn) return -1;  // 값 없으면 항상 아래
+    return (av - bv) * dir;
+  });
+  const arrow = c => gd.col === c ? (gd.dir === 'asc' ? ' ▲' : ' ▼') : '';
+  const th = (c, label) => `<th class="${gd.col === c ? 'act' : ''}" onclick="sortGameDetail('${c}')">${label}${arrow(c)}</th>`;
+  const rows = players.map(p => `<tr class="${p.isMe ? 'me' : ''}">
+    <td>${esc(p.name)}${p.isMe ? ' <span style="color:var(--main);font-size:10px;">나</span>' : ''}</td>
+    <td>${p.wins}</td><td>${p.winrate}%</td><td>${p.games}</td>
+    <td>${p.avg == null ? '-' : p.avg}</td><td>${p.best == null ? '-' : p.best}</td>
+  </tr>`).join('');
+  const table = `<div class="gd-sec">
+    <div class="gd-sec-title">👥 함께 플레이한 기록 (${players.length}명)</div>
+    <div class="gd-table-wrap"><table class="gd-table">
+      <thead><tr>${th('name', '플레이어')}${th('wins', '승수')}${th('winrate', '승률')}${th('games', '게임수')}${th('avg', '평균')}${th('best', '최고')}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  </div>`;
+
+  document.getElementById('detail-body').innerHTML = top + chart + table;
+  document.getElementById('detail-overlay').classList.add('show');
+}
+
 function renderSessionList(containerId, sessions) {
   const el = document.getElementById(containerId);
   if (!sessions.length) {
@@ -1081,7 +1246,10 @@ function gameCardTopHtml(g, showMine) {
 function gameCardHtml(g, opts = {}) {
   // 펼침 영역: 내 게임기록은 '평점 에디터', 그 외는 '게임 요약'
   const detail = opts.ratingEditor
-    ? `<div class="gcard-editwrap">${ratingEditorHtml(g)}</div>`
+    ? `<div class="gcard-editwrap">
+         <button class="gd-open" onclick="openGameDetail('${g.game_id}')">📊 ${esc(g.name_kr || g.name_en)} 상세 기록 보기 ›</button>
+         ${ratingEditorHtml(g)}
+       </div>`
     : (g.summary_kr
         ? `<div class="gcard-detail">${esc(g.summary_kr)}</div>`
         : `<div class="gcard-detail muted">등록된 요약이 없습니다.</div>`);
@@ -1943,7 +2111,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1607 앱 아이콘 교체(아이소메트릭 보드)';
+const APP_VERSION = 'v1624 MY 게임기록 → 게임 상세 페이지(차트+플레이어표)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
