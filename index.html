@@ -421,7 +421,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1834</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1856</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -634,6 +634,33 @@ function toast(msg, isErr) {
   toastTimer = setTimeout(() => { t.className = ''; }, 2600);
 }
 
+// ===== 오버레이 히스토리 스택 (하드웨어/브라우저 뒤로가기 대응) =====
+// 오버레이를 열 때 openOverlay(hide)로 등록하면 히스토리 항목이 1개 쌓이고,
+// 뒤로가기(popstate) 또는 closeOverlay()로 맨 위 오버레이부터 하나씩 닫힘.
+const _overlays = [];
+function openOverlay(hideFn) {
+  _overlays.push(hideFn);
+  try { history.pushState({ ov: _overlays.length }, ''); } catch (e) {}
+}
+function closeOverlay() {   // UI 닫기 버튼/백드롭에서 호출 → 히스토리와 동기화
+  if (!_overlays.length) return;
+  try { history.back(); } catch (e) { const h = _overlays.pop(); if (h) h(); }
+}
+function replaceTopOverlay(hideFn) {  // 시트→상세 등 같은 depth로 화면 교체
+  if (_overlays.length) _overlays[_overlays.length - 1] = hideFn;
+  else openOverlay(hideFn);
+}
+window.addEventListener('popstate', () => {
+  if (_overlays.length) { const h = _overlays.pop(); if (h) { try { h(); } catch (e) {} } }
+});
+// detail-overlay(공용 시트)는 내용만 바뀌며 여러 번 열리므로, 처음 열 때만 히스토리 push
+function showDetailSheet() {
+  const el = document.getElementById('detail-overlay');
+  const wasOpen = el.classList.contains('show');
+  el.classList.add('show');
+  if (!wasOpen) openOverlay(() => el.classList.remove('show'));
+}
+
 // ===== 유틸 =====
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -842,7 +869,7 @@ function showGameInfo(gameId) {
   const g = gameById(gameId);
   if (!g) { toast('게임 정보를 찾을 수 없습니다.', true); return; }
   document.getElementById('detail-body').innerHTML = gameInfoInnerHtml(g);
-  document.getElementById('detail-overlay').classList.add('show');
+  showDetailSheet();
 }
 
 // MY-게임기록 펼침: 게임 기본 정보 + 일자별 플레이 요약(일자·승패·내점수·최고점수)
@@ -906,7 +933,7 @@ function showSessionDetail(sid) {
     </div>
     <div class="participants">${parts}</div>
     <button class="btn ghost sm" style="margin-top:14px;width:100%;" onclick="showGameInfoBackFromSession('${esc(s.game_id)}')">‹ 게임 정보로</button>`;
-  document.getElementById('detail-overlay').classList.add('show');
+  showDetailSheet();
 }
 
 // 전체기록의 게임별 통계 카드 탭 → 게임 정보 + 일자별 플레이 요약
@@ -914,7 +941,7 @@ function showMyGameStat(gameId) {
   const g = gameById(gameId);
   if (!g) { toast('게임 정보를 찾을 수 없습니다.', true); return; }
   document.getElementById('detail-body').innerHTML = myGameDetailHtml(g);
-  document.getElementById('detail-overlay').classList.add('show');
+  showDetailSheet();
 }
 
 // 세션 세부 → 게임 상세(일자별 요약 포함)로 돌아가기
@@ -922,7 +949,7 @@ function showGameInfoBackFromSession(gameId) {
   const g = gameById(gameId);
   if (!g) { showGameInfo(gameId); return; }
   document.getElementById('detail-body').innerHTML = myGameDetailHtml(g);
-  document.getElementById('detail-overlay').classList.add('show');
+  showDetailSheet();
 }
 
 // ============================================================
@@ -1010,15 +1037,18 @@ function gameChartSvg(sessions, uid) {
 }
 
 function openGameDetail(gameId) {
-  // 시트에서 열렸다면 닫고 전체 화면으로 전환
-  document.getElementById('detail-overlay').classList.remove('show');
+  const el = document.getElementById('detail-overlay');
+  const fromSheet = el.classList.contains('show');   // 공용 시트에서 열렸는지
+  el.classList.remove('show');
   state._gd = { gid: gameId, col: 'games', dir: 'desc' };
   renderGameDetail();
+  const hideFn = () => document.getElementById('gd-page').classList.remove('show');
+  // 시트→상세는 같은 depth로 교체, 카드에서 바로 열면 새 항목 push
+  if (fromSheet && _overlays.length) replaceTopOverlay(hideFn);
+  else openOverlay(hideFn);
 }
 
-function closeGameDetail() {
-  document.getElementById('gd-page').classList.remove('show');
-}
+function closeGameDetail() { closeOverlay(); }
 
 // 차트 막대 클릭 → 그날 참가자 점수 표
 function showBarSession(sid) {
@@ -1042,8 +1072,9 @@ function showBarSession(sid) {
     <table class="gd-table" style="margin-top:10px;"><tbody>${rows}</tbody></table>
     <button class="btn ghost sm" style="margin-top:14px;width:100%;" onclick="closeBarSession()">닫기</button>`;
   document.getElementById('gd-session-overlay').classList.add('show');
+  openOverlay(() => document.getElementById('gd-session-overlay').classList.remove('show'));
 }
-function closeBarSession() { document.getElementById('gd-session-overlay').classList.remove('show'); }
+function closeBarSession() { closeOverlay(); }
 
 // 게임 탭: [후기] 버튼 → 사람들이 남긴 후기(닉네임 + 코멘트)
 async function openReviews(gameId) {
@@ -1052,7 +1083,7 @@ async function openReviews(gameId) {
   const head = `<h2 style="font-size:17px;font-weight:900;margin:2px 2px 12px;">💬 후기 <span class="muted" style="font-size:13px;font-weight:500;">· ${title}</span></h2>`;
   const body = document.getElementById('detail-body');
   body.innerHTML = head + `<div class="empty"><div class="spinner" style="margin:0 auto;"></div></div>`;
-  document.getElementById('detail-overlay').classList.add('show');
+  showDetailSheet();
   try {
     const reviews = await api('getReviews', { gameId });
     const list = (reviews && reviews.length)
@@ -1073,8 +1104,9 @@ function openMemoEditor() {
   const existing = (state._myRatings && state._myRatings[gd.gid]) || {};
   document.getElementById('gd-memo-text').value = existing.memo || '';
   document.getElementById('gd-memo-overlay').classList.add('show');
+  openOverlay(() => document.getElementById('gd-memo-overlay').classList.remove('show'));
 }
-function closeMemoEditor() { document.getElementById('gd-memo-overlay').classList.remove('show'); }
+function closeMemoEditor() { closeOverlay(); }
 async function saveMemo() {
   const gd = state._gd; if (!gd || !state.user) return;
   const pin = await promptPin(); if (pin == null) return;
@@ -1891,11 +1923,12 @@ function openAddSheet() {
     return;
   }
   document.getElementById('add-overlay').classList.add('show');
+  openOverlay(() => document.getElementById('add-overlay').classList.remove('show'));
   switchAddTab('play');
 }
-function closeAddSheet() { document.getElementById('add-overlay').classList.remove('show'); }
+function closeAddSheet() { closeOverlay(); }
 document.getElementById('add-overlay').addEventListener('click', e => {
-  if (e.target.id === 'add-overlay') closeAddSheet();
+  if (e.target.id === 'add-overlay') closeOverlay();
 });
 
 function switchAddTab(tab) {
@@ -2248,10 +2281,14 @@ function openEditGame(gameId) {
     <div class="field"><label>게임 요약</label><textarea class="input" id="eg-summary">${esc(g.summary_kr)}</textarea></div>
     <button class="btn sheet-save" onclick="submitEditGame('${g.game_id}')">수정 저장</button>`;
   photoState.eg = '';
-  document.getElementById('detail-overlay').classList.add('show');
+  showDetailSheet();
 }
 document.getElementById('detail-overlay').addEventListener('click', e => {
-  if (e.target.id === 'detail-overlay') e.currentTarget.classList.remove('show');
+  if (e.target.id === 'detail-overlay') closeOverlay();
+});
+// 막대 클릭 세션 팝업: 바깥(백드롭) 아무 곳이나 누르면 닫힘
+document.getElementById('gd-session-overlay').addEventListener('click', e => {
+  if (e.target.id === 'gd-session-overlay') closeOverlay();
 });
 
 async function submitEditGame(gameId) {
@@ -2277,7 +2314,7 @@ async function submitEditGame(gameId) {
     });
     state.games = await api('getGames');
     toast('수정되었습니다!');
-    document.getElementById('detail-overlay').classList.remove('show');
+    closeOverlay();
     renderGames();
   } catch (e) {
     toast(e.message, true);
@@ -2289,7 +2326,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1834 차트 개편(10판·곡선·막대클릭) + 평점UI 정리';
+const APP_VERSION = 'v1856 뒤로가기(히스토리) + 세션팝업 바깥탭 닫기';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
