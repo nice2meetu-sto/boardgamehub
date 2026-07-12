@@ -1363,7 +1363,7 @@ function toggleEditWin(btn) {
   const on = btn.getAttribute('data-win') === '1';
   btn.setAttribute('data-win', on ? '0' : '1');
   btn.classList.toggle('on', !on);
-  btn.textContent = on ? '패' : '승 👑';
+  btn.textContent = on ? '패 🥈' : '승 👑';
 }
 
 async function saveEditSession(sid) {
