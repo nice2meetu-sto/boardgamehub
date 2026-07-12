@@ -217,14 +217,37 @@
   #gd-page { position: fixed; inset: 0; z-index: 130; background: var(--bg); overflow-y: auto; display: none;
     padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0)); }
   #gd-page.show { display: block; }
-  .gd-header { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 12px 0 8px; margin: 0 -16px; padding-left: 12px; }
+  .gd-header { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 12px 4px 8px;
+    margin: 0 -16px; padding-left: 12px; padding-right: 12px; display: flex; align-items: center; justify-content: space-between; }
   .gd-back { font-size: 15px; font-weight: 700; color: var(--main); padding: 6px 8px; }
   .gd-back:active { opacity: .6; }
-  /* [상세] 버튼 (카드 우측 상단) */
+  .gd-memo-btn { padding: 6px 12px; border-radius: 999px; background: var(--main-light); color: var(--main); font-size: 12px; font-weight: 800; }
+  .gd-memo-btn:active { background: #ddd7f7; }
+  /* [상세] 버튼 (일자별요약 헤더 우측 상단) */
   .gcard-detail-btn { position: absolute; top: 8px; right: 8px; z-index: 2;
     padding: 4px 10px; border-radius: 999px; background: var(--main-light); color: var(--main);
     font-size: 11px; font-weight: 800; line-height: 1.4; }
   .gcard-detail-btn:active { background: #ddd7f7; }
+  /* 카드 우측 상단 액션 버튼들(상세/후기/수정) */
+  .gcard-actions { position: absolute; top: 8px; right: 8px; z-index: 2; display: flex; gap: 6px; align-items: center; }
+  .gcard-pill { padding: 4px 10px; border-radius: 999px; background: var(--main-light); color: var(--main);
+    font-size: 11px; font-weight: 800; line-height: 1.4; white-space: nowrap; }
+  .gcard-pill:active { background: #ddd7f7; }
+  .gcard-pill.edit { padding: 4px 8px; }
+  /* 후기 목록 시트 */
+  .rv-row { padding: 11px 2px; border-bottom: 1px solid var(--border); }
+  .rv-row:last-child { border-bottom: none; }
+  .rv-name { font-weight: 800; font-size: 13px; }
+  .rv-name .rv-when { font-weight: 500; font-size: 11px; color: var(--text-sub); margin-left: 6px; }
+  .rv-text { font-size: 13px; color: #444; margin-top: 3px; white-space: pre-wrap; word-break: break-word; }
+  /* 게임메모 편집 오버레이 (게임 상세 위) */
+  #gd-memo-overlay { position: fixed; inset: 0; z-index: 150; background: rgba(20,20,30,.45);
+    display: none; align-items: center; justify-content: center; padding: 20px; }
+  #gd-memo-overlay.show { display: flex; }
+  .gd-memo-card { width: 100%; max-width: 420px; background: var(--card); border-radius: 16px; padding: 16px; }
+  .gd-memo-card h3 { font-size: 15px; font-weight: 800; margin: 0 0 4px; }
+  .gd-memo-card .muted { font-size: 12px; }
+  .gd-memo-card textarea { width: 100%; min-height: 100px; margin-top: 10px; }
   .gd-top { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
   .gd-mystat { font-size: 12.5px; color: var(--text-sub); margin-top: 6px; }
   .gd-sec { margin-top: 18px; }
@@ -395,7 +418,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1636</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1759</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -477,8 +500,21 @@
 <div id="gd-page">
   <div class="gd-header">
     <button class="gd-back" onclick="closeGameDetail()">‹ 돌아가기</button>
+    <button class="gd-memo-btn" onclick="openMemoEditor()">📝 게임메모</button>
   </div>
   <div id="gd-body"></div>
+  <!-- 개인 게임메모 편집 오버레이 -->
+  <div id="gd-memo-overlay">
+    <div class="gd-memo-card">
+      <h3>📝 게임메모</h3>
+      <div class="muted">나만 보는 개인 메모예요. (공개되지 않아요)</div>
+      <textarea class="input" id="gd-memo-text" placeholder="전략 노트, 하우스룰 등 자유롭게"></textarea>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="btn ghost sm" style="flex:1;" onclick="closeMemoEditor()">취소</button>
+        <button class="btn sm" style="flex:1;" onclick="saveMemo()">저장</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -553,8 +589,13 @@ async function api(action, params = {}) {
     case 'saveRating':
       return sbrpc('save_rating', {
         p_player_id: P.playerId, p_pin: P.pin, p_game_id: P.gameId,
-        p_rating: Number(P.rating), p_memo: P.memo || ''
+        p_rating: Number(P.rating), p_review: P.review || ''
       });
+    case 'saveMemo':
+      return sbrpc('save_memo', {
+        p_player_id: P.playerId, p_pin: P.pin, p_game_id: P.gameId, p_memo: P.memo || ''
+      });
+    case 'getReviews': return sbrpc('get_reviews', { p_game_id: P.gameId });
     case 'addPlay':   return sbWriteWithPayload('add_play', P.payload);
     case 'addGame':   return sbWriteWithPayload('add_game', P.payload);
     case 'updatePlay':
@@ -949,6 +990,50 @@ function closeGameDetail() {
   document.getElementById('gd-page').classList.remove('show');
 }
 
+// 게임 탭: [후기] 버튼 → 사람들이 남긴 후기(닉네임 + 코멘트)
+async function openReviews(gameId) {
+  const g = gameById(gameId);
+  const title = g ? esc(g.name_kr || g.name_en) : '';
+  const head = `<h2 style="font-size:17px;font-weight:900;margin:2px 2px 12px;">💬 후기 <span class="muted" style="font-size:13px;font-weight:500;">· ${title}</span></h2>`;
+  const body = document.getElementById('detail-body');
+  body.innerHTML = head + `<div class="empty"><div class="spinner" style="margin:0 auto;"></div></div>`;
+  document.getElementById('detail-overlay').classList.add('show');
+  try {
+    const reviews = await api('getReviews', { gameId });
+    const list = (reviews && reviews.length)
+      ? reviews.map(r => `<div class="rv-row">
+          <div class="rv-name">${esc(r.name)}<span class="rv-when">${esc(String(r.updated_at || '').substring(0, 10))}</span></div>
+          <div class="rv-text">${esc(r.review)}</div>
+        </div>`).join('')
+      : `<div class="empty"><div class="big">💬</div>아직 남긴 후기가 없어요.<br/>플레이한 게임이면 MY-게임기록에서 후기를 남겨보세요.</div>`;
+    body.innerHTML = head + `<div>${list}</div>`;
+  } catch (e) {
+    body.innerHTML = head + `<div class="empty">불러오지 못했습니다.<br/>${esc(e.message)}</div>`;
+  }
+}
+
+// 게임 상세: [게임메모] 개인 메모(비공개) 편집
+function openMemoEditor() {
+  const gd = state._gd; if (!gd) return;
+  const existing = (state._myRatings && state._myRatings[gd.gid]) || {};
+  document.getElementById('gd-memo-text').value = existing.memo || '';
+  document.getElementById('gd-memo-overlay').classList.add('show');
+}
+function closeMemoEditor() { document.getElementById('gd-memo-overlay').classList.remove('show'); }
+async function saveMemo() {
+  const gd = state._gd; if (!gd || !state.user) return;
+  const pin = await promptPin(); if (pin == null) return;
+  const memo = document.getElementById('gd-memo-text').value;
+  showLoader('저장 중…');
+  try {
+    await api('saveMemo', { playerId: state.user.player_id, pin, gameId: gd.gid, memo });
+    if (!state._myRatings) state._myRatings = {};
+    state._myRatings[gd.gid] = Object.assign({}, state._myRatings[gd.gid], { game_id: gd.gid, memo });
+    closeMemoEditor();
+    toast('게임메모가 저장되었습니다!');
+  } catch (e) { toast(e.message, true); } finally { hideLoader(); }
+}
+
 function sortGameDetail(col) {
   const gd = state._gd; if (!gd) return;
   if (gd.col === col) gd.dir = gd.dir === 'desc' ? 'asc' : 'desc';
@@ -1278,9 +1363,14 @@ function gameCardHtml(g, opts = {}) {
         ? `<div class="gcard-detail">${esc(g.summary_kr)}</div>`
         : `<div class="gcard-detail muted">등록된 요약이 없습니다.</div>`);
 
+  const acts = [];
+  if (opts.ratingEditor) acts.push(`<button class="gcard-pill" onclick="event.stopPropagation(); openGameDetail('${g.game_id}')">상세</button>`);
+  if (opts.review) acts.push(`<button class="gcard-pill" onclick="event.stopPropagation(); openReviews('${g.game_id}')">💬 후기</button>`);
+  if (opts.adminEdit) acts.push(`<button class="gcard-pill edit" title="정보 수정 (admin)" onclick="event.stopPropagation(); openEditGame('${g.game_id}')">✏️</button>`);
+  const actsHtml = acts.length ? `<div class="gcard-actions">${acts.join('')}</div>` : '';
+
   return `<div class="gcard" data-gid="${g.game_id}">
-    ${opts.ratingEditor ? `<button class="gcard-detail-btn" onclick="event.stopPropagation(); openGameDetail('${g.game_id}')">상세</button>` : ''}
-    ${opts.adminEdit ? `<button class="gcard-edit" title="정보 수정 (admin)" onclick="event.stopPropagation(); openEditGame('${g.game_id}')">✏️</button>` : ''}
+    ${actsHtml}
     <div class="gcard-top" onclick="toggleCard(this)">
       ${gameCardTopHtml(g, opts.ratingEditor)}
     </div>
@@ -1300,7 +1390,7 @@ function renderGameCards() {
     return;
   }
   const isAdmin = state.user && state.user.role === 'admin';
-  el.innerHTML = list.map(g => gameCardHtml(g, { adminEdit: isAdmin })).join('');
+  el.innerHTML = list.map(g => gameCardHtml(g, { adminEdit: isAdmin, review: true })).join('');
 }
 
 // ============================================================
@@ -1654,13 +1744,14 @@ function filterMyGames() {
 function ratingEditorHtml(g) {
   const existing = (state._myRatings && state._myRatings[g.game_id]) || null;
   const val = existing ? existing.rating : 0;
-  const memo = existing ? existing.memo : '';
+  const review = existing ? (existing.review || '') : '';
   return `<div class="rate-edit" data-gid="${g.game_id}">
     <label style="font-size:12px;font-weight:700;color:var(--text-sub);">내 평점 (1~10, 0.5 단위)</label>
     <div class="stars" id="stars-${g.game_id}">${starsHtml(val)}</div>
     <div class="rate-val" id="rateval-${g.game_id}">${val ? val.toFixed(1) + ' 점' : '평점을 선택하세요'}</div>
-    <textarea class="input" id="memo-${g.game_id}" placeholder="나만의 메모 (전략 노트 등)">${esc(memo)}</textarea>
-    <button class="btn sm" style="margin-top:8px;" onclick="saveRating('${g.game_id}')">평점 저장</button>
+    <label style="font-size:12px;font-weight:700;color:var(--text-sub);display:block;margin-top:10px;">한줄 후기 <span class="muted" style="font-weight:500;">(게임 탭에 공개돼요)</span></label>
+    <textarea class="input" id="review-${g.game_id}" placeholder="이 게임 어땠나요? 함께 플레이한 사람들에게 공유해요">${esc(review)}</textarea>
+    <button class="btn sm" style="margin-top:8px;" onclick="saveRating('${g.game_id}')">평점·후기 저장</button>
   </div>`;
 }
 
@@ -1697,17 +1788,18 @@ async function saveRating(gameId) {
   const container = document.getElementById('stars-' + gameId);
   const val = Number(container.dataset.val || 0);
   if (!val) { toast('평점을 선택하세요.', true); return; }
-  const memo = document.getElementById('memo-' + gameId).value;
+  const review = document.getElementById('review-' + gameId).value;
   showLoader('저장 중…');
   try {
     await api('saveRating', {
-      playerId: state.user.player_id, pin, gameId, rating: val, memo
+      playerId: state.user.player_id, pin, gameId, rating: val, review
     });
     if (!state._myRatings) state._myRatings = {};
-    state._myRatings[gameId] = { game_id: gameId, rating: val, memo };
+    // 기존 memo(개인 게임메모)는 보존하고 rating/review만 갱신
+    state._myRatings[gameId] = Object.assign({}, state._myRatings[gameId], { game_id: gameId, rating: val, review });
     // 게임 목록 club_rating 갱신 위해 재로드
     state.games = await api('getGames');
-    toast('평점이 저장되었습니다!');
+    toast('평점·후기가 저장되었습니다!');
     // 내 게임기록 카드 갱신(Hub 평점 옆 '내 평점' 반영)
     if (state.myTab === 'games' && document.getElementById('my-games-cards')) filterMyGames();
   } catch (e) {
@@ -2136,7 +2228,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1636 게임상세 전체화면+상세버튼, 기본탭 게임';
+const APP_VERSION = 'v1759 후기(공개)/게임메모(개인) 분리';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
