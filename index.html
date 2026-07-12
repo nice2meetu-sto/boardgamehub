@@ -192,7 +192,6 @@
   .rate-club { font-weight: 900; font-size: 16px; color: var(--main); }
   .rate-club .star { color: var(--win); }
   .rate-club small { font-size: 11px; color: var(--text-sub); font-weight: 500; }
-  .rate-bgg { font-size: 12px; color: var(--text-sub); }
   .gcard-detail { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; color: #444; white-space: pre-wrap; }
   .gcard.open .gcard-detail { display: block; }
   .gcard-editwrap { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
@@ -381,12 +380,6 @@
   }
   .sheet-tabs button.on { background: var(--main); color: #fff; border-color: var(--main); }
 
-  /* bgg candidate list */
-  .cand { padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); margin-bottom: 8px; }
-  .cand.on { border-color: var(--main); background: var(--main-light); }
-  .cand .cn { font-weight: 700; font-size: 14px; }
-  .cand .cy { font-size: 12px; color: var(--text-sub); }
-
   /* participant rows in addPlay */
   .ppart { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
   .ppart select { flex: 2; }
@@ -455,7 +448,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2004</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2346</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2662,7 +2655,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2004 회원 일치 배지 + 참가자 추가 버튼 이동';
+const APP_VERSION = 'v2346 bgg 잔재 제거';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');

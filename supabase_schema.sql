@@ -32,13 +32,11 @@ create table if not exists public.games (
   game_id      text primary key,
   name_kr      text,
   name_en      text,
-  bgg_id       text,
   category     text,
   min_players  numeric,
   max_players  numeric,
   playtime_min numeric,
   weight       numeric,
-  bgg_rating   numeric,
   summary_kr   text,
   image_url    text,
   source       text,
@@ -196,9 +194,9 @@ as $$
     from public.playlogs group by game_id
   )
   select coalesce(json_agg(json_build_object(
-    'game_id', g.game_id, 'name_kr', g.name_kr, 'name_en', g.name_en, 'bgg_id', g.bgg_id,
+    'game_id', g.game_id, 'name_kr', g.name_kr, 'name_en', g.name_en,
     'category', g.category, 'min_players', g.min_players, 'max_players', g.max_players,
-    'playtime_min', g.playtime_min, 'weight', g.weight, 'bgg_rating', g.bgg_rating,
+    'playtime_min', g.playtime_min, 'weight', g.weight,
     'summary_kr', g.summary_kr, 'image_url', g.image_url, 'source', g.source,
     'club_rating', rt.club_rating, 'rating_count', coalesce(rt.rating_count, 0),
     'play_count', coalesce(pc.play_count, 0)
@@ -514,18 +512,17 @@ begin
   v_id := public._next_id('G', 3, 'games', 'game_id');
 
   insert into public.games(
-    game_id, name_kr, name_en, bgg_id, category,
-    min_players, max_players, playtime_min, weight, bgg_rating,
+    game_id, name_kr, name_en, category,
+    min_players, max_players, playtime_min, weight,
     summary_kr, image_url, source, created_by, created_at)
   values(
     v_id,
-    coalesce(p_payload->>'name_kr',''), coalesce(p_payload->>'name_en',''), '',
+    coalesce(p_payload->>'name_kr',''), coalesce(p_payload->>'name_en',''),
     coalesce(p_payload->>'category',''),
     nullif(p_payload->>'min_players','')::numeric,
     nullif(p_payload->>'max_players','')::numeric,
     nullif(p_payload->>'playtime_min','')::numeric,
     nullif(p_payload->>'weight','')::numeric,
-    null,
     coalesce(p_payload->>'summary_kr',''), coalesce(p_payload->>'image_url',''),
     'manual', p_player_id, v_now
   );
@@ -553,7 +550,6 @@ begin
   update public.games set
     name_kr   = coalesce(p_payload->>'name_kr', name_kr),
     name_en   = coalesce(p_payload->>'name_en', name_en),
-    bgg_id    = coalesce(p_payload->>'bgg_id', bgg_id),
     category  = coalesce(p_payload->>'category', category),
     min_players  = case when p_payload ? 'min_players'  then nullif(p_payload->>'min_players','')::numeric  else min_players end,
     max_players  = case when p_payload ? 'max_players'  then nullif(p_payload->>'max_players','')::numeric  else max_players end,
