@@ -213,10 +213,18 @@
   .pdate-s.muted { flex: 0 0 auto; }
   .pdate-arrow { flex: 0 0 auto; color: var(--text-sub); font-size: 16px; }
 
-  /* 게임 상세 페이지 */
-  .gd-open { display: block; width: 100%; text-align: left; padding: 11px 12px; margin-bottom: 12px;
-    background: var(--main-light); color: var(--main); border-radius: 10px; font-weight: 700; font-size: 13px; }
-  .gd-open:active { background: #ddd7f7; }
+  /* 게임 상세 페이지 (전체 화면) */
+  #gd-page { position: fixed; inset: 0; z-index: 130; background: var(--bg); overflow-y: auto; display: none;
+    padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0)); }
+  #gd-page.show { display: block; }
+  .gd-header { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 12px 0 8px; margin: 0 -16px; padding-left: 12px; }
+  .gd-back { font-size: 15px; font-weight: 700; color: var(--main); padding: 6px 8px; }
+  .gd-back:active { opacity: .6; }
+  /* [상세] 버튼 (카드 우측 상단) */
+  .gcard-detail-btn { position: absolute; top: 8px; right: 8px; z-index: 2;
+    padding: 4px 10px; border-radius: 999px; background: var(--main-light); color: var(--main);
+    font-size: 11px; font-weight: 800; line-height: 1.4; }
+  .gcard-detail-btn:active { background: #ddd7f7; }
   .gd-top { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
   .gd-mystat { font-size: 12.5px; color: var(--text-sub); margin-top: 6px; }
   .gd-sec { margin-top: 18px; }
@@ -387,7 +395,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1624</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1636</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -396,7 +404,7 @@
   </div>
 
   <!-- ===== VIEW: 플레이 ===== -->
-  <div class="view active" id="view-play">
+  <div class="view" id="view-play">
     <div class="summary-row" id="play-summary"></div>
     <div id="play-catchart"></div>
     <div class="section-title" id="play-list-title">게임별 플레이 횟수</div>
@@ -404,7 +412,7 @@
   </div>
 
   <!-- ===== VIEW: 게임 ===== -->
-  <div class="view" id="view-games">
+  <div class="view active" id="view-games">
     <div class="searchbox">
       <span>🔍</span>
       <input id="game-search" placeholder="게임 이름 검색 (한글/영문)" />
@@ -438,8 +446,8 @@
 
   <!-- Tabbar -->
   <div class="tabbar">
-    <button class="tab on" id="tab-play" onclick="switchView('play')"><span class="ico">📋</span>플레이</button>
-    <button class="tab" id="tab-games" onclick="switchView('games')"><span class="ico">🎯</span>게임</button>
+    <button class="tab" id="tab-play" onclick="switchView('play')"><span class="ico">📋</span>플레이</button>
+    <button class="tab on" id="tab-games" onclick="switchView('games')"><span class="ico">🎯</span>게임</button>
     <button class="tab" id="tab-my" onclick="switchView('my')"><span class="ico">👤</span>MY</button>
   </div>
 </div>
@@ -463,6 +471,14 @@
     <div class="sheet-grip"></div>
     <div id="detail-body"></div>
   </div>
+</div>
+
+<!-- ===== 게임 상세 페이지 (전체 화면) ===== -->
+<div id="gd-page">
+  <div class="gd-header">
+    <button class="gd-back" onclick="closeGameDetail()">‹ 돌아가기</button>
+  </div>
+  <div id="gd-body"></div>
 </div>
 
 <div id="toast"></div>
@@ -810,7 +826,10 @@ function myGameDetailHtml(g) {
 
   // 헤더(게임 정보 + 요약 제목)는 상단 고정, 아래 일자별 리스트만 스크롤
   return `<div class="mgstat-head">
-      <div class="gcard-top">${gameCardTopHtml(g, true)}</div>
+      <div class="gcard-top" style="position:relative;">
+        ${gameCardTopHtml(g, true)}
+        <button class="gcard-detail-btn" onclick="openGameDetail('${g.game_id}')">상세</button>
+      </div>
       <div class="pdate-head">📅 일자별 플레이 요약</div>
     </div>
     <div class="pdate-list">${rows}</div>`;
@@ -891,7 +910,7 @@ function gameChartSvg(sessions, uid) {
     return { date: String(s.play_date).substring(5, 10), best: scores.length ? Math.max(...scores) : null, mine };
   });
   if (!pts.length) return `<div class="muted" style="font-size:12px;padding:10px 2px;text-align:center;">점수 기록이 없어요.</div>`;
-  const W = 320, H = 172, padT = 24, padB = 28, padX = 12;
+  const W = 320, H = 138, padT = 20, padB = 24, padX = 12;
   const plotH = H - padT - padB, baseY = padT + plotH;
   const n = pts.length, slot = (W - padX * 2) / n;
   const maxV = Math.max(1, ...pts.map(p => Math.max(p.best || 0, p.mine || 0)));
@@ -910,18 +929,24 @@ function gameChartSvg(sessions, uid) {
     if (p.mine != null) {
       const my = y(p.mine);
       linePts.push(`${x.toFixed(1)},${my.toFixed(1)}`);
-      dots += `<circle cx="${x.toFixed(1)}" cy="${my.toFixed(1)}" r="3.6" fill="var(--main)"/>`;
-      labels += `<text x="${x.toFixed(1)}" y="${(my + 15).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--main)">${p.mine}</text>`;
+      dots += `<circle cx="${x.toFixed(1)}" cy="${my.toFixed(1)}" r="3.4" fill="var(--main)"/>`;
+      labels += `<text x="${x.toFixed(1)}" y="${(my + 14).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--main)">${p.mine}</text>`;
     }
-    labels += `<text x="${x.toFixed(1)}" y="${(H - 9).toFixed(1)}" text-anchor="middle" font-size="10" fill="#9a97a8">${p.date}</text>`;
+    labels += `<text x="${x.toFixed(1)}" y="${(H - 7).toFixed(1)}" text-anchor="middle" font-size="10" fill="#9a97a8">${p.date}</text>`;
   });
   const line = linePts.length > 1 ? `<polyline points="${linePts.join(' ')}" fill="none" stroke="var(--main)" stroke-width="2"/>` : '';
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;">${bars}${line}${dots}${labels}</svg>`;
 }
 
 function openGameDetail(gameId) {
+  // 시트에서 열렸다면 닫고 전체 화면으로 전환
+  document.getElementById('detail-overlay').classList.remove('show');
   state._gd = { gid: gameId, col: 'games', dir: 'desc' };
   renderGameDetail();
+}
+
+function closeGameDetail() {
+  document.getElementById('gd-page').classList.remove('show');
 }
 
 function sortGameDetail(col) {
@@ -996,8 +1021,10 @@ function renderGameDetail() {
     </table></div>
   </div>`;
 
-  document.getElementById('detail-body').innerHTML = top + chart + table;
-  document.getElementById('detail-overlay').classList.add('show');
+  document.getElementById('gd-body').innerHTML = top + chart + table;
+  const page = document.getElementById('gd-page');
+  page.classList.add('show');
+  page.scrollTop = 0;
 }
 
 function renderSessionList(containerId, sessions) {
@@ -1246,15 +1273,13 @@ function gameCardTopHtml(g, showMine) {
 function gameCardHtml(g, opts = {}) {
   // 펼침 영역: 내 게임기록은 '평점 에디터', 그 외는 '게임 요약'
   const detail = opts.ratingEditor
-    ? `<div class="gcard-editwrap">
-         <button class="gd-open" onclick="openGameDetail('${g.game_id}')">📊 ${esc(g.name_kr || g.name_en)} 상세 기록 보기 ›</button>
-         ${ratingEditorHtml(g)}
-       </div>`
+    ? `<div class="gcard-editwrap">${ratingEditorHtml(g)}</div>`
     : (g.summary_kr
         ? `<div class="gcard-detail">${esc(g.summary_kr)}</div>`
         : `<div class="gcard-detail muted">등록된 요약이 없습니다.</div>`);
 
   return `<div class="gcard" data-gid="${g.game_id}">
+    ${opts.ratingEditor ? `<button class="gcard-detail-btn" onclick="event.stopPropagation(); openGameDetail('${g.game_id}')">상세</button>` : ''}
     ${opts.adminEdit ? `<button class="gcard-edit" title="정보 수정 (admin)" onclick="event.stopPropagation(); openEditGame('${g.game_id}')">✏️</button>` : ''}
     <div class="gcard-top" onclick="toggleCard(this)">
       ${gameCardTopHtml(g, opts.ratingEditor)}
@@ -2111,7 +2136,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1624 MY 게임기록 → 게임 상세 페이지(차트+플레이어표)';
+const APP_VERSION = 'v1636 게임상세 전체화면+상세버튼, 기본탭 게임';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
