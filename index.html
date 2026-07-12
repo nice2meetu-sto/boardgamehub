@@ -970,7 +970,7 @@ function myGameDetailHtml(g) {
       const win = me.is_win;
       return `<div class="pdate-row" onclick="showSessionDetail('${esc(s.session_id)}')">
         <span class="pdate-d">${esc(String(s.play_date).substring(0, 10))}</span>
-        <span class="pdate-wl ${win ? 'win' : 'loss'}">${win ? '승 👑' : '패'}</span>
+        <span class="pdate-wl ${win ? 'win' : 'loss'}">${win ? '승 👑' : '패 🥈'}</span>
         <span class="pdate-s">나 ${myScore == null ? '-' : esc(myScore) + '점'}</span>
         <span class="pdate-s muted">최고 ${top == null ? '-' : top + '점'}</span>
         <span class="pdate-arrow">›</span>
@@ -1301,7 +1301,7 @@ function renderSessionList(containerId, sessions, opts = {}) {
           <span class="pname" style="flex:1;min-width:0;">${esc(p.name)}</span>
           <input type="number" inputmode="numeric" class="edit-score" placeholder="점수" value="${p.score == null ? '' : esc(p.score)}"
                  style="width:64px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:#fff;" />
-          <button type="button" class="wintoggle edit-win ${p.is_win ? 'on' : ''}" data-win="${p.is_win ? '1' : '0'}" onclick="toggleEditWin(this)" style="padding:6px 10px;">${p.is_win ? '승 👑' : '패'}</button>
+          <button type="button" class="wintoggle edit-win ${p.is_win ? 'on' : ''}" data-win="${p.is_win ? '1' : '0'}" onclick="toggleEditWin(this)" style="padding:6px 10px;">${p.is_win ? '승 👑' : '패 🥈'}</button>
         </div>`).join('');
       return `<div class="session" data-sid="${esc(s.session_id)}">
         <div class="session-head">
@@ -2203,7 +2203,7 @@ function renderAddPlayForm() {
       <div class="field"><label>플레이 시간(분)</label><input class="input" id="ap-duration" type="number" inputmode="numeric" placeholder="예: 45" /></div>
     </div>
     <div class="field">
-      <label>게임 * (이름을 입력하면 자동완성)</label>
+      <label>게임 * (게임이 없다면 추가해 주세요)</label>
       <div class="ac-wrap">
         <input class="input" id="ap-game" placeholder="게임명 입력" autocomplete="off"
                oninput="acRender(this,'game')" onblur="acHide(this)" />
@@ -2213,7 +2213,7 @@ function renderAddPlayForm() {
     </div>
     <div class="field">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">
-        <label style="margin:0;">참가자 (이름을 입력하면 자동완성)</label>
+        <label style="margin:0;">참가자 (비회원은 아래 체크해 주세요)</label>
         <button class="btn ghost sm" style="padding:5px 12px;font-size:12px;flex:0 0 auto;" onclick="addParticipant()">+ 참가자 추가</button>
       </div>
       <div id="ap-participants"></div>
@@ -2289,7 +2289,7 @@ function renderParticipants() {
                <div class="ac-menu"></div>
              </div>`}
         <input type="number" inputmode="numeric" placeholder="점수" value="${esc(pt.score)}" oninput="updatePart(${i}, 'score', this.value)" />
-        <button class="wintoggle ${pt.is_win ? 'on' : ''}" onclick="toggleWin(${i})">${pt.is_win ? '승 👑' : '패'}</button>
+        <button class="wintoggle ${pt.is_win ? 'on' : ''}" onclick="toggleWin(${i})">${pt.is_win ? '승 👑' : '패 🥈'}</button>
         ${addPlayState.participants.length > 1 ? `<button class="rm-btn" onclick="removePart(${i})">×</button>` : ''}
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding-left:2px;">
@@ -2394,13 +2394,13 @@ function openEditGame(gameId) {
       <div class="field"><label>플레이타임(분)</label><input class="input" id="eg-time" type="number" value="${g.playtime_min ?? ''}" /></div>
       <div class="field"><label>난이도(weight)</label><input class="input" id="eg-weight" type="number" step="0.01" value="${g.weight ?? ''}" /></div>
     </div>
+    <div class="field"><label>이미지 URL</label><input class="input" id="eg-image" value="${esc(g.image_url)}" /></div>
+    <div class="field"><label>게임 요약</label><textarea class="input" id="eg-summary">${esc(g.summary_kr)}</textarea></div>
     <div class="field">
       <label>게임 사진 (찍거나 앨범에서 선택 — 올리면 URL 대신 사용)</label>
       <input class="input" id="eg-photo" type="file" accept="image/*" onchange="onPhotoPick(this,'eg')" />
-      <div id="eg-photo-preview"></div>
+  			<div id="eg-photo-preview"></div>
     </div>
-    <div class="field"><label>이미지 URL</label><input class="input" id="eg-image" value="${esc(g.image_url)}" /></div>
-    <div class="field"><label>게임 요약</label><textarea class="input" id="eg-summary">${esc(g.summary_kr)}</textarea></div>
     <button class="btn sheet-save" onclick="submitEditGame('${g.game_id}')">수정 저장</button>`;
   photoState.eg = '';
   showDetailSheet();
