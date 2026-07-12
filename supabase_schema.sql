@@ -451,15 +451,16 @@ returns json
 language plpgsql security definer
 set search_path = public, extensions
 as $$
-declare v_sid text; v_created text; v_date text; v_dur numeric; v_cnt int; v_row jsonb;
+declare v_auth public.players; v_sid text; v_created text; v_date text; v_dur numeric; v_cnt int; v_row jsonb;
 begin
-  perform public._verify(p_player_id, p_pin);
+  v_auth := public._verify(p_player_id, p_pin);
   v_sid := p_payload->>'session_id';
   if coalesce(v_sid,'') = '' then raise exception 'session_id가 필요합니다.'; end if;
 
   select created_by into v_created from public.playlogs where session_id = v_sid limit 1;
   if v_created is null then raise exception '기록을 찾을 수 없습니다.'; end if;
-  if v_created <> p_player_id then raise exception '본인이 입력한 기록만 수정할 수 있습니다.'; end if;
+  if v_created <> p_player_id and coalesce(v_auth.role,'') <> 'admin' then
+    raise exception '본인이 입력한 기록만 수정할 수 있습니다.'; end if;
 
   v_date := nullif(p_payload->>'play_date','');
   v_dur  := nullif(p_payload->>'duration_min','')::numeric;
@@ -486,14 +487,15 @@ returns json
 language plpgsql security definer
 set search_path = public, extensions
 as $$
-declare v_created text; v_del int;
+declare v_auth public.players; v_created text; v_del int;
 begin
-  perform public._verify(p_player_id, p_pin);
+  v_auth := public._verify(p_player_id, p_pin);
   if coalesce(p_session_id,'') = '' then raise exception 'session_id가 필요합니다.'; end if;
 
   select created_by into v_created from public.playlogs where session_id = p_session_id limit 1;
   if v_created is null then raise exception '기록을 찾을 수 없습니다.'; end if;
-  if v_created <> p_player_id then raise exception '본인이 입력한 기록만 삭제할 수 있습니다.'; end if;
+  if v_created <> p_player_id and coalesce(v_auth.role,'') <> 'admin' then
+    raise exception '본인이 입력한 기록만 삭제할 수 있습니다.'; end if;
 
   with d as (delete from public.playlogs where session_id = p_session_id returning 1)
     select count(*) into v_del from d;
@@ -623,5 +625,97 @@ grant execute on function public.update_game(text, text, jsonb)                 
 -- 내부 헬퍼는 anon 실행 권한 회수(있다면)
 revoke all on function public._verify(text, text)            from anon, public;
 revoke all on function public._next_id(text, int, text, text) from anon, public;
+
+
+-- ============================================================
+--  9) 관리자 페이지 RPC (admin 전용)
+-- ============================================================
+
+-- 관리자 검증 헬퍼: PIN 검증 후 admin 아니면 예외
+create or replace function public._verify_admin(p_player_id text, p_pin text)
+returns public.players
+language plpgsql stable security definer
+set search_path = public, extensions
+as $$
+declare r public.players;
+begin
+  r := public._verify(p_player_id, p_pin);
+  if coalesce(r.role, '') <> 'admin' then raise exception '관리자만 사용할 수 있습니다.'; end if;
+  return r;
+end $$;
+revoke all on function public._verify_admin(text, text) from anon, public;
+
+-- 가입자 목록(닉네임·PIN·가입일)
+create or replace function public.admin_get_players(p_player_id text, p_pin text)
+returns json
+language plpgsql stable security definer
+set search_path = public, extensions
+as $$
+begin
+  perform public._verify_admin(p_player_id, p_pin);
+  return (select coalesce(json_agg(json_build_object(
+    'player_id', player_id, 'name', name, 'pin', coalesce(pin, ''),
+    'role', coalesce(role, 'member'), 'joined_at', coalesce(joined_at, '')
+  ) order by player_id), '[]'::json) from public.players);
+end $$;
+
+-- 회원 PIN 변경
+create or replace function public.admin_update_pin(
+  p_player_id text, p_pin text, p_target_id text, p_new_pin text)
+returns json
+language plpgsql security definer
+set search_path = public, extensions
+as $$
+begin
+  perform public._verify_admin(p_player_id, p_pin);
+  if btrim(coalesce(p_new_pin,'')) !~ '^\d{4}$' then
+    raise exception '비밀번호는 숫자 4자리로 입력하세요.'; end if;
+  update public.players set pin = btrim(p_new_pin) where player_id = p_target_id;
+  if not found then raise exception '회원을 찾을 수 없습니다.'; end if;
+  return json_build_object('player_id', p_target_id, 'updated', true);
+end $$;
+
+-- 분류 추가
+create or replace function public.admin_add_category(
+  p_player_id text, p_pin text, p_name text, p_sort int)
+returns json
+language plpgsql security definer
+set search_path = public, extensions
+as $$
+begin
+  perform public._verify_admin(p_player_id, p_pin);
+  if btrim(coalesce(p_name,'')) = '' then raise exception '분류 이름을 입력하세요.'; end if;
+  insert into public.categories(name, sort_order) values (btrim(p_name), coalesce(p_sort, 0))
+  on conflict (name) do update set sort_order = excluded.sort_order;
+  return json_build_object('name', btrim(p_name), 'sort_order', coalesce(p_sort, 0));
+end $$;
+
+-- 분류 수정(이름/순서). 이름 변경 시 games.category 도 함께 변경
+create or replace function public.admin_update_category(
+  p_player_id text, p_pin text, p_old_name text, p_new_name text, p_sort int)
+returns json
+language plpgsql security definer
+set search_path = public, extensions
+as $$
+declare v_old text := btrim(coalesce(p_old_name,'')); v_new text := btrim(coalesce(p_new_name,''));
+begin
+  perform public._verify_admin(p_player_id, p_pin);
+  if v_old = '' or v_new = '' then raise exception '분류 이름을 입력하세요.'; end if;
+  if not exists (select 1 from public.categories where name = v_old) then
+    raise exception '분류를 찾을 수 없습니다.'; end if;
+  if v_new <> v_old and exists (select 1 from public.categories where name = v_new) then
+    raise exception '이미 있는 분류 이름입니다.'; end if;
+
+  update public.categories set name = v_new, sort_order = coalesce(p_sort, sort_order) where name = v_old;
+  if v_new <> v_old then
+    update public.games set category = v_new where category = v_old;
+  end if;
+  return json_build_object('name', v_new, 'renamed_from', v_old);
+end $$;
+
+grant execute on function public.admin_get_players(text, text)                       to anon;
+grant execute on function public.admin_update_pin(text, text, text, text)            to anon;
+grant execute on function public.admin_add_category(text, text, text, int)           to anon;
+grant execute on function public.admin_update_category(text, text, text, text, int)  to anon;
 
 -- 끝. (데이터는 README의 CSV import 단계에서 채웁니다.)

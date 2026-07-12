@@ -247,6 +247,34 @@
     display: none; align-items: center; justify-content: center; padding: 20px; }
   #gd-memo-overlay.show, #gd-session-overlay.show { display: flex; }
   #gd-session-card h3 { font-size: 15px; font-weight: 800; margin: 0 0 2px; }
+
+  /* 관리자 페이지 (전체 화면, 오버레이(100)보다 아래라 수정 시트가 위에 뜸) */
+  #admin-page { position: fixed; inset: 0; z-index: 90; background: var(--bg); overflow-y: auto; display: none;
+    padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0)); }
+  #admin-page.show { display: block; }
+  .adm-searchrow { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .adm-searchrow .searchbox { flex: 1; margin: 0; }
+  .adm-pill { flex: 0 0 auto; padding: 9px 14px; border-radius: 999px; background: var(--main-light);
+    color: var(--main); font-size: 12px; font-weight: 800; white-space: nowrap; }
+  .adm-pill:active { background: #ddd7f7; }
+  .adm-gcard { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px; margin-bottom: 12px; cursor: pointer; }
+  .adm-gcard:active { background: #f6f5fb; }
+  .adm-summary { font-size: 12px; color: var(--text-sub); margin-top: 8px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .adm-creator { display: inline-block; font-size: 11px; font-weight: 700; color: var(--text-sub);
+    background: #ececf1; border-radius: 6px; padding: 2px 8px; margin-left: 6px; }
+  .adm-daterow { display: flex; gap: 8px; margin-bottom: 12px; }
+  .adm-daterow .field { flex: 1; margin: 0; }
+  .adm-prow { display: flex; gap: 8px; align-items: center; background: var(--card);
+    border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+  .adm-prow .nm { flex: 1; min-width: 0; font-weight: 700; font-size: 14px; }
+  .adm-prow .jd { font-size: 11px; color: var(--text-sub); }
+  .adm-prow input.pin { width: 64px; padding: 8px; border: 1px solid var(--border); border-radius: 8px;
+    background: #fafafc; text-align: center; font-weight: 700; }
+  .cat-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .cat-row input.cname { flex: 1; min-width: 0; }
+  .cat-row input.csort { width: 58px; text-align: center; }
   .gd-memo-card { width: 100%; max-width: 420px; background: var(--card); border-radius: 16px; padding: 16px; }
   .gd-memo-card h3 { font-size: 15px; font-weight: 800; margin: 0 0 4px; }
   .gd-memo-card .muted { font-size: 12px; }
@@ -421,8 +449,10 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1857</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1933</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
+      <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
+              style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠 관리자</button>
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
       <div class="who" id="whoami" onclick="switchView('my')" style="cursor:pointer;">비로그인</div>
@@ -524,6 +554,22 @@
   </div>
 </div>
 
+<!-- ===== 관리자 페이지 (전체 화면, admin 전용) ===== -->
+<div id="admin-page">
+  <div class="gd-header">
+    <button class="gd-back" onclick="closeAdminPage()">‹ 돌아가기</button>
+    <span style="font-weight:900;font-size:15px;">🛠 관리자</span>
+  </div>
+  <div class="subtabs" style="margin-bottom:14px;">
+    <button id="admtab-games" class="on" onclick="switchAdminTab('games')">게임</button>
+    <button id="admtab-plays" onclick="switchAdminTab('plays')">플레이</button>
+    <button id="admtab-players" onclick="switchAdminTab('players')">가입자</button>
+  </div>
+  <div id="adm-games"></div>
+  <div id="adm-plays" style="display:none;"></div>
+  <div id="adm-players" style="display:none;"></div>
+</div>
+
 <div id="toast"></div>
 <div id="loader"><div class="spinner"></div><div class="ltxt">불러오는 중…</div></div>
 
@@ -606,6 +652,20 @@ async function api(action, params = {}) {
         p_player_id: P.playerId, p_pin: P.pin, p_game_id: P.gameId, p_memo: P.memo || ''
       });
     case 'getReviews': return sbrpc('get_reviews', { p_game_id: P.gameId });
+    // ===== 관리자 페이지 전용 =====
+    case 'adminGetPlayers':
+      return sbrpc('admin_get_players', { p_player_id: P.playerId, p_pin: P.pin });
+    case 'adminUpdatePin':
+      return sbrpc('admin_update_pin', { p_player_id: P.playerId, p_pin: P.pin, p_target_id: P.targetId, p_new_pin: P.newPin });
+    case 'adminAddCategory':
+      return sbrpc('admin_add_category', { p_player_id: P.playerId, p_pin: P.pin, p_name: P.name, p_sort: Number(P.sort) || 0 });
+    case 'adminUpdateCategory':
+      return sbrpc('admin_update_category', { p_player_id: P.playerId, p_pin: P.pin, p_old_name: P.oldName, p_new_name: P.newName, p_sort: Number(P.sort) || 0 });
+    case 'getCategoriesFull': {
+      const { data, error } = await sb.from('categories').select('name,sort_order').order('sort_order').order('name');
+      if (error) throw new Error(acErr(error));
+      return data || [];
+    }
     case 'addPlay':   return sbWriteWithPayload('add_play', P.payload);
     case 'addGame':   return sbWriteWithPayload('add_game', P.payload);
     case 'updatePlay':
@@ -1210,16 +1270,25 @@ function renderGameDetail() {
   page.scrollTop = 0;
 }
 
-function renderSessionList(containerId, sessions) {
+// 마지막 렌더 컨텍스트(수정 모드 전환 시 같은 목록을 다시 그리기 위함)
+let _sessCtx = null;
+function rerenderSessList() { if (_sessCtx) renderSessionList(_sessCtx.containerId, _sessCtx.sessions, _sessCtx.opts); }
+
+function renderSessionList(containerId, sessions, opts = {}) {
+  _sessCtx = { containerId, sessions, opts };
   const el = document.getElementById(containerId);
   if (!sessions.length) {
     el.innerHTML = `<div class="empty"><div class="big">🎲</div>아직 플레이 기록이 없어요.<br/>+ 버튼으로 결과를 추가해보세요.</div>`;
     return;
   }
   el.innerHTML = sessions.map(s => {
-    const canEdit = state.user && s.created_by && String(s.created_by) === String(state.user.player_id);
+    // 관리자 페이지에서는 모든 기록 수정 가능
+    const canEdit = state.user && (opts.admin || (s.created_by && String(s.created_by) === String(state.user.player_id)));
     const editing = state._editSid === s.session_id;
     const dur = s.duration_min ? ` · ${s.duration_min}분` : '';
+    // 관리자 페이지: 작성자 표시(회색 배지)
+    const creator = opts.admin && s.created_by
+      ? `<span class="adm-creator">작성 ${esc(playerNameById(s.created_by))}</span>` : '';
 
     if (editing) {
       const eparts = s.participants.map(p => `
@@ -1257,7 +1326,7 @@ function renderSessionList(containerId, sessions) {
         ${thumb(s.game_image, 'session-thumb')}
         <div style="flex:1;min-width:0;">
           <div class="g-name">${esc(s.game_name)}</div>
-          <div class="g-meta">${esc(String(s.play_date).substring(0,10))}${dur} · ${s.participants.length}명</div>
+          <div class="g-meta">${esc(String(s.play_date).substring(0,10))}${dur} · ${s.participants.length}명${creator}</div>
         </div>
         ${canEdit ? `<button class="btn ghost sm" style="padding:5px 12px;font-size:12px;flex:0 0 auto;" onclick="startEditSession('${esc(s.session_id)}')">수정</button>` : ''}
       </div>
@@ -1266,14 +1335,25 @@ function renderSessionList(containerId, sessions) {
   }).join('');
 }
 
-// ===== 내 플레이 기록: 수정/삭제 (입력자 본인만) =====
+function playerNameById(pid) {
+  const p = (state.players || []).find(x => String(x.player_id) === String(pid));
+  return p ? p.name : pid;
+}
+
+// ===== 내 플레이 기록: 수정/삭제 (입력자 본인만, 관리자 페이지는 전체) =====
 function refreshMySessions() {
   state._mySessions = state.plays.filter(s =>
     s.participants.some(p => p.player_id === state.user.player_id));
   filterMyPlays();
 }
-function startEditSession(sid) { state._editSid = sid; filterMyPlays(); }
-function cancelEditSession() { state._editSid = null; filterMyPlays(); }
+// 저장/삭제 후: 관리자 페이지가 열려 있으면 관리자 목록을, 아니면 MY 목록을 갱신
+function refreshSessionsView() {
+  const adm = document.getElementById('admin-page');
+  if (adm && adm.classList.contains('show')) adminPlaySearch();
+  else refreshMySessions();
+}
+function startEditSession(sid) { state._editSid = sid; rerenderSessList(); }
+function cancelEditSession() { state._editSid = null; rerenderSessList(); }
 function toggleEditWin(btn) {
   const on = btn.getAttribute('data-win') === '1';
   btn.setAttribute('data-win', on ? '0' : '1');
@@ -1301,7 +1381,7 @@ async function saveEditSession(sid) {
     state._myStats = null;
     state._editSid = null;
     toast('수정되었습니다.');
-    refreshMySessions();
+    refreshSessionsView();
   } catch (e) {
     toast(e.message, true);
   } finally {
@@ -1320,7 +1400,7 @@ async function deleteSession(sid) {
     state._myStats = null;
     state._editSid = null;
     toast('삭제되었습니다.');
-    refreshMySessions();
+    refreshSessionsView();
   } catch (e) {
     toast(e.message, true);
   } finally {
@@ -1487,8 +1567,8 @@ function renderGameCards() {
     el.innerHTML = `<div class="empty"><div class="big">🎯</div>조건에 맞는 게임이 없어요.</div>`;
     return;
   }
-  const isAdmin = state.user && state.user.role === 'admin';
-  el.innerHTML = list.map(g => gameCardHtml(g, { adminEdit: isAdmin, review: true })).join('');
+  // 게임 수정은 관리자 페이지에서만 — 통합 게임탭은 모두 동일 UI
+  el.innerHTML = list.map(g => gameCardHtml(g, { review: true })).join('');
 }
 
 // ============================================================
@@ -1620,6 +1700,9 @@ function updateWhoami() {
   } else {
     el.textContent = '비로그인';
   }
+  // [관리자] 버튼은 admin 로그인 시에만 표시
+  const ab = document.getElementById('admin-btn');
+  if (ab) ab.style.display = (state.user && state.user.role === 'admin') ? '' : 'none';
 }
 
 // ===== MY > 전체 기록 =====
@@ -2328,6 +2411,8 @@ async function submitEditGame(gameId) {
     toast('수정되었습니다!');
     closeOverlay();
     renderGames();
+    // 관리자 페이지가 열려 있으면 게임 목록도 갱신
+    if (document.getElementById('admin-page').classList.contains('show')) adminGameSearch();
   } catch (e) {
     toast(e.message, true);
   } finally {
@@ -2336,9 +2421,222 @@ async function submitEditGame(gameId) {
 }
 
 // ============================================================
+//  관리자 페이지
+// ============================================================
+// 쉼표(,) 다중 조건 AND 매칭 (플레이기록 검색과 동일 규칙)
+function matchAllTerms(hay, raw) {
+  const terms = String(raw || '').split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+  if (!terms.length) return true;
+  const h = hay.toLowerCase();
+  return terms.every(t => h.includes(t));
+}
+
+function openAdminPage() {
+  if (!state.user || state.user.role !== 'admin') { toast('관리자만 사용할 수 있습니다.', true); return; }
+  const page = document.getElementById('admin-page');
+  page.classList.add('show');
+  page.scrollTop = 0;
+  openOverlay(() => page.classList.remove('show'));
+  switchAdminTab('games');
+}
+function closeAdminPage() { closeOverlay(); }
+
+function switchAdminTab(tab) {
+  ['games', 'plays', 'players'].forEach(t => {
+    document.getElementById('admtab-' + t).classList.toggle('on', t === tab);
+    document.getElementById('adm-' + t).style.display = t === tab ? 'block' : 'none';
+  });
+  if (tab === 'games') renderAdminGames();
+  else if (tab === 'plays') renderAdminPlays();
+  else renderAdminPlayers();
+}
+
+// ----- 게임 탭 -----
+function renderAdminGames() {
+  const el = document.getElementById('adm-games');
+  if (!el.dataset.ready) {
+    el.innerHTML = `
+      <div class="adm-searchrow">
+        <div class="searchbox"><span>🔍</span><input id="adm-game-search" placeholder="이름·분류·요약 검색 (쉼표로 여러 조건)" oninput="adminGameSearch()" /></div>
+        <button class="adm-pill" onclick="openCategoryManager()">🏷 카테고리</button>
+      </div>
+      <div class="hint" style="margin-bottom:10px;">카드를 누르면 바로 수정 화면이 열려요.</div>
+      <div id="adm-game-list"></div>`;
+    el.dataset.ready = '1';
+  }
+  adminGameSearch();
+}
+
+function adminGameSearch() {
+  const listEl = document.getElementById('adm-game-list');
+  if (!listEl) return;
+  const raw = (document.getElementById('adm-game-search') || {}).value || '';
+  const list = state.games.filter(g =>
+    matchAllTerms([g.name_kr, g.name_en, g.category, g.summary_kr].map(v => v || '').join(' '), raw))
+    .slice().sort((a, b) => String(a.name_kr || a.name_en || '').localeCompare(String(b.name_kr || b.name_en || '')));
+  if (!list.length) { listEl.innerHTML = `<div class="empty">검색 결과가 없어요.</div>`; return; }
+  listEl.innerHTML = list.map(g => {
+    const meta = [];
+    if (g.min_players || g.max_players) {
+      const mn = g.min_players || '?', mx = g.max_players || '?';
+      meta.push(`👥 ${mn}${mx !== mn ? '~' + mx : ''}명`);
+    }
+    if (g.playtime_min) meta.push(`⏱ ${g.playtime_min}분`);
+    if (g.weight) meta.push(`🧠 ${Number(g.weight).toFixed(2)}`);
+    return `<div class="adm-gcard" onclick="openEditGame('${g.game_id}')">
+      <div class="gcard-top">
+        ${thumb(g.image_url, 'gcard-img')}
+        <div class="gcard-body">
+          <div class="gcard-name">${esc(g.name_kr || g.name_en)}
+            ${g.category ? `<span class="badge" style="margin-left:6px;">${esc(g.category)}</span>` : ''}</div>
+          ${g.name_en && g.name_kr ? `<div class="gcard-en">${esc(g.name_en)}</div>` : ''}
+          <div class="gcard-meta">${meta.map(m => `<span>${m}</span>`).join('')}</div>
+          <div class="adm-summary">${g.summary_kr ? esc(g.summary_kr) : '<span class="muted">등록된 요약이 없습니다.</span>'}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ----- 카테고리 관리 -----
+async function openCategoryManager() {
+  const body = document.getElementById('detail-body');
+  body.innerHTML = `<h2 style="font-size:17px;font-weight:900;margin:2px 2px 12px;">🏷 카테고리 관리</h2>
+    <div class="empty"><div class="spinner" style="margin:0 auto;"></div></div>`;
+  showDetailSheet();
+  try {
+    const cats = await api('getCategoriesFull');
+    const rows = cats.map(c => `
+      <div class="cat-row" data-old="${esc(c.name)}">
+        <input class="input cname" value="${esc(c.name)}" />
+        <input class="input csort" type="number" inputmode="numeric" value="${c.sort_order ?? 0}" title="정렬 순서" />
+        <button class="btn sm" style="padding:8px 12px;flex:0 0 auto;" onclick="saveCategoryRow(this)">저장</button>
+      </div>`).join('');
+    body.innerHTML = `<h2 style="font-size:17px;font-weight:900;margin:2px 2px 6px;">🏷 카테고리 관리</h2>
+      <div class="hint" style="margin-bottom:12px;">이름을 바꾸면 그 분류를 쓰는 게임들도 함께 변경됩니다. 숫자는 정렬 순서예요.</div>
+      ${rows}
+      <div class="cat-row" style="margin-top:14px;" data-old="">
+        <input class="input cname" placeholder="새 분류 이름" />
+        <input class="input csort" type="number" inputmode="numeric" placeholder="순서" />
+        <button class="btn sm" style="padding:8px 12px;flex:0 0 auto;" onclick="saveCategoryRow(this)">추가</button>
+      </div>`;
+  } catch (e) {
+    body.innerHTML += `<div class="empty">불러오지 못했습니다.<br/>${esc(e.message)}</div>`;
+  }
+}
+
+async function saveCategoryRow(btn) {
+  const row = btn.closest('.cat-row');
+  const oldName = row.getAttribute('data-old');
+  const newName = row.querySelector('.cname').value.trim();
+  const sort = row.querySelector('.csort').value;
+  if (!newName) { toast('분류 이름을 입력하세요.', true); return; }
+  const pin = await promptPin(); if (pin == null) return;
+  showLoader('저장 중…');
+  try {
+    if (oldName) await api('adminUpdateCategory', { playerId: state.user.player_id, pin, oldName, newName, sort });
+    else await api('adminAddCategory', { playerId: state.user.player_id, pin, name: newName, sort });
+    // 분류 목록/게임 데이터 갱신
+    CATEGORIES = await api('getCategories');
+    if (oldName && oldName !== newName) state.games = await api('getGames');
+    toast('저장되었습니다!');
+    openCategoryManager();   // 목록 새로고침
+    adminGameSearch();
+  } catch (e) { toast(e.message, true); } finally { hideLoader(); }
+}
+
+// ----- 플레이 탭 (검색 후에만 표시) -----
+function renderAdminPlays() {
+  const el = document.getElementById('adm-plays');
+  if (!el.dataset.ready) {
+    el.innerHTML = `
+      <div class="adm-searchrow">
+        <div class="searchbox"><span>🔍</span><input id="adm-play-search" placeholder="일자·게임·참가자·작성자 (쉼표로 여러 조건)" onkeydown="if(event.key==='Enter')adminPlaySearch()" /></div>
+        <button class="adm-pill" onclick="adminPlaySearch()">검색</button>
+      </div>
+      <div class="adm-daterow">
+        <div class="field"><label>시작일</label><input class="input" id="adm-play-from" type="date" /></div>
+        <div class="field"><label>종료일</label><input class="input" id="adm-play-to" type="date" /></div>
+      </div>
+      <div id="adm-play-list"><div class="empty"><div class="big">🔍</div>조건을 입력하고 검색을 누르면<br/>플레이 기록이 표시됩니다.</div></div>`;
+    el.dataset.ready = '1';
+  }
+}
+
+function adminPlaySearch() {
+  const listEl = document.getElementById('adm-play-list');
+  if (!listEl) return;
+  state._editSid = null;
+  const raw = (document.getElementById('adm-play-search') || {}).value || '';
+  const from = (document.getElementById('adm-play-from') || {}).value || '';
+  const to = (document.getElementById('adm-play-to') || {}).value || '';
+  const list = state.plays.filter(s => {
+    const d = String(s.play_date).substring(0, 10);
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    const hay = [s.play_date, s.game_name, playerNameById(s.created_by),
+      ...s.participants.map(p => p.name || '')].join(' ');
+    return matchAllTerms(hay, raw);
+  });
+  if (!list.length) { listEl.innerHTML = `<div class="empty">조건에 맞는 기록이 없어요.</div>`; return; }
+  renderSessionList('adm-play-list', list, { admin: true });
+}
+
+// ----- 가입자 탭 -----
+async function renderAdminPlayers() {
+  const el = document.getElementById('adm-players');
+  el.innerHTML = `<div class="empty"><div class="spinner" style="margin:0 auto;"></div></div>`;
+  const pin = await promptPin();
+  if (pin == null) { el.innerHTML = `<div class="empty">PIN 확인이 필요합니다.</div>`; return; }
+  try {
+    state._admPlayers = await api('adminGetPlayers', { playerId: state.user.player_id, pin });
+    el.innerHTML = `
+      <div class="searchbox" style="margin-bottom:12px;"><span>🔍</span><input id="adm-player-search" placeholder="닉네임 검색 (쉼표로 여러 조건)" oninput="adminPlayerSearch()" /></div>
+      <div id="adm-player-list"></div>`;
+    adminPlayerSearch();
+  } catch (e) {
+    el.innerHTML = `<div class="empty">불러오지 못했습니다.<br/>${esc(e.message)}</div>`;
+  }
+}
+
+function adminPlayerSearch() {
+  const listEl = document.getElementById('adm-player-list');
+  if (!listEl) return;
+  const raw = (document.getElementById('adm-player-search') || {}).value || '';
+  const list = (state._admPlayers || []).filter(p =>
+    matchAllTerms([p.name, p.player_id, p.joined_at].join(' '), raw));
+  if (!list.length) { listEl.innerHTML = `<div class="empty">검색 결과가 없어요.</div>`; return; }
+  listEl.innerHTML = list.map(p => `
+    <div class="adm-prow" data-pid="${esc(p.player_id)}">
+      <div class="nm">${esc(p.name)}${p.role === 'admin' ? ' 👑' : ''}
+        <div class="jd">가입 ${esc(p.joined_at || '-')}</div>
+      </div>
+      <input class="pin" inputmode="numeric" maxlength="4" value="${esc(p.pin)}" />
+      <button class="btn sm" style="padding:8px 12px;flex:0 0 auto;" onclick="adminSavePin(this)">저장</button>
+    </div>`).join('');
+}
+
+async function adminSavePin(btn) {
+  const row = btn.closest('.adm-prow');
+  const targetId = row.getAttribute('data-pid');
+  const newPin = row.querySelector('.pin').value.trim();
+  if (!/^\d{4}$/.test(newPin)) { toast('비밀번호는 숫자 4자리로 입력하세요.', true); return; }
+  const pin = await promptPin(); if (pin == null) return;
+  showLoader('저장 중…');
+  try {
+    await api('adminUpdatePin', { playerId: state.user.player_id, pin, targetId, newPin });
+    const t = (state._admPlayers || []).find(x => x.player_id === targetId);
+    if (t) t.pin = newPin;
+    // 내 PIN을 바꿨다면 캐시도 갱신
+    if (targetId === state.user.player_id) localStorage.setItem('bg_pin', newPin);
+    toast('비밀번호가 변경되었습니다!');
+  } catch (e) { toast(e.message, true); } finally { hideLoader(); }
+}
+
+// ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1857 동점 공동 순위';
+const APP_VERSION = 'v1933 관리자 페이지';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
