@@ -397,6 +397,10 @@
   }
   .wintoggle.on { background: var(--win); color: #fff; border-color: var(--win); }
   .rm-btn { flex-shrink: 0; color: var(--danger); font-size: 20px; padding: 4px 8px; }
+  /* 회원 일치 배지 (플레이 결과 추가) */
+  .mchk { font-size: 12px; }
+  .mchk.ok { color: var(--ok); font-weight: 700; }
+  .mchk.no { color: var(--text-sub); }
 
   /* 접두어 자동완성 드롭다운 */
   .ac-wrap { position: relative; }
@@ -451,7 +455,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1956</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2004</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2209,9 +2213,11 @@ function renderAddPlayForm() {
       <div class="hint">목록에 있는 게임명과 정확히 일치해야 저장됩니다.</div>
     </div>
     <div class="field">
-      <label>참가자 (이름을 입력하면 자동완성)</label>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">
+        <label style="margin:0;">참가자 (이름을 입력하면 자동완성)</label>
+        <button class="btn ghost sm" style="padding:5px 12px;font-size:12px;flex:0 0 auto;" onclick="addParticipant()">+ 참가자 추가</button>
+      </div>
       <div id="ap-participants"></div>
-      <button class="btn ghost sm" style="margin-top:6px;" onclick="addParticipant()">+ 참가자 추가</button>
     </div>
     <button class="btn sheet-save" onclick="submitAddPlay()">플레이 결과 저장</button>`;
   renderParticipants();
@@ -2256,6 +2262,20 @@ function acHide(inp) {
   if (menu) setTimeout(() => menu.classList.remove('show'), 120);
 }
 
+// 회원 일치 배지: 정확히 일치하는 회원이면 초록 '회원이에요', 아니면 '일치하는 회원이 없어요'
+function memberBadgeHtml(i, pt) {
+  if (pt.is_guest) return '';
+  const ok = !!playerByExactName((pt.name || '').trim());
+  return `<span class="mchk ${ok ? 'ok' : 'no'}" id="mchk-${i}">${ok ? '✓ 회원이에요' : '일치하는 회원이 없어요'}</span>`;
+}
+function updateMemberBadge(i) {
+  const el = document.getElementById('mchk-' + i);
+  if (!el) return;
+  const ok = !!playerByExactName((addPlayState.participants[i].name || '').trim());
+  el.textContent = ok ? '✓ 회원이에요' : '일치하는 회원이 없어요';
+  el.className = 'mchk ' + (ok ? 'ok' : 'no');
+}
+
 function renderParticipants() {
   const el = document.getElementById('ap-participants');
   el.innerHTML = addPlayState.participants.map((pt, i) => `
@@ -2273,10 +2293,13 @@ function renderParticipants() {
         <button class="wintoggle ${pt.is_win ? 'on' : ''}" onclick="toggleWin(${i})">${pt.is_win ? '승 👑' : '패'}</button>
         ${addPlayState.participants.length > 1 ? `<button class="rm-btn" onclick="removePart(${i})">×</button>` : ''}
       </div>
-      <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-sub);cursor:pointer;padding-left:2px;">
-        <input type="checkbox" ${pt.is_guest ? 'checked' : ''} onchange="toggleGuest(${i}, this.checked)" style="width:15px;height:15px;margin:0;" />
-        비회원(게스트)
-      </label>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding-left:2px;">
+        ${memberBadgeHtml(i, pt)}
+        <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-sub);cursor:pointer;margin-left:auto;">
+          <input type="checkbox" ${pt.is_guest ? 'checked' : ''} onchange="toggleGuest(${i}, this.checked)" style="width:15px;height:15px;margin:0;" />
+          비회원(게스트)
+        </label>
+      </div>
     </div>`).join('');
 }
 
@@ -2285,7 +2308,10 @@ function addParticipant() {
   renderParticipants();
 }
 function removePart(i) { addPlayState.participants.splice(i, 1); renderParticipants(); }
-function updatePart(i, field, val) { addPlayState.participants[i][field] = val; }
+function updatePart(i, field, val) {
+  addPlayState.participants[i][field] = val;
+  if (field === 'name') updateMemberBadge(i);   // 회원 일치 배지 실시간 갱신
+}
 function toggleWin(i) { addPlayState.participants[i].is_win = !addPlayState.participants[i].is_win; renderParticipants(); }
 function toggleGuest(i, checked) { addPlayState.participants[i].is_guest = checked; renderParticipants(); }
 
@@ -2638,7 +2664,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1956 날짜 입력칸 유동 폭 + 기간필터 컴팩트';
+const APP_VERSION = 'v2004 회원 일치 배지 + 참가자 추가 버튼 이동';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
