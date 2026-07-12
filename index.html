@@ -1167,7 +1167,7 @@ async function openReviews(gameId) {
           <div class="rv-name">${esc(r.name)}<span class="rv-when">${esc(String(r.updated_at || '').substring(0, 10))}</span></div>
           <div class="rv-text">${esc(r.review)}</div>
         </div>`).join('')
-      : `<div class="empty"><div class="big">💬</div>아직 남긴 후기가 없어요.<br/>플레이한 게임이면 MY-게임기록에서 후기를 남겨보세요.</div>`;
+      : `<div class="empty"><div class="big">💬</div>아직 남긴 후기가 없어요.<br/>플레이한 게임이면<br/>MY-게임기록에서 후기를 남겨보세요.</div>`;
     body.innerHTML = head + `<div>${list}</div>`;
   } catch (e) {
     body.innerHTML = head + `<div class="empty">불러오지 못했습니다.<br/>${esc(e.message)}</div>`;
@@ -1241,8 +1241,7 @@ function renderGameDetail() {
   const chart = `<div class="gd-sec">
     <div class="gd-sec-title">📈 최근 ${recent.length}판 점수 추이</div>
     <div class="gd-chart">${gameChartSvg(recent, uid)}</div>
-    <div class="gd-legend"><span><i style="background:#d9d5f3;"></i>그 판 베스트</span><span><i style="background:var(--main);"></i>내 점수</span></div>
-    <div class="muted" style="text-align:center;font-size:11px;margin-top:4px;">막대를 누르면 그날 참가자 점수가 나와요</div>
+    <div class="gd-legend"><span><i style="background:#d9d5f3;"></i>최고 점수</span><span><i style="background:var(--main);"></i>내 점수</span></div>
   </div>`;
 
   // 3) 플레이어 통계 표(정렬 가능)
@@ -2485,10 +2484,9 @@ function renderAdminGames() {
   if (!el.dataset.ready) {
     el.innerHTML = `
       <div class="adm-searchrow">
-        <div class="searchbox"><span>🔍</span><input id="adm-game-search" placeholder="이름·분류·요약 검색 (쉼표로 여러 조건)" oninput="adminGameSearch()" /></div>
+        <div class="searchbox"><span>🔍</span><input id="adm-game-search" placeholder="이름·분류·요약 검색" oninput="adminGameSearch()" /></div>
         <button class="adm-pill" onclick="openCategoryManager()">🏷 카테고리</button>
       </div>
-      <div class="hint" style="margin-bottom:10px;">카드를 누르면 바로 수정 화면이 열려요.</div>
       <div id="adm-game-list"></div>`;
     el.dataset.ready = '1';
   }
@@ -2579,7 +2577,7 @@ function renderAdminPlays() {
   if (!el.dataset.ready) {
     el.innerHTML = `
       <div class="adm-searchrow">
-        <div class="searchbox"><span>🔍</span><input id="adm-play-search" placeholder="일자·게임·참가자·작성자 (쉼표로 여러 조건)" onkeydown="if(event.key==='Enter')adminPlaySearch()" /></div>
+        <div class="searchbox"><span>🔍</span><input id="adm-play-search" placeholder="일자·게임·참가자·작성자" onkeydown="if(event.key==='Enter')adminPlaySearch()" /></div>
         <button class="adm-pill" onclick="adminPlaySearch()">검색</button>
       </div>
       <div class="adm-daterow">
@@ -2657,7 +2655,7 @@ async function adminSavePin(btn) {
     if (t) t.pin = newPin;
     // 내 PIN을 바꿨다면 캐시도 갱신
     if (targetId === state.user.player_id) localStorage.setItem('bg_pin', newPin);
-    toast('비밀번호가 변경되었습니다!');
+    toast('비밀번호가<br/>변경되었습니다!');
   } catch (e) { toast(e.message, true); } finally { hideLoader(); }
 }
 
