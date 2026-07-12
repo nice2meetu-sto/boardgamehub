@@ -1940,7 +1940,7 @@ function ratingEditorHtml(g) {
       <div class="rate-val" id="rateval-${g.game_id}" style="margin:0;white-space:nowrap;">${val ? val.toFixed(1) + ' 점' : '평점 선택'}</div>
     </div>
     <label style="font-size:12px;font-weight:700;color:var(--text-sub);display:block;margin-top:10px;">한줄 후기 <span class="muted" style="font-weight:500;">(게임 탭에 공개돼요)</span></label>
-    <textarea class="input" id="review-${g.game_id}" placeholder="이 게임 어땠나요? 함께 플레이한 사람들에게 공유해요">${esc(review)}</textarea>
+    <textarea class="input" id="review-${g.game_id}" placeholder="이 게임 어땠나요?<br/>함께 플레이한 사람들에게 공유해요">${esc(review)}</textarea>
     <button class="btn" style="margin-top:12px;width:100%;padding:9px;" onclick="saveRating('${g.game_id}')">평점·후기 저장</button>
   </div>`;
 }
