@@ -418,7 +418,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1759</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1815</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -588,8 +588,11 @@ async function api(action, params = {}) {
     }
     case 'saveRating':
       return sbrpc('save_rating', {
-        p_player_id: P.playerId, p_pin: P.pin, p_game_id: P.gameId,
-        p_rating: Number(P.rating), p_review: P.review || ''
+        p_player_id: P.playerId, p_pin: P.pin, p_game_id: P.gameId, p_rating: Number(P.rating)
+      });
+    case 'saveReview':
+      return sbrpc('save_review', {
+        p_player_id: P.playerId, p_pin: P.pin, p_game_id: P.gameId, p_review: P.review || ''
       });
     case 'saveMemo':
       return sbrpc('save_memo', {
@@ -1747,11 +1750,11 @@ function ratingEditorHtml(g) {
   const review = existing ? (existing.review || '') : '';
   return `<div class="rate-edit" data-gid="${g.game_id}">
     <label style="font-size:12px;font-weight:700;color:var(--text-sub);">내 평점 (1~10, 0.5 단위)</label>
-    <div class="stars" id="stars-${g.game_id}">${starsHtml(val)}</div>
+    <div class="stars" id="stars-${g.game_id}" data-val="${val || ''}">${starsHtml(val)}</div>
     <div class="rate-val" id="rateval-${g.game_id}">${val ? val.toFixed(1) + ' 점' : '평점을 선택하세요'}</div>
     <label style="font-size:12px;font-weight:700;color:var(--text-sub);display:block;margin-top:10px;">한줄 후기 <span class="muted" style="font-weight:500;">(게임 탭에 공개돼요)</span></label>
     <textarea class="input" id="review-${g.game_id}" placeholder="이 게임 어땠나요? 함께 플레이한 사람들에게 공유해요">${esc(review)}</textarea>
-    <button class="btn sm" style="margin-top:8px;" onclick="saveRating('${g.game_id}')">평점·후기 저장</button>
+    <button class="btn" style="margin-top:12px;width:100%;" onclick="saveRating('${g.game_id}')">평점·후기 저장</button>
   </div>`;
 }
 
@@ -1783,24 +1786,27 @@ function pickStar(e, starIndex) {
 
 async function saveRating(gameId) {
   if (!state.user) { toast('로그인이 필요합니다.', true); return; }
-  const pin = await promptPin();
-  if (pin == null) return;
   const container = document.getElementById('stars-' + gameId);
   const val = Number(container.dataset.val || 0);
-  if (!val) { toast('평점을 선택하세요.', true); return; }
   const review = document.getElementById('review-' + gameId).value;
+  const hasRating = val > 0;
+  const hasReview = review.trim() !== '';
+  // 둘 중 하나만 입력해도 저장(빈 칸은 기존 값 그대로 유지)
+  if (!hasRating && !hasReview) { toast('평점이나 후기 중 하나 이상 입력하세요.', true); return; }
+  const pin = await promptPin();
+  if (pin == null) return;
   showLoader('저장 중…');
   try {
-    await api('saveRating', {
-      playerId: state.user.player_id, pin, gameId, rating: val, review
-    });
+    if (hasRating) await api('saveRating', { playerId: state.user.player_id, pin, gameId, rating: val });
+    if (hasReview) await api('saveReview', { playerId: state.user.player_id, pin, gameId, review });
     if (!state._myRatings) state._myRatings = {};
-    // 기존 memo(개인 게임메모)는 보존하고 rating/review만 갱신
-    state._myRatings[gameId] = Object.assign({}, state._myRatings[gameId], { game_id: gameId, rating: val, review });
-    // 게임 목록 club_rating 갱신 위해 재로드
-    state.games = await api('getGames');
-    toast('평점·후기가 저장되었습니다!');
-    // 내 게임기록 카드 갱신(Hub 평점 옆 '내 평점' 반영)
+    const upd = { game_id: gameId };
+    if (hasRating) upd.rating = val;
+    if (hasReview) upd.review = review;
+    state._myRatings[gameId] = Object.assign({}, state._myRatings[gameId], upd);
+    // 평점이 바뀌었으면 Hub 평점 갱신 위해 게임 목록 재로드
+    if (hasRating) state.games = await api('getGames');
+    toast('저장되었습니다!');
     if (state.myTab === 'games' && document.getElementById('my-games-cards')) filterMyGames();
   } catch (e) {
     toast(e.message, true);
@@ -2228,7 +2234,7 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1759 후기(공개)/게임메모(개인) 분리';
+const APP_VERSION = 'v1815 평점·후기 독립 저장 + 저장버튼 풀너비';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');

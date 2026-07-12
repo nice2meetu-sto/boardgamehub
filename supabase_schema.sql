@@ -335,10 +335,10 @@ $$;
 --  5) 쓰기 RPC (PIN 검증 후 실행) — 클라이언트 직접 INSERT/UPDATE 없음
 -- ============================================================
 
--- 평점 + 공개 후기 저장(upsert). memo(개인메모)는 건드리지 않음.
+-- 평점만 저장(후기/메모는 건드리지 않음). 평점·후기 독립 저장.
 drop function if exists public.save_rating(text, text, text, numeric, text);
 create or replace function public.save_rating(
-  p_player_id text, p_pin text, p_game_id text, p_rating numeric, p_review text)
+  p_player_id text, p_pin text, p_game_id text, p_rating numeric)
 returns json
 language plpgsql security definer
 set search_path = public, extensions
@@ -348,14 +348,28 @@ begin
   perform public._verify(p_player_id, p_pin);
   if p_rating is null or p_rating < 1 or p_rating > 10 then
     raise exception '평점은 1~10 사이여야 합니다.'; end if;
-
-  insert into public.ratings(player_id, game_id, rating, review, updated_at)
-  values (p_player_id, p_game_id, p_rating, coalesce(p_review, ''), v_now)
+  insert into public.ratings(player_id, game_id, rating, updated_at)
+  values (p_player_id, p_game_id, p_rating, v_now)
   on conflict (player_id, game_id) do update
-    set rating = excluded.rating, review = excluded.review, updated_at = excluded.updated_at;
+    set rating = excluded.rating, updated_at = excluded.updated_at;
+  return json_build_object('player_id', p_player_id, 'game_id', p_game_id, 'rating', p_rating, 'updated_at', v_now);
+end $$;
 
-  return json_build_object('player_id', p_player_id, 'game_id', p_game_id,
-                           'rating', p_rating, 'review', coalesce(p_review,''), 'updated_at', v_now);
+-- 공개 후기만 저장(평점/메모는 건드리지 않음)
+create or replace function public.save_review(
+  p_player_id text, p_pin text, p_game_id text, p_review text)
+returns json
+language plpgsql security definer
+set search_path = public, extensions
+as $$
+declare v_now text := to_char(now(), 'YYYY-MM-DD HH24:MI:SS');
+begin
+  perform public._verify(p_player_id, p_pin);
+  insert into public.ratings(player_id, game_id, review, updated_at)
+  values (p_player_id, p_game_id, coalesce(p_review, ''), v_now)
+  on conflict (player_id, game_id) do update
+    set review = excluded.review, updated_at = excluded.updated_at;
+  return json_build_object('player_id', p_player_id, 'game_id', p_game_id, 'review', coalesce(p_review, ''));
 end $$;
 
 -- 개인 게임메모(비공개) 저장. 평점/후기는 건드리지 않음.
@@ -596,7 +610,8 @@ grant execute on function public.get_games()                                    
 grant execute on function public.get_plays()                                        to anon;
 grant execute on function public.get_player_stats(text)                             to anon;
 grant execute on function public.get_my_ratings(text)                               to anon;
-grant execute on function public.save_rating(text, text, text, numeric, text)       to anon;
+grant execute on function public.save_rating(text, text, text, numeric)             to anon;
+grant execute on function public.save_review(text, text, text, text)                to anon;
 grant execute on function public.save_memo(text, text, text, text)                  to anon;
 grant execute on function public.get_reviews(text)                                  to anon;
 grant execute on function public.add_play(text, text, jsonb)                        to anon;
