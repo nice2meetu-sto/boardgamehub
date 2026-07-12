@@ -510,7 +510,9 @@ declare v_id text; v_now text := to_char(now(), 'YYYY-MM-DD HH24:MI:SS');
 begin
   perform public._verify(p_player_id, p_pin);
   if btrim(coalesce(p_payload->>'name_kr','')) = '' then raise exception '한글 게임명을 입력하세요.'; end if;
-  if exists (select 1 from public.games where btrim(name_kr) = btrim(coalesce(p_payload->>'name_kr',''))) then
+  if exists (select 1 from public.games
+             where regexp_replace(lower(btrim(name_kr)), '\s+', '', 'g')
+                 = regexp_replace(lower(btrim(coalesce(p_payload->>'name_kr',''))), '\s+', '', 'g')) then
     raise exception '이미 등록된 게임명입니다.'; end if;
   v_id := public._next_id('G', 3, 'games', 'game_id');
 

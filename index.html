@@ -449,7 +449,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0025</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0044</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2044,7 +2044,11 @@ function renderAddGameForm() {
   el.innerHTML = `
     <div class="field">
       <label>한글 게임명 *</label>
-      <input class="input" id="ag-namekr" placeholder="예: 스컬킹" oninput="checkNewGameName()" />
+      <div class="ac-wrap">
+        <input class="input" id="ag-namekr" placeholder="예: 스컬킹" autocomplete="off"
+               oninput="checkNewGameName(); acRender(this,'game')" onblur="acHide(this)" />
+        <div class="ac-menu"></div>
+      </div>
       <div class="mchk" id="ag-namecheck" style="margin-top:4px;display:none;"></div>
     </div>
     <div class="field">
@@ -2140,8 +2144,9 @@ async function submitAddGame() {
   const nameKr = document.getElementById('ag-namekr').value.trim();
   const category = document.getElementById('ag-category').value;
   if (!nameKr) { toast('한글 게임명을 입력하세요.', true); return; }
-  // 중복 게임명 등록 차단(닉네임 중복 방지와 동일)
-  if (state.games.some(g => (g.name_kr || '').trim() === nameKr)) {
+  // 중복 게임명 등록 차단(공백·대소문자 무시, 닉네임 중복 방지와 동일)
+  const nk = normGameName(nameKr);
+  if (state.games.some(g => normGameName(g.name_kr) === nk)) {
     toast('이미 등록된 게임명입니다.', true); return;
   }
   const pin = await promptPin();
@@ -2223,6 +2228,9 @@ function similarGameName(name) {
   return (best && bestD > 0 && bestD <= limit) ? best : null;
 }
 
+// 게임명 정규화: 공백 제거 + 소문자 (띄어쓰기·대소문자만 다른 건 같은 게임으로 취급)
+function normGameName(s) { return String(s || '').replace(/\s+/g, '').toLowerCase(); }
+
 // 게임 추가: 한글명 실시간 중복/유사 검사
 function checkNewGameName() {
   const el = document.getElementById('ag-namecheck');
@@ -2231,7 +2239,8 @@ function checkNewGameName() {
   const name = inp.value.trim();
   if (!name) { el.style.display = 'none'; return; }
   el.style.display = 'block';
-  const dup = state.games.find(g => (g.name_kr || '').trim() === name);
+  const key = normGameName(name);
+  const dup = state.games.find(g => normGameName(g.name_kr) === key);
   if (dup) {
     el.className = 'mchk dup';
     el.textContent = '⚠ 이미 등록된 게임명이에요 — 추가할 수 없어요';
@@ -2762,7 +2771,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v0025 관리자 게임삭제 + 게임명 중복/유사 검증';
+const APP_VERSION = 'v0044 게임명 중복 공백무시 + 추가창 자동완성';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
