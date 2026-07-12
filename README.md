@@ -1,200 +1,196 @@
-# 🎲 보드게임 동아리 관리 웹앱
+# 🎲 보드게임 동아리 관리 웹앱 (Supabase 백엔드)
 
 동아리원들이 모바일에서 사용하는 보드게임 관리 페이지입니다.
 플레이 기록·평점·개인 통계를 관리하고, 게임 정보를 직접 입력해 등록합니다.
 
 - **프론트엔드**: 단일 `index.html` (vanilla JS, 프레임워크 없음) — GitHub Pages 호스팅
-- **백엔드**: Google Apps Script 웹앱 (`Code.gs`, `doGet` 기반 GET-only JSON API)
-- **DB**: Google Sheets (시트 4장)
+- **백엔드/DB**: **Supabase (PostgreSQL)** — 조회는 anon 허용, 쓰기는 PIN 검증 RPC 함수로만
+- 로그인은 Supabase Auth를 쓰지 않고 `players` 테이블의 **이름 + PIN** 대조 방식(기존과 동일)
+
+> 이전에는 Google Sheets + Apps Script 백엔드였습니다. UI/화면은 그대로 두고
+> 데이터 접근 계층만 Supabase로 옮겼습니다. (레거시 `Code.gs`는 참고용으로 남겨둠)
 
 ---
 
 ## 📐 아키텍처 개요
 
 ```
-[모바일 브라우저] ──fetch(GET)──▶ [Apps Script 웹앱 doGet] ──▶ [Google Sheets]
-     index.html                        Code.gs                Players/Games/
-  (GitHub Pages)                                              Ratings/PlayLogs
+[모바일 브라우저]                         [Supabase]
+  index.html          supabase-js        ┌───────────────────────────┐
+ (GitHub Pages) ───▶  (CDN 클라이언트) ─▶ │ 조회: RPC/뷰 (anon 허용)   │
+                                          │ 쓰기: RPC 함수(PIN 검증)   │
+                                          │   └ SECURITY DEFINER       │
+                                          │ 테이블: players/games/     │
+                                          │        ratings/playlogs    │
+                                          │ RLS: 직접 쓰기 전부 차단   │
+                                          └───────────────────────────┘
 ```
 
-- 모든 요청은 **GET만** 사용 (CORS preflight 회피). 쓰기 작업도 GET 파라미터로 처리하며,
-  복잡한 데이터는 `payload=encodeURIComponent(JSON.stringify(...))` 형태로 전달합니다.
-- `google.script.run` / `HtmlService` 는 사용하지 않습니다.
+- **조회**(select)는 `anon` 역할에 허용. 단 `players` **원본은 비공개**(PIN 보호)이며,
+  안전 컬럼만 담은 `players_public` 뷰로만 노출됩니다.
+- **쓰기**(insert/update/delete)는 anon 정책이 없어 **직접 접근이 전부 차단**됩니다.
+  모든 쓰기는 함수 안에서 PIN을 검증하는 **Postgres RPC(SECURITY DEFINER)** 로만 수행됩니다.
+- 클라이언트의 기존 `api(action, params)` 인터페이스는 그대로 유지하고, 내부만
+  supabase-js 호출로 교체했습니다. (화면/로직 변경 없음)
 
 ---
 
-## 1. Google Sheets 생성
+## 🚀 배포 순서 (요약)
 
-1. [Google Sheets](https://sheets.new)에서 새 스프레드시트를 만듭니다. (이름 예: `보드게임동아리DB`)
-2. **시트 4장**과 헤더를 만들어야 합니다. 아래 두 가지 방법 중 하나를 선택하세요.
+| 순서 | 단계 | 위치 |
+|---|---|---|
+| 1 | **테이블 + RPC + RLS 생성** — `supabase_schema.sql` 통째로 실행 | Supabase 대시보드 → SQL Editor |
+| 2 | **HTML 키 교체** — `SUPABASE_URL`, `SUPABASE_ANON_KEY` 확인/입력 | `index.html` 상단 |
+| 3 | **기존 시트 CSV import** — 시트 4장을 CSV로 내보내 테이블에 넣기 | Supabase → Table Editor → Import |
+| 4 | **GitHub Pages 배포** | 저장소 Settings → Pages |
 
-### 방법 A — 자동 생성 (권장)
-Apps Script를 먼저 연결(2단계)한 뒤, 편집기에서 `setupSheets` 함수를 1회 실행하면
-아래 4개 시트와 헤더가 자동으로 생성됩니다.
-
-### 방법 B — 수동 생성
-아래 시트를 만들고 **1행에 헤더**를 그대로 입력합니다. (컬럼 순서는 바뀌어도 되지만 헤더명은 정확히 일치해야 합니다.)
-
-**`Players`**
-```
-player_id | name | pin_hash | pin | role | joined_at
-```
-> `pin`이 **실제 비밀번호(평문)** 입니다. 로그인 검증도 이 `pin` 값으로 하므로,
-> 관리자가 시트에서 **`pin` 셀을 고치면 그 회원의 비밀번호가 바로 바뀝니다**(분실 시 재설정 가능).
-> `pin_hash` 컬럼은 예전 방식의 잔재로, 지금은 비워둬도 되고 무시됩니다.
-> 동아리 내부용 4자리 숫자라 노출해도 무방하지만, 시트 공유 범위는 관리자로 제한하세요.
-
-**`Games`**
-```
-game_id | name_kr | name_en | bgg_id | category | min_players | max_players | playtime_min | weight | bgg_rating | summary_kr | image_url | source | created_by | created_at
-```
-
-**`Ratings`**
-```
-player_id | game_id | rating | memo | updated_at
-```
-
-**`Categories`** (선택 — 게임 분류 목록을 앱에서 관리)
-```
-category
-전략
-마피아
-트릭테이킹
-...
-```
-> `Categories` 탭의 A열에 분류를 한 줄에 하나씩 적으면, 게임 추가/수정 화면의 분류 선택지가
-> 이 목록으로 채워집니다(코드 수정 불필요). 1행 헤더 `category`는 있어도 없어도 됩니다.
-> 탭 이름은 `Categories` / `분류` / `카테고리` 중 아무거나 가능하며, 탭이 없으면 기본 목록을 사용합니다.
-> (`setupSheets` 실행 시 기본 분류가 채워진 `Categories` 탭이 자동 생성됩니다.)
-
-**`PlayLogs`**
-```
-record_id | session_id | play_date | game_id | duration_min | player_id | player_name | score | is_win | created_by | created_at
-```
-> `player_name`에는 참가자 표시 이름이 저장됩니다. **회원**은 `player_id`(P00X)와 이름이 함께,
-> **비회원(게스트)** 은 `player_id`가 빈값이고 `player_name`에 입력한 닉네임만 저장됩니다.
-> 게스트는 개인 통계/로그인 대상이 아니며, 회원들의 통계·게임 평점에는 영향을 주지 않습니다.
-> `created_by`에는 그 기록을 입력한 회원의 `player_id`가 저장되며, **입력자 본인만** 해당 세션을 수정/삭제할 수 있습니다.
-
-> 💡 날짜 컬럼(`joined_at`, `play_date` 등)은 **서식을 '일반' 또는 '텍스트'** 로 두면
-> 시트의 자동 날짜 변환을 피할 수 있습니다. 백엔드는 `getDisplayValues()`로 읽어 안전하게 처리합니다.
+> `supabase_schema.sql` 한 파일 안에 **① 테이블 → ② RPC 함수 → ③ RLS/권한** 이
+> 순서대로 들어 있어, 한 번 붙여넣어 실행하면 1단계가 모두 끝납니다. 여러 번 실행해도 안전합니다.
 
 ---
 
-## 2. Apps Script 연결 & 코드 붙여넣기
+## 1. 테이블 + RPC + RLS 생성 (SQL Editor)
 
-1. 스프레드시트 상단 메뉴에서 **확장 프로그램 → Apps Script** 클릭
-2. 기본 `Code.gs` 내용을 지우고, 이 저장소의 **`Code.gs` 전체**를 붙여넣습니다.
-3. 저장(💾).
-4. (방법 A를 쓴다면) 함수 선택 드롭다운에서 `setupSheets`를 골라 **실행 ▶** → 최초 권한 승인.
+1. Supabase 대시보드 → 왼쪽 **SQL Editor** → **New query**
+2. 이 저장소의 **`supabase_schema.sql` 전체**를 붙여넣고 **Run**
+3. 성공하면 아래가 만들어집니다.
+   - 테이블: `players`, `games`, `ratings`, `playlogs`, `categories`
+   - 공개 뷰: `players_public` (player_id, name, role만)
+   - 조회 RPC: `get_games`, `get_plays`, `get_player_stats`, `get_my_ratings`, `login`, `signup`
+   - 쓰기 RPC: `save_rating`, `add_play`, `update_play`, `delete_play`, `add_game`, `update_game`
+   - RLS: 조회 anon 허용(`players` 제외), 쓰기 전부 차단
+   - `categories`에 기본 분류 10종 자동 삽입
 
-> `SHEET_ID` 상수는 비워두면 됩니다(컨테이너 바운드 스크립트라 활성 스프레드시트를 자동 사용).
-> 별도 스프레드시트를 쓰려면 `Code.gs` 상단 `SHEET_ID`에 스프레드시트 ID를 넣으세요.
-
----
-
-## 3. 플레이어(계정) 등록 — 셀프 가입
-
-별도 계정 발급 없이, 앱의 **MY → 가입하기** 탭에서 **닉네임 + 숫자 4자리 PIN**만 입력하면
-바로 가입·로그인됩니다. PIN은 `Players` 시트의 **`pin` 컬럼에 그대로(평문) 저장**되며, 이 값이 곧 비밀번호입니다.
-관리자가 `pin` 셀을 수정하면 해당 회원의 비밀번호가 바뀝니다.
-
-- **닉네임**은 로그인 아이디로 쓰이므로 중복되면 가입이 거부됩니다.
-- **가장 먼저 가입한 사람이 자동으로 관리자(`admin`)** 가 됩니다.
-  (게임 세부정보 수정 권한 보유. 이후 가입자는 모두 `member`)
-- 즉, 동아리 대표가 앱을 열어 먼저 가입하면 관리자가 되고, 나머지 회원은 각자 가입하면 됩니다.
-
-> 필요하면 Apps Script 편집기에서 `addPlayerManual('P001','홍길동','1234','admin')`
-> 함수로 수동 등록하거나, `Players` 시트의 `role` 값을 직접 `admin`으로 바꿔
-> 추가 관리자를 지정할 수도 있습니다.
+> **PIN 검증 로직**은 기존과 동일합니다. `players.pin`(평문)이 우선이고, 평문이 비어 있는
+> 레거시 행만 `pin_hash`(SHA-256)로 대조합니다. `pgcrypto` 확장은 스크립트가 자동 설치합니다.
 
 ---
 
-## 4. 웹앱으로 배포
+## 2. HTML에 Supabase 키 연결
 
-1. Apps Script 편집기 우측 상단 **배포 → 새 배포**
-2. 유형 선택(⚙️) → **웹 앱**
-3. 설정:
-   - **설명**: 아무거나 (예: v1)
-   - **실행 계정(Execute as)**: **나(me)**
-   - **액세스 권한(Who has access)**: **모든 사용자(Anyone)**
-4. **배포** → 권한 승인 → **웹 앱 URL** 복사
-   (형식: `https://script.google.com/macros/s/......../exec`)
-
-> 코드 수정 후에는 **배포 → 배포 관리 → 편집(연필) → 버전: 새 버전 → 배포** 로 갱신해야
-> 변경 사항이 반영됩니다. (URL은 유지됩니다.)
-
----
-
-## 5. HTML에 API URL 연결
-
-`index.html` 상단의 상수 한 곳만 바꾸면 됩니다.
+`index.html` 상단의 상수 두 개만 확인/교체하면 됩니다. (이미 이 프로젝트 값으로 채워져 있습니다.)
 
 ```js
 // index.html <script> 최상단
-const API_URL = "여기에_배포_URL";   // ← 4단계에서 복사한 웹앱 URL(.../exec)로 교체
+const SUPABASE_URL      = "https://oxvacxvynyezysvkhbmx.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";  // anon public key
 ```
 
-예:
-```js
-const API_URL = "https://script.google.com/macros/s/AKfyc.../exec";
-```
+- 값은 Supabase 대시보드 **Project Settings → API** 의 **Project URL** / **anon public** 키입니다.
+- **anon key는 공개용**이라 프론트엔드에 넣어도 안전합니다(브라우저에 노출되는 것이 정상).
+  실제 보안은 RLS 정책과 RPC의 PIN 검증이 담당합니다. `service_role` 키는 **절대** 넣지 마세요.
+- supabase-js는 `index.html`에서 CDN으로 로드합니다:
+  `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2`
 
 ---
 
+## 3. 기존 Google Sheets → CSV import
 
-## 6. GitHub Pages 배포
+기존 데이터를 옮기는 단계입니다. (신규로 시작한다면 건너뛰어도 됩니다 — 앱에서 가입/입력하면 됨.)
+
+### 3-1. 시트에서 CSV 내보내기
+Google Sheets에서 **탭별로** `파일 → 다운로드 → 쉼표로 구분된 값(.csv)` 을 선택해
+`Players`, `Games`, `Ratings`, `PlayLogs` 4개 CSV를 받습니다. (탭마다 한 번씩)
+
+### 3-2. Supabase로 가져오기
+Supabase → **Table Editor** → 대상 테이블 선택 → **Insert → Import data from CSV** →
+받은 CSV 업로드 → 컬럼 매핑 확인 → Import.
+
+- 컬럼명이 시트 헤더와 **동일**하므로 자동 매핑됩니다.
+- 순서는 상관없지만 **`players`, `games` 를 먼저**, 그다음 `ratings`, `playlogs` 를 권장합니다.
+  (참조 무결성 FK는 일부러 걸지 않았으므로 순서가 틀려도 import 자체는 됩니다.)
+
+### 3-3. 데이터 타입 주의점
+| 컬럼 | 주의 |
+|---|---|
+| `is_win` (playlogs) | 시트의 `TRUE`/`FALSE` 텍스트 → Postgres `boolean`으로 그대로 인식됩니다. |
+| `score`, `min_players`, `weight` 등 숫자 | **빈 셀은 NULL**로 들어갑니다(정상). |
+| `play_date`, `created_at`, `joined_at` 등 | **텍스트로 저장**됩니다(시트와 동일, 시간대 변환 없음). |
+| `player_id` (playlogs, 게스트) | 게스트는 빈값 → NULL. `player_name`만 채워집니다. |
+
+> import 후 ID 자동 증가는 기존 최대값 기준으로 이어집니다. 예를 들어 `P001~P007`이 있으면
+> 다음 가입자는 `P008`이 됩니다. (RPC의 `_next_id`가 접미사 최대값 + 1을 계산)
+
+---
+
+## 4. GitHub Pages 배포
 
 1. 이 저장소를 GitHub에 푸시합니다. (`index.html`이 루트에 있어야 합니다.)
 2. 저장소 **Settings → Pages**
-3. **Source**: `Deploy from a branch`, **Branch**: 배포 브랜치 / `/(root)` 선택 → Save
-4. 잠시 후 발급되는 `https://<사용자>.github.io/<저장소>/` 주소로 접속합니다.
+3. **Source**: `Deploy from a branch`, **Branch**: 배포 브랜치 / `/(root)` → Save
+4. 잠시 후 발급되는 `https://<사용자>.github.io/<저장소>/` 로 접속합니다.
 
 > 모바일에서 접속 후 "홈 화면에 추가"하면 앱처럼 사용할 수 있습니다.
 
 ---
 
-## 7. 사용 방법
+## 5. 계정(플레이어) — 셀프 가입
+
+별도 발급 없이, 앱의 **MY → 가입하기** 탭에서 **닉네임 + 숫자 4자리 PIN**만 입력하면
+바로 가입·로그인됩니다. PIN은 `players.pin`(평문)에 저장되며 이 값이 곧 비밀번호입니다.
+
+- **닉네임**은 로그인 아이디로 쓰이므로 중복되면 가입이 거부됩니다(`name` UNIQUE).
+- **가장 먼저 가입한 사람이 자동으로 관리자(`admin`)** 가 됩니다(게임 세부정보 수정 권한).
+- 관리자를 추가로 지정하려면 SQL Editor에서 `update players set role='admin' where player_id='P00X';`
+- PIN 재설정: `update players set pin='새PIN' where player_id='P00X';`
+
+---
+
+## 6. 보안 모델
+
+- **조회**: `games`, `ratings`, `playlogs`, `categories` 는 anon `SELECT` 허용.
+  `players` 원본은 정책이 없어 anon이 직접 읽을 수 없고(=PIN 보호), `players_public` 뷰
+  (player_id, name, role)로만 노출됩니다.
+- **쓰기**: 테이블에 anon 쓰기 정책이 없어 직접 INSERT/UPDATE/DELETE 불가.
+  모든 변경은 아래 RPC로만 가능하며, 함수 진입 시 **PIN을 검증**합니다.
+- **권한 검증**: `update_game`은 `admin`만, `update_play`/`delete_play`는
+  `created_by`가 본인인 세션만 허용합니다.
+- RPC는 `SECURITY DEFINER` + `search_path` 고정. 내부 헬퍼(`_verify`, `_next_id`)는
+  anon 실행 권한을 부여하지 않았습니다(RPC 내부에서만 호출).
+
+---
+
+## 7. RPC / 조회 매핑 (클라이언트 `api()` ↔ Supabase)
+
+| 화면 동작 | 클라이언트 `api(action)` | Supabase 호출 |
+|---|---|---|
+| 로그인 | `login` | `rpc('login', {p_name, p_pin})` |
+| 가입 | `signup` | `rpc('signup', {p_name, p_pin})` |
+| 게임 목록 | `getGames` | `rpc('get_games')` |
+| 플레이 목록 | `getPlays` | `rpc('get_plays')` |
+| 개인 통계 | `getPlayerStats` | `rpc('get_player_stats', {p_player_id})` |
+| 내 평점 | `getMyRatings` | `rpc('get_my_ratings', {p_player_id})` |
+| 참가자 목록 | `getPlayers` | `from('players_public').select(...)` |
+| 분류 목록 | `getCategories` | `from('categories').select('name')` |
+| 평점 저장 | `saveRating` | `rpc('save_rating', {p_player_id,p_pin,p_game_id,p_rating,p_memo})` |
+| 플레이 추가 | `addPlay` | `rpc('add_play', {p_player_id,p_pin,p_payload})` |
+| 플레이 수정 | `updatePlay` | `rpc('update_play', {p_player_id,p_pin,p_payload})` |
+| 플레이 삭제 | `deletePlay` | `rpc('delete_play', {p_player_id,p_pin,p_session_id})` |
+| 게임 추가 | `addGame` | `rpc('add_game', {p_player_id,p_pin,p_payload})` |
+| 게임 수정 | `updateGame` | `rpc('update_game', {p_player_id,p_pin,p_payload})` |
+
+반환 형태(JSON 구조)는 기존 Apps Script 응답과 동일하게 맞춰, 화면 코드를 수정하지 않았습니다.
+
+---
+
+## 8. 사용 방법
 
 | 탭 | 설명 |
 |---|---|
 | **플레이** | 전체 플레이 기록을 최신순으로. 상단에 이번 달/누적/최다 플레이 요약 |
-| **게임** | 등록된 모든 게임을 우리동아리평점 내림차순 카드로. 분류·인원수 필터 + 이름 검색. 카드 탭 시 요약 펼침 |
-| **MY** | 닉네임+PIN 가입/로그인 → 개인 통계(플레이 기록) & 내가 참가한 게임 평점/메모(게임 기록) |
+| **게임** | 등록된 모든 게임을 우리Hub평점 내림차순 카드로. 분류·인원·난이도 필터 + 이름 검색 |
+| **MY** | 닉네임+PIN 가입/로그인 → 전체 기록/플레이 기록/게임 기록(평점·메모) |
 | **+ 버튼** | 게임 추가(직접입력·사진 촬영/업로드) · 플레이 결과 추가 |
 
 - 로그인 정보는 `sessionStorage`에 유지됩니다(탭을 닫으면 해제).
-- 쓰기 작업(평점·플레이·게임 추가/수정) 시 본인 확인용 PIN을 한 번 입력합니다.
-
----
-
-## 8. API 스펙 요약 (`doGet` action)
-
-| action | 파라미터 | 동작 |
-|---|---|---|
-| `login` | name, pin | `pin` 컬럼(평문) 대조, 성공 시 `{player_id, name, role}` |
-| `signup` | name, pin | 닉네임 중복·PIN(숫자 4자리) 검증 후 신규 등록. 첫 가입자는 `admin` |
-| `getGames` | - | 전체 게임 + `club_rating`, `rating_count`, `play_count` |
-| `getPlays` | - | 세션 단위 그룹핑된 전체 플레이 기록(최신순) |
-| `getPlayerStats` | playerId | 개인 통계(총 플레이/승수/승률, 월별, 게임별 승률) |
-| `getMyRatings` | playerId | 내 평점·메모 목록 |
-| `getPlayers` | - | 플레이어 목록(참가자 선택용) |
-| `getCategories` | - | `Categories` 탭의 분류 목록(없으면 기본값) |
-| `addGame` | payload(JSON) | 수동 입력값으로 게임 저장 |
-| `saveRating` | playerId, pin, gameId, rating, memo | 본인 인증 후 upsert |
-| `addPlay` | payload(JSON) | 세션 생성 후 참가자별 행 추가(회원=player_id, 게스트=player_name만) |
-| `updatePlay` | playerId, pin, payload | 세션의 날짜·시간·점수·승패 수정 (**입력자 본인만**, `created_by` 대조) |
-| `deletePlay` | playerId, pin, sessionId | 세션의 모든 참가자 행 삭제 (**입력자 본인만**) |
-| `updateGame` | playerId, pin, payload | **admin만** 게임 세부정보 수정 |
-
-공통 응답: `{ ok: true, data: ... }` 또는 `{ ok: false, error: "메시지" }`
+- 쓰기 작업 시 본인 확인용 PIN을 한 번 입력합니다.
 
 ---
 
 ## 9. 계산 로직
 
-- **승률** = `is_win=TRUE` 행 수 ÷ 전체 참가 행 수 × 100 (소수 1자리)
-- **우리동아리평점** = 게임별 `Ratings.rating` 평균 (소수 1자리, 평가 0건이면 `-`)
+- **승률** = `is_win=true` 행 수 ÷ 전체 참가 행 수 × 100 (소수 1자리)
+- **우리Hub평점** = 게임별 `ratings.rating` 평균 (소수 1자리, 평가 0건이면 `-`)
 - **게임별 개인 승률** = 그 게임에서의 승수 ÷ 참가 수
 
 ---
@@ -203,20 +199,22 @@ const API_URL = "https://script.google.com/macros/s/AKfyc.../exec";
 
 | 증상 | 원인/해결 |
 |---|---|
-| 첫 응답이 2~3초 느림 | Apps Script 콜드스타트. 정상이며 로딩 스피너가 표시됩니다. |
-| `Unknown action` / 가입(signup) 안 됨 | 편집기의 `Code.gs`를 **최신으로 교체** 후 **배포 관리 → 편집 → 버전: 새 버전 → 배포**. (API_URL만 바꾸고 백엔드를 재배포 안 하면 새 기능이 반영되지 않습니다) |
-| 로그인 실패 | 닉네임·PIN 확인. 처음이면 **가입하기** 탭으로 먼저 가입 |
-| PIN 분실/변경 | `Players` 시트의 `pin` 셀을 확인하거나 원하는 값으로 수정(= 비밀번호 재설정) |
-| 관리자 지정 | 첫 가입자가 자동 admin. 이후 `Players` 시트 `role`을 `admin`으로 바꿔 추가 지정 |
-| 게임 수정 버튼 안 보임 | `admin` 계정으로 로그인해야 노출됩니다 |
-| CORS/401 오류 | 배포 시 **액세스: 모든 사용자**, **실행: 나** 설정 확인 |
+| 화면이 안 뜸 / "Supabase 설정 필요" | `index.html`의 `SUPABASE_URL`·`SUPABASE_ANON_KEY` 확인. supabase-js CDN 로드 확인 |
+| 로그인/가입 실패 | 닉네임·PIN 확인. 처음이면 **가입하기** 탭으로 먼저 가입 |
+| 조회는 되는데 저장이 안 됨 | `supabase_schema.sql`을 실행했는지(특히 RPC/GRANT 부분) 확인 |
+| `permission denied for function ...` | 해당 RPC에 `grant execute ... to anon`이 적용됐는지 확인(스크립트 재실행) |
+| `function ... does not exist` | 클라이언트가 부르는 RPC 이름/인자와 함수 시그니처가 일치하는지 확인 |
+| CSV import 시 boolean/숫자 오류 | `is_win`은 TRUE/FALSE 텍스트 OK. 숫자 빈 셀은 NULL. 날짜는 텍스트 컬럼 |
+| PIN 분실/변경 | SQL Editor: `update players set pin='새값' where player_id='P00X';` |
+| 관리자 지정 | 첫 가입자가 자동 admin. 이후 `update players set role='admin' where ...` |
 
 ---
 
 ## 파일 구성
 
 ```
-index.html   # 단일 파일 프론트엔드 (CSS/JS 인라인)
-Code.gs      # Apps Script 백엔드 (doGet 라우팅 + 시트 읽기/쓰기)
-README.md    # 이 문서
+index.html            # 단일 파일 프론트엔드 (CSS/JS 인라인, supabase-js CDN)
+supabase_schema.sql   # Supabase 스키마: 테이블 + RPC + RLS (SQL Editor에 붙여넣기)
+README.md             # 이 문서
+Code.gs               # (레거시) 이전 Google Apps Script 백엔드 — 참고용
 ```

@@ -359,7 +359,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1921</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1416</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="refreshAll()" title="최신 데이터로 업데이트"
               style="background:var(--main-light);color:var(--main);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 업데이트</button>
@@ -440,11 +440,22 @@
 <div id="toast"></div>
 <div id="loader"><div class="spinner"></div><div class="ltxt">불러오는 중…</div></div>
 
+<!-- Supabase JS 클라이언트 (CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ============================================================
-//  설정: Apps Script 웹앱 배포 URL을 여기에 입력
+//  설정: Supabase 프로젝트 URL / anon public key
+//  (README의 "HTML 키 교체" 단계 참고)
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbzYTrfFRGQYXQVRwAW7Tr3U3vyrP3G0RqvQxcTbENmRpLoW2ur3PHU6JHZuptmZ49AC/exec";
+const SUPABASE_URL = "https://oxvacxvynyezysvkhbmx.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94dmFjeHZ5bnllenlzdmtoYm14Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4MjIzODksImV4cCI6MjA5OTM5ODM4OX0._Cinm3RpmXTWquz2jlN4EwM02eFxFQQzkvlws50zTa0";
+
+// 카테고리 탭 로드 실패 시 폴백
+const DEFAULT_CATEGORIES_FALLBACK =
+  ['전략', '마피아', '트릭테이킹', '파티', '협력', '덱빌딩', '추리', '가족', '아브스트랙트', '기타'];
+
+// Supabase 클라이언트
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ===== 전역 상태 =====
 const state = {
@@ -458,15 +469,58 @@ const state = {
   authMode: 'login',   // 'login' | 'signup'
 };
 
-// ===== API =====
+// ===== API (Supabase) =====
+// 기존 Apps Script api(action, params) 인터페이스를 그대로 유지하는 호환 레이어.
+// 조회는 RPC/뷰(anon 허용), 쓰기는 전부 PIN을 검증하는 Postgres RPC로 처리.
+function acErr(error) { return (error && (error.message || error.hint)) || '요청 실패'; }
+
+async function sbrpc(fn, args = {}) {
+  const { data, error } = await sb.rpc(fn, args);
+  if (error) throw new Error(acErr(error));
+  return data;
+}
+
+// player_id·pin이 payload 안에 들어있는 쓰기(addGame/addPlay)용
+async function sbWriteWithPayload(fn, payloadStr) {
+  const pl = JSON.parse(payloadStr);
+  const { player_id, pin, ...rest } = pl;
+  return sbrpc(fn, { p_player_id: player_id, p_pin: pin, p_payload: rest });
+}
+
 async function api(action, params = {}) {
-  const url = new URL(API_URL);
-  url.searchParams.set('action', action);
-  Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
-  const res = await fetch(url.toString(), { method: 'GET' });
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error || '요청 실패');
-  return json.data;
+  const P = params;
+  switch (action) {
+    case 'login':          return sbrpc('login',  { p_name: P.name, p_pin: P.pin });
+    case 'signup':         return sbrpc('signup', { p_name: P.name, p_pin: P.pin });
+    case 'getGames':       return sbrpc('get_games');
+    case 'getPlays':       return sbrpc('get_plays');
+    case 'getPlayerStats': return sbrpc('get_player_stats', { p_player_id: P.playerId });
+    case 'getMyRatings':   return sbrpc('get_my_ratings',   { p_player_id: P.playerId });
+    case 'getPlayers': {
+      const { data, error } = await sb.from('players_public').select('player_id,name,role').order('player_id');
+      if (error) throw new Error(acErr(error));
+      return data || [];
+    }
+    case 'getCategories': {
+      const { data, error } = await sb.from('categories').select('name').order('sort_order').order('name');
+      if (error || !data || !data.length) return DEFAULT_CATEGORIES_FALLBACK;
+      return data.map(r => r.name);
+    }
+    case 'saveRating':
+      return sbrpc('save_rating', {
+        p_player_id: P.playerId, p_pin: P.pin, p_game_id: P.gameId,
+        p_rating: Number(P.rating), p_memo: P.memo || ''
+      });
+    case 'addPlay':   return sbWriteWithPayload('add_play', P.payload);
+    case 'addGame':   return sbWriteWithPayload('add_game', P.payload);
+    case 'updatePlay':
+      return sbrpc('update_play', { p_player_id: P.playerId, p_pin: P.pin, p_payload: JSON.parse(P.payload) });
+    case 'deletePlay':
+      return sbrpc('delete_play', { p_player_id: P.playerId, p_pin: P.pin, p_session_id: P.sessionId });
+    case 'updateGame':
+      return sbrpc('update_game', { p_player_id: P.playerId, p_pin: P.pin, p_payload: JSON.parse(P.payload) });
+    default: throw new Error('Unknown action: ' + action);
+  }
 }
 
 function showLoader(txt) {
@@ -1880,17 +1934,17 @@ async function submitEditGame(gameId) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1921 재배포';
+const APP_VERSION = 'v1416 Supabase 백엔드 마이그레이션';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = sessionStorage.getItem('bg_user');
   if (saved) { try { state.user = JSON.parse(saved); } catch (e) {} }
   updateWhoami();
-  if (!API_URL || API_URL === '여기에_배포_URL' || !/^https?:\/\//.test(API_URL)) {
+  if (!window.supabase || !SUPABASE_URL || !SUPABASE_ANON_KEY || !/^https?:\/\//.test(SUPABASE_URL)) {
     document.getElementById('play-list').innerHTML =
-      `<div class="empty"><div class="big">⚙️</div>API_URL이 아직 설정되지 않았습니다.<br/>` +
-      `<span class="hint">index.html 상단의 <b>const API_URL</b>을 Apps Script 웹앱 배포 URL로 교체하세요. (README 5단계)</span></div>`;
-    toast('API_URL을 설정하세요 (index.html 상단)', true);
+      `<div class="empty"><div class="big">⚙️</div>Supabase 설정이 필요합니다.<br/>` +
+      `<span class="hint">index.html 상단의 <b>SUPABASE_URL</b>·<b>SUPABASE_ANON_KEY</b>를 확인하세요. (README 참고)</span></div>`;
+    toast('Supabase 설정을 확인하세요 (index.html 상단)', true);
     return;
   }
   loadCore();
