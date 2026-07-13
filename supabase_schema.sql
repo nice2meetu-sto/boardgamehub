@@ -278,15 +278,22 @@ begin
   select count(*) into v_this from public.playlogs
    where player_id = p_player_id and substring(play_date from 1 for 7) = v_thismonth;
 
-  -- 최근 6개월(오래된→최신)
-  select json_agg(json_build_object('month', months.m, 'count', coalesce(agg.c, 0)) order by months.m)
+  -- 최근 6개월(오래된→최신): 판수 + 승수/승률 포함
+  select json_agg(json_build_object(
+           'month', months.m,
+           'count', coalesce(agg.c, 0),
+           'wins',  coalesce(agg.w, 0),
+           'win_rate', case when coalesce(agg.c, 0) > 0
+                            then round(agg.w::numeric / agg.c * 100, 1) else 0 end
+         ) order by months.m)
     into v_monthly
   from (
     select to_char(date_trunc('month', now()) - (i || ' month')::interval, 'YYYY-MM') as m
     from generate_series(5, 0, -1) as i
   ) months
   left join (
-    select substring(play_date from 1 for 7) as ym, count(*) c
+    select substring(play_date from 1 for 7) as ym,
+           count(*) c, count(*) filter (where is_win) w
     from public.playlogs where player_id = p_player_id group by 1
   ) agg on agg.ym = months.m;
 
