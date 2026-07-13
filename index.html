@@ -1160,7 +1160,7 @@ function reviewPillHtml(gameId, count, extraClass) {
 async function openReviews(gameId) {
   const g = gameById(gameId);
   const title = g ? esc(g.name_kr || g.name_en) : '';
-  const head = `<h2 style="font-size:17px;font-weight:900;margin:2px 2px 12px;">💬<span class="muted" style="font-size:13px;font-weight:500;">· ${title}</span></h2>`;
+  const head = `<h2 style="font-size:20px;font-weight:900;margin:2px 2px 12px;">💬<span class="muted" style="font-size:13px;font-weight:500;">· ${title}</span></h2>`;
   const body = document.getElementById('detail-body');
   body.innerHTML = head + `<div class="empty"><div class="spinner" style="margin:0 auto;"></div></div>`;
   showDetailSheet();
