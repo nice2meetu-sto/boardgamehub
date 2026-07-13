@@ -1788,11 +1788,12 @@ async function renderMyOverview() {
       </div>
       <div class="card">
         <div class="section-title" style="margin-top:0;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-          <span>월별 플레이 · 이번 달 ${stats.this_month_plays}판</span>
-          <span class="legend-chips">
-            <span><i style="background:var(--main-soft);"></i>승률</span>
-            <span><i style="background:var(--main);"></i>판수</span>
-          </span>
+          <span>월별 플레이 · 이번 달 ${stats.this_month_plays}판, 승률 ${stats.this_month_win_rate != null ? stats.this_month_win_rate : Math.round((stats.this_month_wins || 0) / (stats.this_month_plays || 1) * 100)}%
+</span>
+          <small class="legend-chips">
+            <small><i style="background:var(--main-soft);"></i>승률</small>
+            <small><i style="background:var(--main);"></i>판수</small>
+          </small>
         </div>
         <div class="barchart">${bars}</div>
       </div>
