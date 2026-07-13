@@ -449,7 +449,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0808</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1904</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -869,7 +869,7 @@ function renderPlay() {
       return {
         id: agg[gid].id, name: agg[gid].name, image: agg[gid].image,
         count: scope === 'month' ? agg[gid].month : agg[gid].all,
-        club_rating: gm.club_rating, rating_count: gm.rating_count
+        club_rating: gm.club_rating, rating_count: gm.rating_count, review_count: gm.review_count
       };
     })
     .filter(g => g.count > 0)
@@ -882,7 +882,8 @@ function renderPlay() {
   }
   const ranks = competitionRanks(list, g => g.count);   // 동일 판수 = 공동 순위
   el.innerHTML = list.map((g, i) => `
-    <div class="session" style="display:flex;align-items:center;gap:12px;${g.id ? 'cursor:pointer;' : ''}" ${g.id ? `onclick="showGameInfo('${g.id}')"` : ''}>
+    <div class="session" style="display:flex;align-items:center;gap:12px;position:relative;${g.id ? 'cursor:pointer;' : ''}" ${g.id ? `onclick="showGameInfo('${g.id}')"` : ''}>
+      ${g.id ? `<div class="gcard-actions">${reviewPillHtml(g.id, g.review_count)}</div>` : ''}
       <div class="grow-rank">${ranks[i]}</div>
       ${thumb(g.image, 'session-thumb')}
       <div style="flex:1;min-width:0;">
@@ -1147,6 +1148,13 @@ function showBarSession(sid) {
   openOverlay(() => document.getElementById('gd-session-overlay').classList.remove('show'));
 }
 function closeBarSession() { closeOverlay(); }
+
+// 후기 버튼 HTML: 후기 개수 > 0 이면 연하고 작게 (N) 표시, 0이면 개수 없이
+function reviewPillHtml(gameId, count, extraClass) {
+  const n = Number(count) || 0;
+  const cnt = n > 0 ? ` <small style="font-weight:500;color:var(--text-sub);">(${n})</small>` : '';
+  return `<button class="gcard-pill review${extraClass ? ' ' + extraClass : ''}" onclick="event.stopPropagation(); openReviews('${gameId}')">💬 후기${cnt}</button>`;
+}
 
 // 게임 탭: [후기] 버튼 → 사람들이 남긴 후기(닉네임 + 코멘트)
 async function openReviews(gameId) {
@@ -1544,7 +1552,7 @@ function gameCardHtml(g, opts = {}) {
 
   const acts = [];
   if (opts.ratingEditor) acts.push(`<button class="gcard-pill" onclick="event.stopPropagation(); openGameDetail('${g.game_id}')">상세</button>`);
-  if (opts.review) acts.push(`<button class="gcard-pill review" onclick="event.stopPropagation(); openReviews('${g.game_id}')">💬 후기</button>`);
+  if (opts.review) acts.push(reviewPillHtml(g.game_id, g.review_count));
   if (opts.adminEdit) acts.push(`<button class="gcard-pill edit" title="정보 수정 (admin)" onclick="event.stopPropagation(); openEditGame('${g.game_id}')">✏️</button>`);
   const actsHtml = acts.length ? `<div class="gcard-actions">${acts.join('')}</div>` : '';
 
@@ -2771,7 +2779,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v0808 세션수정 버튼 동작 스왑 + 메모팝업 세로 확대';
+const APP_VERSION = 'v1904 후기 개수 표시 + 플레이 카드 후기 버튼';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
