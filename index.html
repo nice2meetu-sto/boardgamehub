@@ -905,7 +905,7 @@ function competitionRanks(list, keyFn) {
 // 게임 카드처럼 컴팩트한 평점 표시(★ 8.5 (3) / 평가없음)
 function clubRatingMini(rating, count) {
   return (rating != null)
-    ? `<span style="color:var(--win);">★</span> <b style="color:var(--main);">${Number(rating).toFixed(1)}</b> <small class="muted">(${count || 0})</small>`
+    ? `<span style="color:var(--win);">★</span> <b style="color:var(--main);">${Number(rating).toFixed(1)}</b> <span class="muted">(${count || 0})</span>`
     : `<span class="muted">★ 평가없음</span>`;
 }
 
