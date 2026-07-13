@@ -1153,14 +1153,14 @@ function closeBarSession() { closeOverlay(); }
 function reviewPillHtml(gameId, count, extraClass) {
   const n = Number(count) || 0;
   const cnt = n > 0 ? ` <small style="font-weight:500;color:var(--text-sub);">(${n})</small>` : '';
-  return `<button class="gcard-pill review${extraClass ? ' ' + extraClass : ''}" onclick="event.stopPropagation(); openReviews('${gameId}')">💬 후기${cnt}</button>`;
+  return `<button class="gcard-pill review${extraClass ? ' ' + extraClass : ''}" onclick="event.stopPropagation(); openReviews('${gameId}')">💬${cnt}</button>`;
 }
 
 // 게임 탭: [후기] 버튼 → 사람들이 남긴 후기(닉네임 + 코멘트)
 async function openReviews(gameId) {
   const g = gameById(gameId);
   const title = g ? esc(g.name_kr || g.name_en) : '';
-  const head = `<h2 style="font-size:17px;font-weight:900;margin:2px 2px 12px;">💬 후기<span class="muted" style="font-size:13px;font-weight:500;">· ${title}</span></h2>`;
+  const head = `<h2 style="font-size:17px;font-weight:900;margin:2px 2px 12px;">💬<span class="muted" style="font-size:13px;font-weight:500;">· ${title}</span></h2>`;
   const body = document.getElementById('detail-body');
   body.innerHTML = head + `<div class="empty"><div class="spinner" style="margin:0 auto;"></div></div>`;
   showDetailSheet();
