@@ -454,6 +454,9 @@
   .subtabs button.on { background: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
   .row2 { display: flex; gap: 10px; }
   .row2 > * { flex: 1; min-width: 0; }   /* date 등 고유폭 입력칸도 화면에 맞게 줄어들도록 */
+  /* 날짜칸이 든 행: 좁은 화면에서 강제로 줄이지 않고, 안 들어가면 겹침 없이 세로로 줄바꿈 */
+  .row2.wrapdate { flex-wrap: wrap; }
+  .row2.wrapdate > * { flex: 1 1 150px; }
   input[type="date"] { min-width: 0; max-width: 100%; }
   .logout-link { font-size: 12px; color: var(--danger); text-decoration: underline; background: none; }
 </style>
@@ -461,7 +464,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2006</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2011</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -1347,7 +1350,7 @@ function renderSessionList(containerId, sessions, opts = {}) {
           <div style="flex:1;min-width:0;"><div class="g-name">${esc(s.game_name)}</div></div>
           <button class="btn ghost sm" style="padding:6px 14px;flex:0 0 auto;" onclick="cancelEditSession()">취소</button>
         </div>
-        <div class="row2" style="margin:8px 0;">
+        <div class="row2 wrapdate" style="margin:8px 0;">
           <div class="field" style="margin:0;"><label>날짜</label><input class="input edit-date" type="date" value="${esc(String(s.play_date).substring(0,10))}" /></div>
           <div class="field" style="margin:0;"><label>시간(분)</label><input class="input edit-duration" type="number" inputmode="numeric" value="${s.duration_min || ''}" /></div>
         </div>
@@ -2334,7 +2337,7 @@ function renderAddPlayForm() {
   const today = new Date().toISOString().substring(0, 10);
 
   el.innerHTML = `
-    <div class="row2">
+    <div class="row2 wrapdate">
       <div class="field"><label>플레이 일자</label><input class="input" id="ap-date" type="date" value="${today}" /></div>
       <div class="field"><label>플레이 시간(분)</label><input class="input" id="ap-duration" type="number" inputmode="numeric" placeholder="예: 45" /></div>
     </div>
@@ -2829,7 +2832,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2006 관리자 기간필터 날짜칸 겹침 수정(좁으면 세로 배치)';
+const APP_VERSION = 'v2011 플레이 결과 추가·수정 날짜칸 겹침 수정(좁으면 세로 배치)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
