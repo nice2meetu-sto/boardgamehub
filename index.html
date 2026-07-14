@@ -140,7 +140,7 @@
   /* ===== Play session card ===== */
   .session {
     background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 14px; margin-bottom: 12px;
+    padding: 14px; margin-bottom: 10px;
   }
   .session-head { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
   /* thumbnail wrapper: shows 🎲 placeholder behind the image; if the image
@@ -171,7 +171,7 @@
   .gcard {
     position: relative;
     background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 12px; margin-bottom: 12px; overflow: hidden;
+    padding: 12px; margin-bottom: 10px; overflow: hidden;
   }
   .gcard-edit {
     position: absolute; top: 6px; right: 6px; z-index: 2;
@@ -474,7 +474,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2018</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2149</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2842,7 +2842,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2018 iOS 날짜칸 폭 무시 버그 수정(appearance:none)';
+const APP_VERSION = 'v2149 게임·플레이 카드 사이 간격 12→10px';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
