@@ -457,14 +457,24 @@
   /* 날짜칸이 든 행: 좁은 화면에서 강제로 줄이지 않고, 안 들어가면 겹침 없이 세로로 줄바꿈 */
   .row2.wrapdate { flex-wrap: wrap; }
   .row2.wrapdate > * { flex: 1 1 150px; }
-  input[type="date"] { min-width: 0; max-width: 100%; }
+  /* iOS 사파리: 날짜칸이 고유 폭을 고집하며 CSS 폭을 무시하고 옆 칸을 덮는 버그
+     → 네이티브 외형을 끄면(appearance:none) 지정한 폭을 그대로 따름 */
+  input[type="date"] {
+    -webkit-appearance: none; appearance: none;
+    min-width: 0; max-width: 100%;
+  }
+  /* iOS: appearance 해제 후 값이 비면 높이가 주저앉음 → 글자 높이 확보,
+     기본 가운데 정렬 → 다른 입력칸처럼 왼쪽 정렬 */
+  input[type="date"]::-webkit-date-and-time-value {
+    text-align: left; margin: 0; min-height: 1.45em;
+  }
   .logout-link { font-size: 12px; color: var(--danger); text-decoration: underline; background: none; }
 </style>
 </head>
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2011</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2018</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2832,7 +2842,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2011 플레이 결과 추가·수정 날짜칸 겹침 수정(좁으면 세로 배치)';
+const APP_VERSION = 'v2018 iOS 날짜칸 폭 무시 버그 수정(appearance:none)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
