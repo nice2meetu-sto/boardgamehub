@@ -266,9 +266,11 @@
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .adm-creator { display: inline-block; font-size: 11px; font-weight: 700; color: var(--text-sub);
     background: #ececf1; border-radius: 6px; padding: 2px 8px; margin-left: 6px; }
-  .adm-daterow { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
-  .adm-daterow label { flex: 0 0 auto; font-size: 11px; font-weight: 700; color: var(--text-sub); }
-  .adm-daterow input { flex: 1; min-width: 0; padding: 7px 8px; font-size: 12px; }
+  /* 기간 필터: 두 날짜칸을 한 묶음(라벨+입력)으로 만들고, 폭이 좁으면 겹치지 않게 줄바꿈(세로 배치) */
+  .adm-daterow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 12px; }
+  .adm-datefield { flex: 1 1 160px; display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .adm-datefield label { flex: 0 0 auto; font-size: 11px; font-weight: 700; color: var(--text-sub); white-space: nowrap; }
+  .adm-daterow input[type="date"] { flex: 1 1 auto; min-width: 120px; padding: 7px 8px; font-size: 12px; }
   .adm-prow { display: flex; gap: 8px; align-items: center; background: var(--card);
     border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
   .adm-prow .nm { flex: 1; min-width: 0; font-weight: 700; font-size: 14px; }
@@ -459,7 +461,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1941</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2006</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2746,8 +2748,8 @@ function renderAdminPlays() {
         <button class="adm-pill" onclick="adminPlaySearch()">검색</button>
       </div>
       <div class="adm-daterow">
-        <label>시작일</label><input class="input" id="adm-play-from" type="date" />
-        <label>종료일</label><input class="input" id="adm-play-to" type="date" />
+        <div class="adm-datefield"><label>시작일</label><input class="input" id="adm-play-from" type="date" /></div>
+        <div class="adm-datefield"><label>종료일</label><input class="input" id="adm-play-to" type="date" /></div>
       </div>
       <div id="adm-play-list"><div class="empty"><div class="big">🔍</div>조건을 입력하고 검색을 누르면<br/>플레이 기록이 표시됩니다.</div></div>`;
     el.dataset.ready = '1';
@@ -2827,7 +2829,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1941 화면 폭 상한 720px 통일(본페이지·관리자·게임상세)';
+const APP_VERSION = 'v2006 관리자 기간필터 날짜칸 겹침 수정(좁으면 세로 배치)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
