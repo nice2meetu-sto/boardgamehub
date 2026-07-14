@@ -32,7 +32,7 @@
     --ok: #2fa96b;
     --radius: 16px;
     --tabbar-h: 62px;
-    --maxw: 480px;
+    --maxw: 720px;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; }
@@ -215,6 +215,7 @@
 
   /* 게임 상세 페이지 (전체 화면) */
   #gd-page { position: fixed; inset: 0; z-index: 130; background: var(--bg); overflow-y: auto; display: none;
+    max-width: var(--maxw); margin: 0 auto;
     padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0)); }
   #gd-page.show { display: block; }
   .gd-header { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 12px 4px 8px;
@@ -250,6 +251,7 @@
 
   /* 관리자 페이지 (전체 화면, 오버레이(100)보다 아래라 수정 시트가 위에 뜸) */
   #admin-page { position: fixed; inset: 0; z-index: 90; background: var(--bg); overflow-y: auto; display: none;
+    max-width: var(--maxw); margin: 0 auto;
     padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0)); }
   #admin-page.show { display: block; }
   .adm-searchrow { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
@@ -358,7 +360,7 @@
     font-size: 30px; font-weight: 300; display: flex; align-items: center; justify-content: center;
     box-shadow: 0 6px 18px rgba(83,74,183,.45);
   }
-  @media (max-width: 480px) { .fab { left: auto; right: 18px; margin-left: 0; } }
+  @media (max-width: 720px) { .fab { left: auto; right: 18px; margin-left: 0; } }
   .fab:active { background: var(--main-dark); }
 
   /* ===== Modal / sheet ===== */
@@ -457,7 +459,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2106</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1941</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2825,7 +2827,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2106 플레이탭 기본=이번달·최고평점 카드, 월별 승률 막대 추가';
+const APP_VERSION = 'v1941 화면 폭 상한 720px 통일(본페이지·관리자·게임상세)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
