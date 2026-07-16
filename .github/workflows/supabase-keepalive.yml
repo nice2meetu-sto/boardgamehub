@@ -1,0 +1,26 @@
+# Supabase 무료 플랜은 7일간 API 요청이 없으면 프로젝트를 일시정지함.
+# 6일마다 가벼운 조회(get_games) 한 번을 쏴서 활동을 유지한다.
+# (anon key는 index.html에 이미 공개된 값이라 여기 넣어도 보안상 차이 없음)
+#
+# 참고: 공개 저장소는 60일간 커밋 등 활동이 없으면 GitHub이 스케줄 워크플로를
+# 자동 비활성화함 → Actions 탭에서 Enable 버튼으로 재활성화하면 됨.
+name: Supabase Keep-Alive
+
+on:
+  schedule:
+    - cron: '0 0 */6 * *'   # 매월 1,7,13,19,25,31일 00:00 UTC (간격 최대 6일)
+  workflow_dispatch:          # Actions 탭에서 수동 실행 가능
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase (get_games 조회)
+        run: |
+          curl -sf -X POST \
+            "https://oxvacxvynyezysvkhbmx.supabase.co/rest/v1/rpc/get_games" \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94dmFjeHZ5bnllenlzdmtoYm14Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4MjIzODksImV4cCI6MjA5OTM5ODM4OX0._Cinm3RpmXTWquz2jlN4EwM02eFxFQQzkvlws50zTa0" \
+            -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94dmFjeHZ5bnllenlzdmtoYm14Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4MjIzODksImV4cCI6MjA5OTM5ODM4OX0._Cinm3RpmXTWquz2jlN4EwM02eFxFQQzkvlws50zTa0" \
+            -H "Content-Type: application/json" \
+            -d '{}' > /dev/null
+          echo "Supabase ping OK ✅"
