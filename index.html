@@ -474,7 +474,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2149</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1637</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -1081,6 +1081,9 @@ function gamePlayerStats(gid) {
   const map = new Map();
   state.plays.forEach(s => {
     if (s.game_id !== gid) return;
+    // '함께 플레이한 기록': 내가 참가한 세션만 집계 → 같이 한 사람의
+    // 통계도 나와 함께한 판만으로 계산됨
+    if (uid && !s.participants.some(p => p.player_id === uid)) return;
     s.participants.forEach(p => {
       const key = p.player_id ? ('m:' + p.player_id) : ('g:' + (p.name || ''));
       let r = map.get(key);
@@ -2842,7 +2845,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2149 게임·플레이 카드 사이 간격 12→10px';
+const APP_VERSION = 'v1637 함께 플레이한 기록: 내가 참가한 세션만 집계';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
