@@ -136,6 +136,16 @@
     border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;
   }
   .searchbox input { border: none; background: none; outline: none; width: 100%; }
+  /* 검색창 + 평점 정렬 버튼 한 줄 배치 */
+  .searchrow { display: flex; gap: 8px; align-items: stretch; margin-bottom: 12px; }
+  .searchrow .searchbox { flex: 1; margin-bottom: 0; }
+  .sortbtn {
+    flex: 0 0 auto; display: flex; align-items: center;
+    padding: 0 13px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text-sub); font-size: 14px; font-weight: 700;
+    white-space: nowrap;
+  }
+  .sortbtn.on { background: var(--main); border-color: var(--main); color: #fff; }
 
   /* ===== Play session card ===== */
   .session {
@@ -474,7 +484,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1901</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2047</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -494,9 +504,12 @@
 
   <!-- ===== VIEW: 게임 ===== -->
   <div class="view active" id="view-games">
-    <div class="searchbox">
-      <span>🔍</span>
-      <input id="game-search" placeholder="게임 이름 검색 (한글/영문)" />
+    <div class="searchrow">
+      <div class="searchbox">
+        <span>🔍</span>
+        <input id="game-search" placeholder="게임 이름 검색 (한글/영문)" />
+      </div>
+      <button class="sortbtn" id="game-sort-btn" title="평점 정렬" onclick="cycleGameSort()">★</button>
     </div>
     <div class="chip-row" id="cat-filter"></div>
     <div class="chip-row" id="player-filter"></div>
@@ -1619,8 +1632,31 @@ function toggleCard(topEl) {
   topEl.parentElement.classList.toggle('open');
 }
 
+// ===== 평점 정렬 토글 (없음 → 내림차순 → 오름차순 → 없음) =====
+function nextSortMode(cur) { return cur === 'desc' ? 'asc' : cur === 'asc' ? null : 'desc'; }
+function sortBtnLabel(mode) { return mode === 'desc' ? '★↓' : mode === 'asc' ? '★↑' : '★'; }
+// 평점 없는 게임은 정렬 방향과 무관하게 항상 아래로. 해제(null)면 원본 순서 그대로.
+function applyRatingSort(list, mode, getRating) {
+  if (!mode) return list;
+  return list.slice().sort((a, b) => {
+    const av = getRating(a), bv = getRating(b);
+    const an = av == null, bn = bv == null;
+    if (an && bn) return 0; if (an) return 1; if (bn) return -1;
+    return mode === 'asc' ? av - bv : bv - av;
+  });
+}
+
+function cycleGameSort() {
+  state.gameSortRating = nextSortMode(state.gameSortRating);
+  const b = document.getElementById('game-sort-btn');
+  b.textContent = sortBtnLabel(state.gameSortRating);
+  b.classList.toggle('on', !!state.gameSortRating);
+  renderGameCards();
+}
+
 function renderGameCards() {
-  const list = filteredGames();
+  const list = applyRatingSort(filteredGames(), state.gameSortRating,
+    g => g.club_rating == null ? null : Number(g.club_rating));
   const el = document.getElementById('games-list');
   if (!list.length) {
     el.innerHTML = `<div class="empty"><div class="big">🎯</div>조건에 맞는 게임이 없어요.</div>`;
@@ -1981,7 +2017,10 @@ async function renderMyGames() {
     state._myGamesList = games;
     el.innerHTML = `
       <div class="hint" style="margin-bottom:10px;">내가 참가한 게임에 평점과 메모를 남겨보세요. <br>평점 평균이 '우리Hub평점'이 됩니다.</div>
-      <div class="searchbox"><span>🔍</span><input id="my-games-search" placeholder="게임 이름·분류 검색 (예: 스플렌더, 전략)" oninput="filterMyGames()" /></div>
+      <div class="searchrow">
+        <div class="searchbox"><span>🔍</span><input id="my-games-search" placeholder="게임 이름·분류 검색 (예: 스플렌더, 전략)" oninput="filterMyGames()" /></div>
+        <button class="sortbtn ${state.myGamesSortRating ? 'on' : ''}" id="my-games-sort-btn" title="내 평점 정렬" onclick="cycleMyGamesSort()">${sortBtnLabel(state.myGamesSortRating)}</button>
+      </div>
       <div id="my-games-cards"></div>`;
     filterMyGames();
   } catch (e) {
@@ -1989,14 +2028,27 @@ async function renderMyGames() {
   }
 }
 
+function cycleMyGamesSort() {
+  state.myGamesSortRating = nextSortMode(state.myGamesSortRating);
+  const b = document.getElementById('my-games-sort-btn');
+  b.textContent = sortBtnLabel(state.myGamesSortRating);
+  b.classList.toggle('on', !!state.myGamesSortRating);
+  filterMyGames();
+}
+
 function filterMyGames() {
   const all = state._myGamesList || [];
   const input = document.getElementById('my-games-search');
   const term = (input ? input.value : '').trim().toLowerCase();
-  const list = !term ? all : all.filter(g =>
+  let list = !term ? all : all.filter(g =>
     String(g.name_kr || '').toLowerCase().includes(term) ||
     String(g.name_en || '').toLowerCase().includes(term) ||
     String(g.category || '').toLowerCase().includes(term));
+  // 내 평점 기준 정렬(해제 시 최근 플레이 순 유지)
+  list = applyRatingSort(list, state.myGamesSortRating, g => {
+    const r = state._myRatings && state._myRatings[g.game_id];
+    return (r && r.rating != null && r.rating !== '') ? Number(r.rating) : null;
+  });
   const cards = document.getElementById('my-games-cards');
   if (!cards) return;
   cards.innerHTML = list.length
@@ -2851,7 +2903,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1901 MY-게임기록 정렬: 같은 날짜면 저장 최신 순(플레이기록과 일치)';
+const APP_VERSION = 'v2047 게임탭·MY게임기록 평점 정렬 토글 버튼(★↓→★↑→해제)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
