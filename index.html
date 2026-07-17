@@ -110,6 +110,8 @@
   .chip.on { background: var(--main); color: #fff; border-color: var(--main); }
   .chip-row { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 4px; -webkit-overflow-scrolling: touch; }
   .chip-row::-webkit-scrollbar { display: none; }
+  /* 마지막 필터줄(난이도)과 첫 게임카드 사이 간격 = 검색창↔필터 간격과 동일하게 */
+  #games-list { margin-top: 10px; }
 
   /* inputs */
   .field { margin-bottom: 12px; }
@@ -241,6 +243,10 @@
   .gcard-detail-btn:active { background: #ddd7f7; }
   /* 카드 우측 상단 액션 버튼들(상세/후기/수정) */
   .gcard-actions { position: absolute; top: 8px; right: 8px; z-index: 2; display: flex; gap: 6px; align-items: center; }
+  /* 후기 버튼 우측 하단 배치(br): 플레이탭 카드는 카드 하단, 게임탭 카드는 평점 줄 끝 */
+  .gcard-actions.br { top: auto; bottom: 11px; }
+  .gcard-top { position: relative; }
+  .gcard-top .gcard-actions.br { right: 0; bottom: -2px; }
   .gcard-pill { padding: 4px 10px; border-radius: 999px; background: var(--main-light); color: var(--main);
     font-size: 11px; font-weight: 800; line-height: 1.4; white-space: nowrap; }
   .gcard-pill:active { background: #ddd7f7; }
@@ -484,7 +490,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2054</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2152</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -928,7 +934,7 @@ function renderPlay() {
   const ranks = competitionRanks(list, g => g.count);   // 동일 판수 = 공동 순위
   el.innerHTML = list.map((g, i) => `
     <div class="session" style="display:flex;align-items:center;gap:12px;position:relative;${g.id ? 'cursor:pointer;' : ''}" ${g.id ? `onclick="showGameInfo('${g.id}')"` : ''}>
-      ${g.id ? `<div class="gcard-actions">${reviewPillHtml(g.id, g.review_count)}</div>` : ''}
+      ${g.id ? `<div class="gcard-actions br">${reviewPillHtml(g.id, g.review_count)}</div>` : ''}
       <div class="grow-rank">${ranks[i]}</div>
       ${thumb(g.image, 'session-thumb')}
       <div style="flex:1;min-width:0;">
@@ -1610,14 +1616,16 @@ function gameCardHtml(g, opts = {}) {
 
   const acts = [];
   if (opts.ratingEditor) acts.push(`<button class="gcard-pill" onclick="event.stopPropagation(); openGameDetail('${g.game_id}')">상세</button>`);
-  if (opts.review) acts.push(reviewPillHtml(g.game_id, g.review_count));
   if (opts.adminEdit) acts.push(`<button class="gcard-pill edit" title="정보 수정 (admin)" onclick="event.stopPropagation(); openEditGame('${g.game_id}')">✏️</button>`);
   const actsHtml = acts.length ? `<div class="gcard-actions">${acts.join('')}</div>` : '';
+  // 후기 버튼은 평점 줄 오른쪽 끝(우측 하단)에 배치
+  const reviewHtml = opts.review ? `<div class="gcard-actions br">${reviewPillHtml(g.game_id, g.review_count)}</div>` : '';
 
   return `<div class="gcard" data-gid="${g.game_id}">
     ${actsHtml}
     <div class="gcard-top" onclick="toggleCard(this)">
       ${gameCardTopHtml(g, opts.ratingEditor)}
+      ${reviewHtml}
     </div>
     ${detail}
   </div>`;
@@ -2901,7 +2909,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2054 평점 버튼 문구·오름차순 평가없음 상단·게임탭 최근추가순·필터 간격';
+const APP_VERSION = 'v2152 후기 버튼 우측 하단 이동·필터-카드 간격 통일';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
