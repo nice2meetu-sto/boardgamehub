@@ -498,7 +498,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2304</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2312</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -1895,7 +1895,7 @@ function myChartCardInner() {
           <small><i style="background:#d9d5f3;"></i>플레이 게임</small>
         </small>
       </div>
-      <div onclick="toggleMyChart()">${myCategoryChartSvg()}</div>`;
+      <div onclick="toggleMyChart()" style="margin:0 -8px -10px;">${myCategoryChartSvg()}</div>`;
   }
   const maxMonth = Math.max(1, ...stats.monthly.map(m => m.count));
   const bars = stats.monthly.map(m => {
@@ -1924,7 +1924,7 @@ function myChartCardInner() {
         <small><i style="background:var(--main);"></i>판수</small>
       </small>
     </div>
-    <div class="barchart" onclick="toggleMyChart()">${bars}</div>`;
+    <div class="barchart" onclick="toggleMyChart()" style="margin:0 -8px -10px;">${bars}</div>`;
 }
 
 // 카테고리별: 막대=내 플레이 횟수, 추이선=플레이한 게임 수 (동일 스케일)
@@ -3002,7 +3002,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2304 추이선 숫자를 선과 같은 연보라로(테두리 제거)';
+const APP_VERSION = 'v2312 MY 그래프 안쪽 여백을 게임상세 차트와 동일하게';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
