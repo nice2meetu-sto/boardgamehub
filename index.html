@@ -498,7 +498,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2340</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0052</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -1129,19 +1129,12 @@ function gamePlayerStats(gid) {
   }));
 }
 
-// 최근 6판: 막대=그 판 베스트 점수, 추이선=내 점수
-// Catmull-Rom → cubic bezier 로 부드러운 곡선 path 생성
+// 추이선: 점들을 직선으로 연결한 path 생성
 function smoothPath(pts) {
   if (!pts.length) return '';
   if (pts.length === 1) { const p = pts[0]; return `M${(p.x - 0.1).toFixed(1)},${p.y.toFixed(1)} L${(p.x + 0.1).toFixed(1)},${p.y.toFixed(1)}`; }
-  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || pts[i + 1];
-    const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
-    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
-  }
-  return d;
+  return `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}` +
+    pts.slice(1).map(p => ` L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('');
 }
 
 // 상단만 둥근 막대 path
@@ -3004,7 +2997,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2340 게임상세 플레이어 표 기본 정렬 승률 내림차순';
+const APP_VERSION = 'v0052 추이선 그래프 곡선 → 직선 연결';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
