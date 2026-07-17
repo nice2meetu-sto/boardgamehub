@@ -90,7 +90,7 @@
   .summary-row { display: flex; gap: 10px; margin-bottom: 14px; }
   .stat {
     flex: 1; min-width: 0; background: var(--card); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 14px 10px; text-align: center;
+    border-radius: var(--radius); padding: 9px 10px; text-align: center;
   }
   .stat .num { font-size: 22px; font-weight: 900; color: var(--main); }
   .stat .lbl { font-size: 11px; color: var(--text-sub); margin-top: 3px; }
@@ -498,7 +498,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2220</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2225</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2918,7 +2918,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2220 시트 높이 85%·플레이 추가 참가자 번호 표시';
+const APP_VERSION = 'v2225 상단 요약카드 세로 축소(패딩 14→9px)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
