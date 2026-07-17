@@ -498,7 +498,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2257</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2300</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -1171,18 +1171,18 @@ function gameChartSvg(sessions, uid) {
     const x = cx(i);
     if (p.best != null) {
       const by = y(p.best);
-      bars += `<path d="${topRoundRect(x - bw / 2, by, bw, baseY - by, 5)}" fill="#d9d5f3" style="cursor:pointer;" onclick="showBarSession('${esc(p.sid)}')"/>`;
+      bars += `<path d="${topRoundRect(x - bw / 2, by, bw, baseY - by, 5)}" fill="var(--main)" style="cursor:pointer;" onclick="showBarSession('${esc(p.sid)}')"/>`;
       labels += `<text x="${x.toFixed(1)}" y="${(by - 8).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="#8a86a8" style="pointer-events:none;">${p.best}</text>`;
     }
     if (p.mine != null) {
       const my = y(p.mine);
       line.push({ x, y: my });
-      labels += `<text x="${x.toFixed(1)}" y="${(my + 13).toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--main)" style="pointer-events:none;">${p.mine}</text>`;
+      labels += `<text x="${x.toFixed(1)}" y="${(my + 13).toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--main)" stroke="#fff" stroke-width="3" paint-order="stroke" style="pointer-events:none;">${p.mine}</text>`;
     }
     labels += `<text x="${x.toFixed(1)}" y="${(H - 5).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9a97a8" style="pointer-events:none;">${p.date}</text>`;
   });
   const curve = smoothPath(line);
-  const path = curve ? `<path d="${curve}" fill="none" stroke="var(--main)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"/>` : '';
+  const path = curve ? `<path d="${curve}" fill="none" stroke="#d9d5f3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"/>` : '';
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;">${bars}${path}${labels}</svg>`;
 }
 
@@ -1322,7 +1322,7 @@ function renderGameDetail() {
   const chart = `<div class="gd-sec">
     <div class="gd-sec-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
       <span>📈 최근 ${recent.length}판 점수 추이</span>
-      <span class="gd-legend" style="margin-top:0;gap:10px;"><span><i style="background:#d9d5f3;"></i>최고 점수</span><span><i style="background:var(--main);"></i>내 점수</span></span>
+      <span class="gd-legend" style="margin-top:0;gap:10px;"><span><i style="background:var(--main);"></i>최고 점수</span><span><i style="background:#d9d5f3;"></i>내 점수</span></span>
     </div>
     <div class="gd-chart">${gameChartSvg(recent, uid)}</div>
   </div>`;
@@ -1891,8 +1891,8 @@ function myChartCardInner() {
       <div class="section-title" style="${titleStyle}" onclick="toggleMyChart()">
         <span>카테고리별 플레이</span>
         <small class="legend-chips">
-          <small><i style="background:#d9d5f3;"></i>플레이 횟수</small>
-          <small><i style="background:var(--main);"></i>플레이 게임</small>
+          <small><i style="background:var(--main);"></i>플레이 횟수</small>
+          <small><i style="background:#d9d5f3;"></i>플레이 게임</small>
         </small>
       </div>
       <div onclick="toggleMyChart()">${myCategoryChartSvg()}</div>`;
@@ -1955,15 +1955,15 @@ function myCategoryChartSvg() {
   const line = [];
   cats.forEach((c, i) => {
     const x = cx(i), by = y(c.plays);
-    bars += `<path d="${topRoundRect(x - bw / 2, by, bw, baseY - by, 5)}" fill="#d9d5f3"/>`;
+    bars += `<path d="${topRoundRect(x - bw / 2, by, bw, baseY - by, 5)}" fill="var(--main)"/>`;
     labels += `<text x="${x.toFixed(1)}" y="${(by - 8).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="#8a86a8">${c.plays}</text>`;
     const gy = y(c.games);
     line.push({ x, y: gy });
-    labels += `<text x="${x.toFixed(1)}" y="${(gy + 13).toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--main)">${c.games}</text>`;
+    labels += `<text x="${x.toFixed(1)}" y="${(gy + 13).toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--main)" stroke="#fff" stroke-width="3" paint-order="stroke">${c.games}</text>`;
     labels += `<text x="${x.toFixed(1)}" y="${(H - 5).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9a97a8">${esc(c.cat)}</text>`;
   });
   const curve = smoothPath(line);
-  const path = curve ? `<path d="${curve}" fill="none" stroke="var(--main)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : '';
+  const path = curve ? `<path d="${curve}" fill="none" stroke="#d9d5f3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : '';
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;">${bars}${path}${labels}</svg>`;
 }
 
@@ -3002,7 +3002,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2257 카테고리 차트 색 통일·게임상세 범례 제목 옆 이동';
+const APP_VERSION = 'v2300 차트 막대↔추이선 색상 교환(진보라 막대·연보라 선)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
