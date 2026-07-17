@@ -474,7 +474,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1637</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1640</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -1960,14 +1960,19 @@ async function renderMyGames() {
     }
   }
   try {
-    // 본인이 참가한 게임만
+    // 본인이 참가한 게임만 + 게임별 내 최근 플레이 일자 기록
     const playedGameIds = new Set();
+    const lastPlayed = {};   // game_id -> 내가 가장 최근에 플레이한 일자
     state.plays.forEach(s => {
       if (s.participants.some(p => p.player_id === state.user.player_id)) {
         playedGameIds.add(s.game_id);
+        const d = String(s.play_date);
+        if (!lastPlayed[s.game_id] || d > lastPlayed[s.game_id]) lastPlayed[s.game_id] = d;
       }
     });
-    const games = state.games.filter(g => playedGameIds.has(g.game_id));
+    // 내가 최근에 플레이한 게임이 위로
+    const games = state.games.filter(g => playedGameIds.has(g.game_id))
+      .sort((a, b) => String(lastPlayed[b.game_id]).localeCompare(String(lastPlayed[a.game_id])));
     if (!games.length) {
       el.innerHTML = `<div class="empty"><div class="big">🎮</div>아직 참가한 게임이 없어요.<br/>플레이 결과를 추가하면 여기에 표시됩니다.</div>`;
       return;
@@ -2845,7 +2850,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1637 함께 플레이한 기록: 내가 참가한 세션만 집계';
+const APP_VERSION = 'v1640 MY-게임기록 최근 플레이 순 정렬';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
