@@ -498,7 +498,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0052</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0808</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2619,6 +2619,9 @@ function renderParticipants() {
 function addParticipant() {
   addPlayState.participants.push({ name: '', score: '', is_win: false, is_guest: false });
   renderParticipants();
+  // 새로 추가된 참가자 입력칸이 보이도록 목록을 맨 아래로 스크롤
+  const el = document.getElementById('ap-participants');
+  if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
 }
 function removePart(i) { addPlayState.participants.splice(i, 1); renderParticipants(); }
 function updatePart(i, field, val) {
@@ -2997,7 +3000,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v0052 추이선 그래프 곡선 → 직선 연결';
+const APP_VERSION = 'v0808 참가자 추가 시 목록 자동 스크롤';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
