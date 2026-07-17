@@ -237,8 +237,8 @@
   .gd-back:active { opacity: .6; }
   .gd-memo-btn { padding: 6px 12px; border-radius: 999px; background: var(--main-light); color: var(--main); font-size: 12px; font-weight: 800; }
   .gd-memo-btn:active { background: #ddd7f7; }
-  /* [상세] 버튼 (일자별요약 헤더 우측 상단) */
-  .gcard-detail-btn { position: absolute; top: 8px; right: 8px; z-index: 2;
+  /* [상세] 버튼 (일자별요약 헤더: 평점 줄 오른쪽 끝) */
+  .gcard-detail-btn { position: absolute; right: 0; bottom: -2px; z-index: 2;
     padding: 4px 10px; border-radius: 999px; background: var(--main-light); color: var(--main);
     font-size: 11px; font-weight: 800; line-height: 1.4; }
   .gcard-detail-btn:active { background: #ddd7f7; }
@@ -498,7 +498,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2312</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2321</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -1625,11 +1625,13 @@ function gameCardHtml(g, opts = {}) {
         : `<div class="gcard-detail muted">등록된 요약이 없습니다.</div>`);
 
   const acts = [];
-  if (opts.ratingEditor) acts.push(`<button class="gcard-pill" onclick="event.stopPropagation(); openGameDetail('${g.game_id}')">상세</button>`);
   if (opts.adminEdit) acts.push(`<button class="gcard-pill edit" title="정보 수정 (admin)" onclick="event.stopPropagation(); openEditGame('${g.game_id}')">✏️</button>`);
   const actsHtml = acts.length ? `<div class="gcard-actions">${acts.join('')}</div>` : '';
-  // 후기 버튼은 평점 줄 오른쪽 끝(우측 하단)에 배치
-  const reviewHtml = opts.review ? `<div class="gcard-actions br">${reviewPillHtml(g.game_id, g.review_count)}</div>` : '';
+  // 상세·후기 버튼은 평점 줄 오른쪽 끝(우측 하단)에 배치
+  const br = [];
+  if (opts.ratingEditor) br.push(`<button class="gcard-pill" onclick="event.stopPropagation(); openGameDetail('${g.game_id}')">상세</button>`);
+  if (opts.review) br.push(reviewPillHtml(g.game_id, g.review_count));
+  const reviewHtml = br.length ? `<div class="gcard-actions br">${br.join('')}</div>` : '';
 
   return `<div class="gcard" data-gid="${g.game_id}">
     ${actsHtml}
@@ -3002,7 +3004,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2312 MY 그래프 안쪽 여백을 게임상세 차트와 동일하게';
+const APP_VERSION = 'v2321 상세 버튼 평점 줄 우측 끝으로 이동(이름-칩 겹침 해소)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
