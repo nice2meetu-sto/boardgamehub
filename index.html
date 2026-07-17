@@ -498,7 +498,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2321</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2340</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -1190,7 +1190,7 @@ function openGameDetail(gameId) {
   const el = document.getElementById('detail-overlay');
   const fromSheet = el.classList.contains('show');   // 공용 시트에서 열렸는지
   el.classList.remove('show');
-  state._gd = { gid: gameId, col: 'games', dir: 'desc' };
+  state._gd = { gid: gameId, col: 'winrate', dir: 'desc' };
   renderGameDetail();
   const hideFn = () => document.getElementById('gd-page').classList.remove('show');
   // 시트→상세는 같은 depth로 교체, 카드에서 바로 열면 새 항목 push
@@ -3004,7 +3004,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2321 상세 버튼 평점 줄 우측 끝으로 이동(이름-칩 겹침 해소)';
+const APP_VERSION = 'v2340 게임상세 플레이어 표 기본 정렬 승률 내림차순';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
