@@ -108,7 +108,7 @@
     font-weight: 500;
   }
   .chip.on { background: var(--main); color: #fff; border-color: var(--main); }
-  .chip-row { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; -webkit-overflow-scrolling: touch; }
+  .chip-row { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 4px; -webkit-overflow-scrolling: touch; }
   .chip-row::-webkit-scrollbar { display: none; }
 
   /* inputs */
@@ -142,7 +142,7 @@
   .sortbtn {
     flex: 0 0 auto; display: flex; align-items: center;
     padding: 0 13px; border-radius: 12px; border: 1px solid var(--border);
-    background: var(--card); color: var(--text-sub); font-size: 14px; font-weight: 700;
+    background: var(--card); color: var(--text-sub); font-size: 13px; font-weight: 700;
     white-space: nowrap;
   }
   .sortbtn.on { background: var(--main); border-color: var(--main); color: #fff; }
@@ -484,7 +484,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2047</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v2054</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -509,7 +509,7 @@
         <span>🔍</span>
         <input id="game-search" placeholder="게임 이름 검색 (한글/영문)" />
       </div>
-      <button class="sortbtn" id="game-sort-btn" title="평점 정렬" onclick="cycleGameSort()">★</button>
+      <button class="sortbtn" id="game-sort-btn" title="평점 정렬" onclick="cycleGameSort()">평점</button>
     </div>
     <div class="chip-row" id="cat-filter"></div>
     <div class="chip-row" id="player-filter"></div>
@@ -1561,14 +1561,9 @@ function filteredGames() {
       (g.name_kr || '').toLowerCase().includes(f.search) ||
       (g.name_en || '').toLowerCase().includes(f.search));
   }
-  // 우리Hub평점 내림차순, 평점 없는 게임(-)은 하단
-  list.sort((a, b) => {
-    const ra = a.club_rating, rb = b.club_rating;
-    if (ra == null && rb == null) return (a.name_kr || '').localeCompare(b.name_kr || '');
-    if (ra == null) return 1;
-    if (rb == null) return -1;
-    return rb - ra;
-  });
+  // 기본 정렬: 최근 추가된 게임(게임번호 큰 순)이 위로
+  const gidNum = g => parseInt(String(g.game_id).replace(/\D/g, ''), 10) || 0;
+  list.sort((a, b) => gidNum(b) - gidNum(a));
   return list;
 }
 
@@ -1634,14 +1629,17 @@ function toggleCard(topEl) {
 
 // ===== 평점 정렬 토글 (없음 → 내림차순 → 오름차순 → 없음) =====
 function nextSortMode(cur) { return cur === 'desc' ? 'asc' : cur === 'asc' ? null : 'desc'; }
-function sortBtnLabel(mode) { return mode === 'desc' ? '★↓' : mode === 'asc' ? '★↑' : '★'; }
-// 평점 없는 게임은 정렬 방향과 무관하게 항상 아래로. 해제(null)면 원본 순서 그대로.
+function sortBtnLabel(mode) { return mode === 'desc' ? '평점↓' : mode === 'asc' ? '평점↑' : '평점'; }
+// 평점 없는 게임: 내림차순이면 맨 아래, 오름차순(낮은 평점부터)이면 맨 위.
+// 해제(null)면 원본 순서 그대로.
 function applyRatingSort(list, mode, getRating) {
   if (!mode) return list;
   return list.slice().sort((a, b) => {
     const av = getRating(a), bv = getRating(b);
     const an = av == null, bn = bv == null;
-    if (an && bn) return 0; if (an) return 1; if (bn) return -1;
+    if (an && bn) return 0;
+    if (an) return mode === 'asc' ? -1 : 1;
+    if (bn) return mode === 'asc' ? 1 : -1;
     return mode === 'asc' ? av - bv : bv - av;
   });
 }
@@ -2903,7 +2901,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v2047 게임탭·MY게임기록 평점 정렬 토글 버튼(★↓→★↑→해제)';
+const APP_VERSION = 'v2054 평점 버튼 문구·오름차순 평가없음 상단·게임탭 최근추가순·필터 간격';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
