@@ -498,7 +498,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0808</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0955</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2517,7 +2517,10 @@ function renderAddPlayForm() {
     <div class="field ap-parts-field">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex:0 0 auto;">
         <label style="margin:0;">참가자 (비회원은 아래 체크해 주세요)</label>
-        <button class="btn ghost sm" style="padding:5px 12px;font-size:12px;flex:0 0 auto;" onclick="addParticipant()">+ 참가자 추가</button>
+        <span style="display:flex;gap:6px;flex:0 0 auto;">
+          <button class="btn ghost sm" style="padding:5px 12px;font-size:12px;" onclick="scrollPartsTop()">↑ 맨위로</button>
+          <button class="btn ghost sm" style="padding:5px 12px;font-size:12px;" onclick="addParticipant()">+ 참가자 추가</button>
+        </span>
       </div>
       <div id="ap-participants"></div>
     </div>
@@ -2622,6 +2625,12 @@ function addParticipant() {
   // 새로 추가된 참가자 입력칸이 보이도록 목록을 맨 아래로 스크롤
   const el = document.getElementById('ap-participants');
   if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+}
+
+// [맨위로]: 참가자 목록을 맨 위(1번 참가자)로 스크롤
+function scrollPartsTop() {
+  const el = document.getElementById('ap-participants');
+  if (el) el.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function removePart(i) { addPlayState.participants.splice(i, 1); renderParticipants(); }
 function updatePart(i, field, val) {
@@ -3000,7 +3009,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v0808 참가자 추가 시 목록 자동 스크롤';
+const APP_VERSION = 'v0955 참가자 목록 맨위로 버튼 추가';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
