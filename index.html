@@ -2262,7 +2262,7 @@ function switchAddTab(tab) {
 }
 
 // ----- 게임 추가 -----
-// 기본 분류(폴백). 앱 시작 시 스프레드시트 Categories 탭에서 읽어와 덮어씀
+// 기본 분류(폴백). 앱 시작 시 Supabase categories 테이블에서 읽어와 덮어씀
 let CATEGORIES = ['전략', '마피아', '트릭테이킹', '파티', '협력', '덱빌딩', '추리', '가족', '아브스트랙트', '기타'];
 function renderAddGameForm() {
   const el = document.getElementById('add-game-form');
