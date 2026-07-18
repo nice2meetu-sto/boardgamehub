@@ -498,7 +498,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v0955</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1014</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2506,23 +2506,25 @@ function renderAddPlayForm() {
       <div class="field"><label>플레이 시간(분)</label><input class="input" id="ap-duration" type="number" inputmode="numeric" placeholder="예: 45" /></div>
     </div>
     <div class="field">
-      <label>게임 *</label>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">
+        <label style="margin:0;flex:0 0 auto;">게임 *</label>
+        <div class="mchk no" id="gmchk" style="min-width:0;text-align:right;word-break:keep-all;">등록된 게임만 저장 가능합니다 · 없는 게임은 추가해 주세요</div>
+      </div>
       <div class="ac-wrap">
         <input class="input" id="ap-game" placeholder="게임명 입력" autocomplete="off"
                oninput="acRender(this,'game'); updateGameBadge()" onblur="acHide(this)" />
         <div class="ac-menu"></div>
       </div>
-      <div class="mchk no" id="gmchk" style="margin-top:4px;">등록된 게임만 저장 가능합니다 · 없는 게임은 추가해 주세요</div>
     </div>
     <div class="field ap-parts-field">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex:0 0 auto;">
         <label style="margin:0;">참가자 (비회원은 아래 체크해 주세요)</label>
         <span style="display:flex;gap:6px;flex:0 0 auto;">
-          <button class="btn ghost sm" style="padding:5px 12px;font-size:12px;" onclick="scrollPartsTop()">↑ 맨위로</button>
+          <button class="btn ghost sm" id="ap-scroll-btn" style="padding:5px 12px;font-size:12px;" onclick="apScrollToggle()">↓ 아래로</button>
           <button class="btn ghost sm" style="padding:5px 12px;font-size:12px;" onclick="addParticipant()">+ 참가자 추가</button>
         </span>
       </div>
-      <div id="ap-participants"></div>
+      <div id="ap-participants" onscroll="apScrollBtnUpdate()"></div>
     </div>
     <button class="btn sheet-save" onclick="submitAddPlay()">플레이 결과 저장</button>`;
   renderParticipants();
@@ -2627,10 +2629,18 @@ function addParticipant() {
   if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
 }
 
-// [맨위로]: 참가자 목록을 맨 위(1번 참가자)로 스크롤
-function scrollPartsTop() {
+// 참가자 목록 스크롤 토글: 맨 위에 있으면 [↓ 아래로], 내려가 있으면 [↑ 위로]
+function apScrollToggle() {
   const el = document.getElementById('ap-participants');
-  if (el) el.scrollTo({ top: 0, behavior: 'smooth' });
+  if (!el) return;
+  const atTop = el.scrollTop < 10;
+  el.scrollTo({ top: atTop ? el.scrollHeight : 0, behavior: 'smooth' });
+}
+function apScrollBtnUpdate() {
+  const el = document.getElementById('ap-participants');
+  const b = document.getElementById('ap-scroll-btn');
+  if (!el || !b) return;
+  b.textContent = el.scrollTop < 10 ? '↓ 아래로' : '↑ 위로';
 }
 function removePart(i) { addPlayState.participants.splice(i, 1); renderParticipants(); }
 function updatePart(i, field, val) {
@@ -3009,7 +3019,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v0955 참가자 목록 맨위로 버튼 추가';
+const APP_VERSION = 'v1014 위로/아래로 토글 버튼·게임 배지 제목 옆 이동';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
