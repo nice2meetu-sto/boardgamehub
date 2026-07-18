@@ -2111,7 +2111,7 @@ async function renderMyGames() {
     el.innerHTML = `
       <div class="hint" style="margin-bottom:10px;">내가 참가한 게임에 평점과 메모를 남겨보세요. <br>평점 평균이 '우리Hub평점'이 됩니다.</div>
       <div class="searchrow">
-        <div class="searchbox"><span>🔍</span><input id="my-games-search" placeholder="게임 이름·분류 검색 (예: 스플렌더, 전략)" oninput="filterMyGames()" /></div>
+        <div class="searchbox"><span>🔍</span><input id="my-games-search" placeholder="게임 이름, 카테고리 검색" oninput="filterMyGames()" /></div>
         <button class="sortbtn ${state.myGamesSortRating ? 'on' : ''}" id="my-games-sort-btn" title="내 평점 정렬" onclick="cycleMyGamesSort()">${sortBtnLabel(state.myGamesSortRating)}</button>
       </div>
       <div id="my-games-cards"></div>`;
@@ -2508,7 +2508,7 @@ function renderAddPlayForm() {
     <div class="field">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">
         <label style="margin:0;flex:0 0 auto;">게임 *</label>
-        <div class="mchk no" id="gmchk" style="min-width:0;text-align:right;word-break:keep-all;">등록된 게임만 저장 가능합니다 · 없는 게임은 추가해 주세요</div>
+        <div class="mchk no" id="gmchk" style="min-width:0;text-align:right;word-break:keep-all;">없는 게임은 추가해 주세요</div>
       </div>
       <div class="ac-wrap">
         <input class="input" id="ap-game" placeholder="게임명 입력" autocomplete="off"
@@ -2518,7 +2518,7 @@ function renderAddPlayForm() {
     </div>
     <div class="field ap-parts-field">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex:0 0 auto;">
-        <label style="margin:0;">참가자 (비회원은 아래 체크해 주세요)</label>
+        <label style="margin:0;">참가자 (비회원은 체크해 주세요)</label>
         <span style="display:flex;gap:6px;flex:0 0 auto;">
           <button class="btn ghost sm" id="ap-scroll-btn" style="padding:5px 12px;font-size:12px;" onclick="apScrollToggle()">↓ 아래로</button>
           <button class="btn ghost sm" style="padding:5px 12px;font-size:12px;" onclick="addParticipant()">+ 참가자 추가</button>
@@ -2575,7 +2575,7 @@ function updateGameBadge() {
   const inp = document.getElementById('ap-game');
   if (!el || !inp) return;
   const ok = !!gameByExactName(inp.value.trim());
-  el.textContent = ok ? '✓ 등록된 게임이에요' : '일치하는 게임이 없어요 · 이름을 확인해 주세요';
+  el.textContent = ok ? '✓ 등록된 게임이에요' : '일치하는 게임이 없어요';
   el.className = 'mchk ' + (ok ? 'ok' : 'no');
 }
 
