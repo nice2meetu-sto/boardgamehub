@@ -498,7 +498,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1014</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1015</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -779,6 +779,12 @@ function showDetailSheet() {
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+// 일부 삼성 갤럭시 키보드는 한글을 분해형(NFD, 자음·모음 분리)으로 입력한다.
+// 그대로 두면 화면에서 자모가 갈라져 보이고, 완성형(NFC)으로 저장된 회원/게임
+// 이름과 정확히 일치하지 않아 매칭이 실패한다. 저장·비교 전 NFC로 정규화한다.
+function nfc(s) {
+  return String(s == null ? '' : s).normalize('NFC');
 }
 function fmtDate(d) {
   if (!d) return '';
@@ -1754,7 +1760,7 @@ function applyAuth(user, pin, welcome) {
 }
 
 async function doLogin() {
-  const name = document.getElementById('auth-name').value.trim();
+  const name = nfc(document.getElementById('auth-name').value).trim();
   const pin = document.getElementById('auth-pin').value.trim();
   if (!name || !pin) { toast('닉네임과 PIN을 입력하세요.', true); return; }
   showLoader('로그인 중…');
@@ -1769,7 +1775,7 @@ async function doLogin() {
 }
 
 async function doSignup() {
-  const name = document.getElementById('auth-name').value.trim();
+  const name = nfc(document.getElementById('auth-name').value).trim();
   const pin = document.getElementById('auth-pin').value.trim();
   if (!name) { toast('닉네임을 입력하세요.', true); return; }
   if (!/^\d{4}$/.test(pin)) { toast('비밀번호는 숫자 4자리로 입력하세요.', true); return; }
@@ -2366,7 +2372,7 @@ function clearPhoto(prefix) {
 }
 
 async function submitAddGame() {
-  const nameKr = document.getElementById('ag-namekr').value.trim();
+  const nameKr = nfc(document.getElementById('ag-namekr').value).trim();
   const category = document.getElementById('ag-category').value;
   if (!nameKr) { toast('한글 게임명을 입력하세요.', true); return; }
   // 중복 게임명 등록 차단(공백·대소문자 무시, 닉네임 중복 방지와 동일)
@@ -2380,7 +2386,7 @@ async function submitAddGame() {
   const payload = {
     player_id: state.user.player_id, pin,
     name_kr: nameKr,
-    name_en: document.getElementById('ag-nameen').value.trim(),
+    name_en: nfc(document.getElementById('ag-nameen').value).trim(),
     category,
     min_players: document.getElementById('ag-min').value,
     max_players: document.getElementById('ag-max').value,
@@ -2454,7 +2460,7 @@ function similarGameName(name) {
 }
 
 // 게임명 정규화: 공백 제거 + 소문자 (띄어쓰기·대소문자만 다른 건 같은 게임으로 취급)
-function normGameName(s) { return String(s || '').replace(/\s+/g, '').toLowerCase(); }
+function normGameName(s) { return nfc(s).replace(/\s+/g, '').toLowerCase(); }
 
 // 게임 추가: 한글명 실시간 중복/유사 검사
 function checkNewGameName() {
@@ -2483,14 +2489,14 @@ function checkNewGameName() {
 
 // 정확히 일치하는 게임/플레이어만 허용(데이터 오류 방지)
 function gameByExactName(name) {
-  name = (name || '').trim();
+  name = nfc(name).trim();
   if (!name) return null;
-  return state.games.find(g => (g.name_kr || '') === name || (g.name_en || '') === name) || null;
+  return state.games.find(g => nfc(g.name_kr || '') === name || nfc(g.name_en || '') === name) || null;
 }
 function playerByExactName(name) {
-  name = (name || '').trim();
+  name = nfc(name).trim();
   if (!name) return null;
-  return state.players.find(p => (p.name || '') === name) || null;
+  return state.players.find(p => nfc(p.name || '') === name) || null;
 }
 
 function renderAddPlayForm() {
@@ -2539,11 +2545,11 @@ function acRender(inp, kind) {
   const wrap = inp.closest('.ac-wrap');
   const menu = wrap && wrap.querySelector('.ac-menu');
   if (!menu) return;
-  const term = inp.value.trim().toLowerCase();
+  const term = nfc(inp.value).trim().toLowerCase();
   if (!term) { menu.classList.remove('show'); menu.innerHTML = ''; return; }
   const seen = new Set();
   const matches = acNames(kind).filter(n => {
-    const low = n.toLowerCase();
+    const low = nfc(n).toLowerCase();
     if (!low.startsWith(term) || seen.has(low)) return false;
     seen.add(low); return true;
   }).sort((a, b) => a.localeCompare(b)).slice(0, 8);
@@ -2564,6 +2570,9 @@ function acPick(e, item) {
   inp.dispatchEvent(new Event('input', { bubbles: true }));  // 상태 갱신(updatePart 등)
 }
 function acHide(inp) {
+  // 포커스가 빠질 때(조합 종료) 분해형으로 남은 한글을 완성형으로 정리
+  const composed = nfc(inp.value);
+  if (composed !== inp.value) inp.value = composed;
   const wrap = inp.closest('.ac-wrap');
   const menu = wrap && wrap.querySelector('.ac-menu');
   if (menu) setTimeout(() => menu.classList.remove('show'), 120);
@@ -2601,7 +2610,7 @@ function renderParticipants() {
         <span style="flex:0 0 auto;min-width:16px;text-align:center;font-size:12px;font-weight:800;color:var(--text-sub);">${i + 1}</span>
         ${pt.is_guest
           ? `<input class="input" placeholder="게스트 닉네임" autocomplete="off" style="flex:2;min-width:0;"
-               value="${esc(pt.name)}" oninput="updatePart(${i}, 'name', this.value)" />`
+               value="${esc(pt.name)}" oninput="updatePart(${i}, 'name', this.value)" onblur="this.value=nfc(this.value)" />`
           : `<div class="ac-wrap" style="flex:2;min-width:0;">
                <input class="input" placeholder="회원 이름 입력" autocomplete="off"
                  value="${esc(pt.name)}" oninput="updatePart(${i}, 'name', this.value); acRender(this,'player')" onblur="acHide(this)" />
@@ -2644,7 +2653,8 @@ function apScrollBtnUpdate() {
 }
 function removePart(i) { addPlayState.participants.splice(i, 1); renderParticipants(); }
 function updatePart(i, field, val) {
-  addPlayState.participants[i][field] = val;
+  // 이름은 NFC로 정규화해 저장(분해형 입력 기기 대응). 점수 등 나머지는 그대로.
+  addPlayState.participants[i][field] = field === 'name' ? nfc(val) : val;
   if (field === 'name') updateMemberBadge(i);   // 회원 일치 배지 실시간 갱신
 }
 function toggleWin(i) { addPlayState.participants[i].is_win = !addPlayState.participants[i].is_win; renderParticipants(); }
@@ -2661,7 +2671,7 @@ async function submitAddPlay() {
   const resolved = [];
   const seen = new Set();
   for (const p of rawParts) {
-    const nm = p.name.trim();
+    const nm = nfc(p.name).trim();
     let player_id = '', player_name = nm;
     if (p.is_guest) {
       // 게스트: 자유 닉네임 그대로 저장(회원 계정 연결 안 함)
@@ -2911,7 +2921,7 @@ async function openCategoryManager() {
 async function saveCategoryRow(btn) {
   const row = btn.closest('.cat-row');
   const oldName = row.getAttribute('data-old');
-  const newName = row.querySelector('.cname').value.trim();
+  const newName = nfc(row.querySelector('.cname').value).trim();
   const sort = row.querySelector('.csort').value;
   if (!newName) { toast('분류 이름을 입력하세요.', true); return; }
   const pin = await promptPin(); if (pin == null) return;
@@ -3019,7 +3029,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1014 위로/아래로 토글 버튼·게임 배지 제목 옆 이동';
+const APP_VERSION = 'v1015 한글 입력 NFC 정규화(갤럭시 자모 분리 대응)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
