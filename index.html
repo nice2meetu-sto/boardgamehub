@@ -130,6 +130,10 @@
   .btn:active { background: var(--main-dark); }
   .btn.ghost { background: var(--main-light); color: var(--main); }
   .btn.sm { width: auto; padding: 9px 16px; font-size: 13px; }
+  /* 내가 작성하지 않은 기록: 수정 버튼과 같은 크기의 회색 '작성자' 버튼 */
+  .btn.author { background: #ececf1; color: var(--text-sub); font-weight: 700; max-width: 96px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btn.author:active { background: #e0e0e6; }
   .btn:disabled { opacity: .5; }
   .btn.danger { background: var(--danger); }
 
@@ -498,7 +502,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1015</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1016</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -1415,7 +1419,11 @@ function renderSessionList(containerId, sessions, opts = {}) {
           <div class="g-name">${esc(s.game_name)}</div>
           <div class="g-meta">${esc(String(s.play_date).substring(0,10))}${dur} · ${s.participants.length}명${creator}</div>
         </div>
-        ${canEdit ? `<button class="btn ghost sm" style="padding:5px 12px;font-size:12px;flex:0 0 auto;" onclick="startEditSession('${esc(s.session_id)}')">수정</button>` : ''}
+        ${canEdit
+          ? `<button class="btn ghost sm" style="padding:5px 12px;font-size:12px;flex:0 0 auto;" onclick="startEditSession('${esc(s.session_id)}')">수정</button>`
+          : (s.created_by
+              ? `<button class="btn sm author" style="padding:5px 12px;font-size:12px;flex:0 0 auto;" onclick="authorToast('${esc(String(s.created_by))}')">${esc(playerNameById(s.created_by))}</button>`
+              : '')}
       </div>
       <div class="participants">${parts}</div>
     </div>`;
@@ -1425,6 +1433,11 @@ function renderSessionList(containerId, sessions, opts = {}) {
 function playerNameById(pid) {
   const p = (state.players || []).find(x => String(x.player_id) === String(pid));
   return p ? p.name : pid;
+}
+// 내가 작성하지 않은 기록의 '작성자' 버튼을 누르면 안내 토스트
+function authorToast(pid) {
+  const nm = playerNameById(pid);
+  toast(`${nm}님이 작성한 기록이에요. 수정은 작성자에게 요청하세요!`);
 }
 
 // ===== 내 플레이 기록: 수정/삭제 (입력자 본인만, 관리자 페이지는 전체) =====
@@ -3029,7 +3042,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1015 한글 입력 NFC 정규화(갤럭시 자모 분리 대응)';
+const APP_VERSION = 'v1016 내가 작성 안 한 기록에 회색 작성자 버튼(누르면 안내 토스트)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
