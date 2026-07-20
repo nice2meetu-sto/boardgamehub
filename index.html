@@ -502,7 +502,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1016</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1017</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2290,7 +2290,7 @@ function renderAddGameForm() {
       <label>한글 게임명 *</label>
       <div class="ac-wrap">
         <input class="input" id="ag-namekr" placeholder="예: 스컬킹" autocomplete="off"
-               oninput="checkNewGameName(); acRender(this,'game')" onblur="acHide(this)" />
+               oninput="newGameNameInput(event, this)" oncompositionend="newGameNameInput(event, this)" onblur="acHide(this)" />
         <div class="ac-menu"></div>
       </div>
       <div class="mchk" id="ag-namecheck" style="margin-top:4px;display:none;"></div>
@@ -2531,7 +2531,7 @@ function renderAddPlayForm() {
       </div>
       <div class="ac-wrap">
         <input class="input" id="ap-game" placeholder="게임명 입력" autocomplete="off"
-               oninput="acRender(this,'game'); updateGameBadge()" onblur="acHide(this)" />
+               oninput="gameNameInput(event, this)" oncompositionend="gameNameInput(event, this)" onblur="acHide(this)" />
         <div class="ac-menu"></div>
       </div>
     </div>
@@ -2591,6 +2591,28 @@ function acHide(inp) {
   if (menu) setTimeout(() => menu.classList.remove('show'), 120);
 }
 
+// ===== 한글 조합(IME) 중 DOM 갱신 보류 =====
+// 카카오톡·삼성 등 인앱 브라우저의 한글 IME는 조합 도중 주변 DOM(자동완성
+// 드롭다운·배지)이 바뀌면 조합 버퍼가 끊겨 자음·모음이 분리된다.
+// 조합 중(event.isComposing)에는 값만 저장하고, 조합이 끝났을 때
+// (compositionend, isComposing=false) 자동완성·배지를 한 번만 갱신한다.
+function partNameInput(e, inp, i) {
+  addPlayState.participants[i].name = nfc(inp.value);   // DOM 미접근 → 조합 안전
+  if (e && e.isComposing) return;
+  updateMemberBadge(i);
+  acRender(inp, 'player');
+}
+function gameNameInput(e, inp) {
+  if (e && e.isComposing) return;
+  acRender(inp, 'game');
+  updateGameBadge();
+}
+function newGameNameInput(e, inp) {
+  if (e && e.isComposing) return;
+  checkNewGameName();
+  acRender(inp, 'game');
+}
+
 // 게임명 일치 배지: 정확히 일치하는 게임이면 초록, 아니면 회색 안내
 function updateGameBadge() {
   const el = document.getElementById('gmchk');
@@ -2626,7 +2648,7 @@ function renderParticipants() {
                value="${esc(pt.name)}" oninput="updatePart(${i}, 'name', this.value)" onblur="this.value=nfc(this.value)" />`
           : `<div class="ac-wrap" style="flex:2;min-width:0;">
                <input class="input" placeholder="회원 이름 입력" autocomplete="off"
-                 value="${esc(pt.name)}" oninput="updatePart(${i}, 'name', this.value); acRender(this,'player')" onblur="acHide(this)" />
+                 value="${esc(pt.name)}" oninput="partNameInput(event, this, ${i})" oncompositionend="partNameInput(event, this, ${i})" onblur="acHide(this)" />
                <div class="ac-menu"></div>
              </div>`}
         <input class="input" type="number" inputmode="numeric" placeholder="점수" value="${esc(pt.score)}" oninput="updatePart(${i}, 'score', this.value)" style="flex:1;min-width:0;" />
@@ -3042,7 +3064,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1016 내가 작성 안 한 기록에 회색 작성자 버튼(누르면 안내 토스트)';
+const APP_VERSION = 'v1017 한글 조합 중 DOM 갱신 보류(자모 분리 근본 해결)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
