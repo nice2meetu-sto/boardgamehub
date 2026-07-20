@@ -502,7 +502,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1017</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1018</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2591,25 +2591,26 @@ function acHide(inp) {
   if (menu) setTimeout(() => menu.classList.remove('show'), 120);
 }
 
-// ===== 한글 조합(IME) 중 DOM 갱신 보류 =====
-// 카카오톡·삼성 등 인앱 브라우저의 한글 IME는 조합 도중 주변 DOM(자동완성
-// 드롭다운·배지)이 바뀌면 조합 버퍼가 끊겨 자음·모음이 분리된다.
-// 조합 중(event.isComposing)에는 값만 저장하고, 조합이 끝났을 때
-// (compositionend, isComposing=false) 자동완성·배지를 한 번만 갱신한다.
+// ===== 한글 조합(IME)과 실시간 조회 양립 =====
+// 카카오톡·삼성 등 인앱 브라우저의 한글 IME는 조합 도중 '입력창 바로 옆
+// 형제(.ac-menu)'가 통째로 다시 그려지면 조합 버퍼가 끊겨 자음·모음이 분리된다.
+// → 자동완성 드롭다운(acRender)만 조합이 끝났을 때(compositionend) 갱신하고,
+//   회원/게임 조회 배지는 다른 줄의 가벼운 텍스트 교체라 조합을 깨지 않으므로
+//   매 입력마다 실시간으로 갱신한다.
 function partNameInput(e, inp, i) {
-  addPlayState.participants[i].name = nfc(inp.value);   // DOM 미접근 → 조합 안전
-  if (e && e.isComposing) return;
-  updateMemberBadge(i);
+  addPlayState.participants[i].name = nfc(inp.value);
+  updateMemberBadge(i);                 // 실시간 회원 조회(배지)
+  if (e && e.isComposing) return;        // 조합 중엔 드롭다운만 보류
   acRender(inp, 'player');
 }
 function gameNameInput(e, inp) {
+  updateGameBadge();                     // 실시간 게임 조회(배지)
   if (e && e.isComposing) return;
   acRender(inp, 'game');
-  updateGameBadge();
 }
 function newGameNameInput(e, inp) {
+  checkNewGameName();                    // 실시간 중복 확인
   if (e && e.isComposing) return;
-  checkNewGameName();
   acRender(inp, 'game');
 }
 
@@ -3064,7 +3065,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1017 한글 조합 중 DOM 갱신 보류(자모 분리 근본 해결)';
+const APP_VERSION = 'v1018 실시간 회원 조회 복구(배지는 실시간, 드롭다운만 조합 종료 시)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
