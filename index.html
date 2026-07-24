@@ -505,7 +505,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1022</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1023</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2172,10 +2172,15 @@ function canEditSession(s) {
   return !!(state.user && (state.user.role === 'admin' ||
     (s.created_by && String(s.created_by) === String(state.user.player_id))));
 }
-function guestLinkTargets() {
+// scope: 'admin' → 관리자면 전체 기록, 'mine'(기본) → 본인이 작성한 기록만.
+// MY 탭에서는 관리자여도 'mine'이라 남의 기록은 안 보인다.
+function guestLinkTargets(scope) {
   const out = [];
   (state.plays || []).forEach(s => {
-    if (!canEditSession(s)) return;
+    const allowed = (scope === 'admin')
+      ? canEditSession(s)
+      : !!(s.created_by && String(s.created_by) === String(state.user.player_id));
+    if (!allowed) return;
     s.participants.forEach(p => {
       if (p.is_guest && (p.name || '').trim()) {
         out.push({
@@ -2187,15 +2192,17 @@ function guestLinkTargets() {
   });
   return out;
 }
-function openLinkGuestModal() {
+function openLinkGuestModal(scope) {
   if (!state.user) { toast('로그인 후 이용하세요.', true); return; }
+  if (scope === 'admin' && state.user.role !== 'admin') { toast('관리자만 사용할 수 있습니다.', true); return; }
+  state._linkScope = scope === 'admin' ? 'admin' : 'mine';
   const body = document.getElementById('detail-body');
   body.innerHTML = `
     <h2 style="font-size:17px;font-weight:800;margin:2px 0 4px;">🔗 비회원 → 회원 연동</h2>
     <div class="muted" style="font-size:12px;margin-bottom:10px;line-height:1.5;">
       비회원 이름으로 검색 → 연동할 플레이기록을 체크 → 아래에서 회원을 한 번만
       지정하면 선택한 기록이 한꺼번에 연동돼요.
-      ${state.user.role === 'admin' ? '(관리자: 전체 기록)' : '(내가 작성한 기록만)'}
+      ${state._linkScope === 'admin' ? '(관리자: 전체 기록)' : '(내가 작성한 기록만)'}
     </div>
     <div class="searchbox" style="margin:0 0 10px;">
       <span>🔍</span>
@@ -2228,7 +2235,7 @@ function renderLinkList() {
   const el = document.getElementById('link-list');
   if (!el) return;
   const q = (document.getElementById('link-search')?.value || '').trim().toLowerCase();
-  let items = guestLinkTargets();
+  let items = guestLinkTargets(state._linkScope);
   if (q) {
     const terms = q.split(',').map(t => t.trim()).filter(Boolean);
     items = items.filter(it => {
@@ -2318,7 +2325,10 @@ async function submitLinkBatch() {
     toast(msg, skipped.length > 0);
     if (inp) inp.value = '';
     renderLinkList();                        // 연동된 게스트는 목록에서 사라짐
-    if (document.getElementById('my-sessions')) refreshMySessions();
+    // 뒤에 깔린 목록 갱신(관리자 탭 / MY 탭 각각)
+    const adm = document.getElementById('admin-page');
+    if (adm && adm.classList.contains('show')) adminPlaySearch();
+    else if (document.getElementById('my-sessions')) refreshMySessions();
   } catch (e) {
     toast(e.message, true);
   } finally {
@@ -3228,6 +3238,7 @@ function renderAdminPlays() {
   if (!el.dataset.ready) {
     el.innerHTML = `
       <div class="adm-searchrow">
+        <button class="adm-pill" onclick="openLinkGuestModal('admin')">🔗 연동</button>
         <div class="searchbox"><span>🔍</span><input id="adm-play-search" placeholder="일자·게임·참가자·작성자" onkeydown="if(event.key==='Enter')adminPlaySearch()" /></div>
         <button class="adm-pill" onclick="adminPlaySearch()">검색</button>
       </div>
@@ -3313,7 +3324,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1022 연동 선택 표시를 체크박스→보라 테두리 강조로 변경';
+const APP_VERSION = 'v1023 연동 범위 분리: MY는 본인작성만, 관리자 전체는 관리자탭';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
