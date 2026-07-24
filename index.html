@@ -502,7 +502,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1019</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1020</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2113,7 +2113,7 @@ function renderMyPlaysTab() {
   state._mySessions = state.plays.filter(s =>
     s.participants.some(p => p.player_id === state.user.player_id));
   el.innerHTML = `
-    <div style="display:flex;gap:8px;align-items:center;margin-top:2px;">
+    <div style="display:flex;gap:8px;align-items:center;margin-top:2px;margin-bottom:12px;">
       <div class="searchbox" style="flex:1;margin:0;">
         <span>🔍</span>
         <input id="my-play-search" placeholder="일자 · 게임명 · 참가자 검색 (쉼표로 여러 조건)" oninput="filterMyPlays()" />
@@ -3272,7 +3272,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1019 수정 시 참가자 편집 + 비회원→회원 연동';
+const APP_VERSION = 'v1020 My-플레이 검색창 아래 간격 복구';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
