@@ -134,6 +134,9 @@
   .btn.author { background: #ececf1; color: var(--text-sub); font-weight: 700; max-width: 96px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .btn.author:active { background: #e0e0e6; }
+  /* 연동 모달: 선택된 플레이기록 카드 강조(체크박스 대신 보라 테두리) */
+  .link-row { transition: border-color .12s, background .12s; }
+  .link-row.sel { border-color: var(--main) !important; background: var(--main-light); }
   .btn:disabled { opacity: .5; }
   .btn.danger { background: var(--danger); }
 
@@ -502,7 +505,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1021</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1022</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2240,12 +2243,10 @@ function renderLinkList() {
     return;
   }
   el.innerHTML = items.map(it => `
-    <label class="link-row" style="display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px;cursor:pointer;">
-      <input type="checkbox" class="link-check" data-sid="${esc(it.session_id)}" data-rid="${esc(it.record_id)}" onchange="updateLinkCount()" style="width:18px;height:18px;flex:0 0 auto;margin:0;" />
-      <div style="min-width:0;">
-        <div style="font-size:12px;color:var(--text-sub);">${esc(it.play_date)} · ${esc(it.game_name)}</div>
-        <div style="font-weight:800;">게스트: ${esc(it.guest_name)}</div>
-      </div>
+    <label class="link-row" style="display:block;border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px;cursor:pointer;">
+      <input type="checkbox" class="link-check" data-sid="${esc(it.session_id)}" data-rid="${esc(it.record_id)}" onchange="updateLinkCount()" style="display:none;" />
+      <div style="font-size:12px;color:var(--text-sub);">${esc(it.play_date)} · ${esc(it.game_name)}</div>
+      <div style="font-weight:800;">게스트: ${esc(it.guest_name)}</div>
     </label>`).join('');
   const all = document.getElementById('link-all'); if (all) all.checked = false;
   updateLinkCount();
@@ -2255,6 +2256,11 @@ function toggleLinkAll(checked) {
   updateLinkCount();
 }
 function updateLinkCount() {
+  // 선택된 카드에 .sel(보라 테두리) 반영
+  document.querySelectorAll('#link-list .link-row').forEach(row => {
+    const cb = row.querySelector('.link-check');
+    row.classList.toggle('sel', !!(cb && cb.checked));
+  });
   const n = document.querySelectorAll('#link-list .link-check:checked').length;
   const cnt = document.getElementById('link-count');
   const btn = document.getElementById('link-submit');
@@ -3307,7 +3313,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1021 연동 UI: 비회원 검색→체크 선택→회원 한번에 일괄 연동';
+const APP_VERSION = 'v1022 연동 선택 표시를 체크박스→보라 테두리 강조로 변경';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
