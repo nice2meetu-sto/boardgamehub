@@ -502,7 +502,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1020</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1021</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2190,15 +2190,30 @@ function openLinkGuestModal() {
   body.innerHTML = `
     <h2 style="font-size:17px;font-weight:800;margin:2px 0 4px;">🔗 비회원 → 회원 연동</h2>
     <div class="muted" style="font-size:12px;margin-bottom:10px;line-height:1.5;">
-      게스트로 참여한 기록을 실제 회원 계정에 연결해요.
-      ${state.user.role === 'admin' ? '(관리자: 전체 기록)' : '(내가 작성한 기록만)'}<br/>
-      연동하면 그 회원의 통계·기록에 합쳐집니다.
+      비회원 이름으로 검색 → 연동할 플레이기록을 체크 → 아래에서 회원을 한 번만
+      지정하면 선택한 기록이 한꺼번에 연동돼요.
+      ${state.user.role === 'admin' ? '(관리자: 전체 기록)' : '(내가 작성한 기록만)'}
     </div>
     <div class="searchbox" style="margin:0 0 10px;">
       <span>🔍</span>
-      <input id="link-search" placeholder="게스트 이름 · 게임 · 일자 검색" oninput="renderLinkList()" />
+      <input id="link-search" placeholder="비회원 이름 검색 (게임·일자도 가능)" oninput="renderLinkList()" />
     </div>
-    <div id="link-list"></div>`;
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-sub);cursor:pointer;">
+        <input type="checkbox" id="link-all" onchange="toggleLinkAll(this.checked)" style="width:16px;height:16px;margin:0;" />
+        전체 선택
+      </label>
+      <span id="link-count" style="font-size:12px;color:var(--text-sub);">0건 선택</span>
+    </div>
+    <div id="link-list" style="max-height:42vh;overflow-y:auto;"></div>
+    <div style="position:sticky;bottom:0;background:var(--card);padding:10px 0 2px;margin-top:8px;border-top:1px solid var(--border);">
+      <div class="ac-wrap">
+        <input class="input" id="link-member" placeholder="연결할 회원 이름" autocomplete="off"
+          oninput="linkNameInput(event, this)" oncompositionend="linkNameInput(event, this)" onblur="acHide(this)" />
+        <div class="ac-menu"></div>
+      </div>
+      <button class="btn" id="link-submit" style="margin-top:8px;" onclick="submitLinkBatch()">선택한 기록 연동</button>
+    </div>`;
   showDetailSheet();
   renderLinkList();
 }
@@ -2220,63 +2235,83 @@ function renderLinkList() {
   }
   if (!items.length) {
     el.innerHTML = `<div class="empty" style="padding:24px 0;"><div class="big">🙌</div>연동할 게스트 기록이 없어요.</div>`;
+    const all = document.getElementById('link-all'); if (all) all.checked = false;
+    updateLinkCount();
     return;
   }
   el.innerHTML = items.map(it => `
-    <div class="link-row" style="border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px;">
-      <div style="font-size:12px;color:var(--text-sub);margin-bottom:2px;">${esc(it.play_date)} · ${esc(it.game_name)}</div>
-      <div style="font-weight:800;margin-bottom:8px;">게스트: ${esc(it.guest_name)}</div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <div class="ac-wrap" style="flex:1;min-width:0;">
-          <input class="input" placeholder="연결할 회원 이름" autocomplete="off"
-            oninput="linkNameInput(event, this)" oncompositionend="linkNameInput(event, this)" onblur="acHide(this)" />
-          <div class="ac-menu"></div>
-        </div>
-        <button class="btn sm" style="flex:0 0 auto;padding:9px 14px;" onclick="submitLink('${esc(it.session_id)}','${esc(it.record_id)}', this)">연동</button>
+    <label class="link-row" style="display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px;cursor:pointer;">
+      <input type="checkbox" class="link-check" data-sid="${esc(it.session_id)}" data-rid="${esc(it.record_id)}" onchange="updateLinkCount()" style="width:18px;height:18px;flex:0 0 auto;margin:0;" />
+      <div style="min-width:0;">
+        <div style="font-size:12px;color:var(--text-sub);">${esc(it.play_date)} · ${esc(it.game_name)}</div>
+        <div style="font-weight:800;">게스트: ${esc(it.guest_name)}</div>
       </div>
-    </div>`).join('');
+    </label>`).join('');
+  const all = document.getElementById('link-all'); if (all) all.checked = false;
+  updateLinkCount();
 }
-async function submitLink(session_id, record_id, btn) {
-  const wrap = btn.closest('.link-row');
-  const inp = wrap.querySelector('.ac-wrap input');
-  const nm = nfc(inp.value).trim();
+function toggleLinkAll(checked) {
+  document.querySelectorAll('#link-list .link-check').forEach(c => { c.checked = checked; });
+  updateLinkCount();
+}
+function updateLinkCount() {
+  const n = document.querySelectorAll('#link-list .link-check:checked').length;
+  const cnt = document.getElementById('link-count');
+  const btn = document.getElementById('link-submit');
+  if (cnt) cnt.textContent = `${n}건 선택`;
+  if (btn) btn.textContent = n ? `선택한 ${n}건 연동` : '선택한 기록 연동';
+}
+async function submitLinkBatch() {
+  const checks = Array.from(document.querySelectorAll('#link-list .link-check:checked'));
+  if (!checks.length) { toast('연동할 플레이기록을 선택하세요.', true); return; }
+  const inp = document.getElementById('link-member');
+  const nm = nfc(inp ? inp.value : '').trim();
   if (!nm) { toast('연결할 회원 이름을 입력하세요.', true); return; }
   const pl = playerByExactName(nm);
   if (!pl) { toast(`"${nm}"은(는) 회원 명단에 없어요. 정확한 회원 이름을 선택하세요.`, true); return; }
-  const s = (state.plays || []).find(x => x.session_id === session_id);
-  if (!s) { toast('기록을 찾을 수 없어요.', true); return; }
-  const target = s.participants.find(p => p.record_id === record_id);
-  if (!target) { toast('게스트 기록을 찾을 수 없어요.', true); return; }
-  // 대상 회원이 이미 이 판에 참가자로 있으면 중복 방지
-  if (s.participants.some(p => !p.is_guest && String(p.player_id) === String(pl.player_id))) {
-    toast(`이미 "${pl.name}" 회원이 이 판에 있어요.`, true); return;
-  }
-  if (!confirm(`"${target.name}"(게스트) → "${pl.name}" 회원으로 연동할까요?`)) return;
 
-  // 참가자 전체 재구성: 대상 게스트만 회원으로 교체, 나머지는 그대로 유지
-  const participants = s.participants.map(p => {
-    if (p.record_id === record_id) {
-      return { player_id: pl.player_id, player_name: pl.name, score: p.score, is_win: !!p.is_win };
-    }
-    return p.is_guest
-      ? { player_id: '', player_name: p.name, score: p.score, is_win: !!p.is_win }
-      : { player_id: p.player_id, player_name: p.name, score: p.score, is_win: !!p.is_win };
-  });
+  // 선택된 (세션, 게스트record) 목록 구성
+  const targets = checks.map(c => ({ sid: c.getAttribute('data-sid'), rid: c.getAttribute('data-rid') }));
+  if (!confirm(`선택한 ${targets.length}건을 "${pl.name}" 회원으로 연동할까요?`)) return;
 
   const pin = await promptPin();
   if (pin == null) return;
+
+  let ok = 0; const skipped = [];
   showLoader('연동 중…');
   try {
-    const res = await api('updatePlay', { playerId: state.user.player_id, pin,
-      payload: JSON.stringify({ session_id, play_date: s.play_date, duration_min: s.duration_min, participants }) });
-    if (!res || res.mode !== 'replace') {
-      toast('연동은 DB 업데이트 후 가능해요 (supabase_migration_editparts.sql 실행 필요).', true);
-      return;
+    for (const t of targets) {
+      const s = (state.plays || []).find(x => x.session_id === t.sid);
+      if (!s) { skipped.push('기록없음'); continue; }
+      const target = s.participants.find(p => p.record_id === t.rid);
+      if (!target) { skipped.push('게스트없음'); continue; }
+      // 이미 그 회원이 이 판에 있으면 건너뜀
+      if (s.participants.some(p => !p.is_guest && String(p.player_id) === String(pl.player_id))) {
+        skipped.push(`${s.game_name}(중복)`); continue;
+      }
+      const participants = s.participants.map(p => {
+        if (p.record_id === t.rid) {
+          return { player_id: pl.player_id, player_name: pl.name, score: p.score, is_win: !!p.is_win };
+        }
+        return p.is_guest
+          ? { player_id: '', player_name: p.name, score: p.score, is_win: !!p.is_win }
+          : { player_id: p.player_id, player_name: p.name, score: p.score, is_win: !!p.is_win };
+      });
+      const res = await api('updatePlay', { playerId: state.user.player_id, pin,
+        payload: JSON.stringify({ session_id: t.sid, play_date: s.play_date, duration_min: s.duration_min, participants }) });
+      if (!res || res.mode !== 'replace') {
+        toast('연동은 DB 업데이트 후 가능해요 (supabase_migration_editparts.sql 실행 필요).', true);
+        return;
+      }
+      ok++;
     }
     state.plays = await api('getPlays');
     state._myStats = null;
-    toast(`"${target.name}" → "${pl.name}" 연동 완료!`);
-    renderLinkList();                       // 연동된 게스트는 목록에서 사라짐
+    let msg = `${ok}건 "${pl.name}" 연동 완료!`;
+    if (skipped.length) msg += ` (건너뜀 ${skipped.length}건)`;
+    toast(msg, skipped.length > 0);
+    if (inp) inp.value = '';
+    renderLinkList();                        // 연동된 게스트는 목록에서 사라짐
     if (document.getElementById('my-sessions')) refreshMySessions();
   } catch (e) {
     toast(e.message, true);
@@ -3272,7 +3307,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1020 My-플레이 검색창 아래 간격 복구';
+const APP_VERSION = 'v1021 연동 UI: 비회원 검색→체크 선택→회원 한번에 일괄 연동';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
