@@ -502,7 +502,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1018</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1019</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -1382,13 +1382,6 @@ function renderSessionList(containerId, sessions, opts = {}) {
       ? `<span class="adm-creator">작성 ${esc(playerNameById(s.created_by))}</span>` : '';
 
     if (editing) {
-      const eparts = s.participants.map(p => `
-        <div class="prow" data-rid="${esc(p.record_id)}" style="gap:8px;">
-          <span class="pname" style="flex:1;min-width:0;">${esc(p.name)}</span>
-          <input type="number" inputmode="numeric" class="edit-score" placeholder="점수" value="${p.score == null ? '' : esc(p.score)}"
-                 style="width:64px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:#fff;" />
-          <button type="button" class="wintoggle edit-win ${p.is_win ? 'on' : ''}" data-win="${p.is_win ? '1' : '0'}" onclick="toggleEditWin(this)" style="padding:6px 10px;">${p.is_win ? '승 👑' : '패 🥈'}</button>
-        </div>`).join('');
       return `<div class="session" data-sid="${esc(s.session_id)}">
         <div class="session-head">
           ${thumb(s.game_image, 'session-thumb')}
@@ -1399,7 +1392,13 @@ function renderSessionList(containerId, sessions, opts = {}) {
           <div class="field" style="margin:0;"><label>날짜</label><input class="input edit-date" type="date" value="${esc(String(s.play_date).substring(0,10))}" /></div>
           <div class="field" style="margin:0;"><label>시간(분)</label><input class="input edit-duration" type="number" inputmode="numeric" value="${s.duration_min || ''}" /></div>
         </div>
-        <div class="participants">${eparts}</div>
+        <div class="field" style="margin:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">
+            <label style="margin:0;">참가자 (비회원은 체크)</label>
+            <button type="button" class="btn ghost sm" style="padding:5px 12px;font-size:12px;" onclick="editAddPart()">+ 참가자 추가</button>
+          </div>
+          <div id="ep-participants"></div>
+        </div>
         <div style="display:flex;gap:8px;margin-top:10px;">
           <button class="btn danger sm" style="flex:1;" onclick="deleteSession('${esc(s.session_id)}')">🗑 삭제</button>
           <button class="btn sm" style="flex:1;" onclick="saveEditSession('${esc(s.session_id)}')">저장</button>
@@ -1428,6 +1427,7 @@ function renderSessionList(containerId, sessions, opts = {}) {
       <div class="participants">${parts}</div>
     </div>`;
   }).join('');
+  if (state._editSid) renderEditParts();   // 수정 중이면 참가자 편집기 채우기
 }
 
 function playerNameById(pid) {
@@ -1452,14 +1452,74 @@ function refreshSessionsView() {
   if (adm && adm.classList.contains('show')) adminPlaySearch();
   else refreshMySessions();
 }
-function startEditSession(sid) { state._editSid = sid; rerenderSessList(); }
-function cancelEditSession() { state._editSid = null; rerenderSessList(); }
-function toggleEditWin(btn) {
-  const on = btn.getAttribute('data-win') === '1';
-  btn.setAttribute('data-win', on ? '0' : '1');
-  btn.classList.toggle('on', !on);
-  btn.textContent = on ? '패 🥈' : '승 👑';
+function startEditSession(sid) {
+  const s = (_sessCtx && _sessCtx.sessions.find(x => x.session_id === sid))
+         || (state.plays || []).find(x => x.session_id === sid);
+  state._editSid = sid;
+  state._editParts = s ? s.participants.map(p => ({
+    name: p.name || '',
+    score: p.score == null ? '' : p.score,
+    is_win: !!p.is_win,
+    is_guest: !!p.is_guest
+  })) : [];
+  rerenderSessList();
 }
+function cancelEditSession() { state._editSid = null; state._editParts = null; rerenderSessList(); }
+
+// ===== 수정 폼: 참가자 편집기(이름/추가/삭제/게스트↔회원) =====
+// 플레이 추가 화면의 참가자 UI와 동일한 규칙. state._editParts에 담아 편집한다.
+function renderEditParts() {
+  const el = document.getElementById('ep-participants');
+  if (!el) return;
+  el.innerHTML = (state._editParts || []).map((pt, i) => `
+    <div style="margin-bottom:8px;">
+      <div class="ppart" style="margin-bottom:4px;gap:8px;">
+        ${pt.is_guest
+          ? `<input class="input" placeholder="게스트 닉네임" autocomplete="off" style="flex:2;min-width:0;"
+               value="${esc(pt.name)}" oninput="editUpdatePart(${i},'name',this.value)" onblur="this.value=nfc(this.value)" />`
+          : `<div class="ac-wrap" style="flex:2;min-width:0;">
+               <input class="input" placeholder="회원 이름 입력" autocomplete="off"
+                 value="${esc(pt.name)}" oninput="editPartNameInput(event, this, ${i})" oncompositionend="editPartNameInput(event, this, ${i})" onblur="acHide(this)" />
+               <div class="ac-menu"></div>
+             </div>`}
+        <input class="input" type="number" inputmode="numeric" placeholder="점수" value="${esc(pt.score)}" oninput="editUpdatePart(${i},'score',this.value)" style="flex:1;min-width:0;" />
+        <button type="button" class="wintoggle ${pt.is_win ? 'on' : ''}" onclick="editToggleWin(${i})">${pt.is_win ? '승 👑' : '패 🥈'}</button>
+        ${(state._editParts || []).length > 1 ? `<button type="button" class="rm-btn" onclick="editRemovePart(${i})">×</button>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding-left:2px;">
+        ${editMemberBadgeHtml(i, pt)}
+        <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-sub);cursor:pointer;margin-left:auto;">
+          <input type="checkbox" ${pt.is_guest ? 'checked' : ''} onchange="editToggleGuest(${i}, this.checked)" style="width:15px;height:15px;margin:0;" />
+          비회원(게스트)
+        </label>
+      </div>
+    </div>`).join('');
+}
+function editMemberBadgeHtml(i, pt) {
+  if (pt.is_guest) return '';
+  const ok = !!playerByExactName((pt.name || '').trim());
+  return `<span class="mchk ${ok ? 'ok' : 'no'}" id="emchk-${i}">${ok ? '✓ 회원이에요' : '일치하는 회원이 없어요'}</span>`;
+}
+function editUpdateMemberBadge(i) {
+  const el = document.getElementById('emchk-' + i);
+  if (!el) return;
+  const ok = !!playerByExactName((state._editParts[i].name || '').trim());
+  el.textContent = ok ? '✓ 회원이에요' : '일치하는 회원이 없어요';
+  el.className = 'mchk ' + (ok ? 'ok' : 'no');
+}
+function editPartNameInput(e, inp, i) {
+  state._editParts[i].name = nfc(inp.value);
+  editUpdateMemberBadge(i);              // 실시간 회원 조회
+  if (e && e.isComposing) return;         // 조합 중엔 드롭다운만 보류
+  acRender(inp, 'player');
+}
+function editUpdatePart(i, field, val) {
+  state._editParts[i][field] = field === 'name' ? nfc(val) : val;
+}
+function editToggleWin(i) { state._editParts[i].is_win = !state._editParts[i].is_win; renderEditParts(); }
+function editToggleGuest(i, checked) { state._editParts[i].is_guest = checked; renderEditParts(); }
+function editAddPart() { state._editParts.push({ name: '', score: '', is_win: false, is_guest: false }); renderEditParts(); }
+function editRemovePart(i) { state._editParts.splice(i, 1); renderEditParts(); }
 
 async function saveEditSession(sid) {
   if (!state.user) return;
@@ -1467,21 +1527,40 @@ async function saveEditSession(sid) {
   if (!card) return;
   const play_date = card.querySelector('.edit-date').value;
   const duration_min = card.querySelector('.edit-duration').value;
-  const rows = Array.from(card.querySelectorAll('.prow[data-rid]')).map(row => ({
-    record_id: row.getAttribute('data-rid'),
-    score: row.querySelector('.edit-score').value,
-    is_win: row.querySelector('.edit-win').getAttribute('data-win') === '1'
-  }));
+
+  // 참가자 정보(이름/게스트↔회원/점수/승패) 전체를 재구성 — 추가 화면과 동일한 검증
+  const rawParts = (state._editParts || []).filter(p => nfc(p.name).trim());
+  if (!rawParts.length) { toast('참가자를 최소 1명 입력하세요.', true); return; }
+  const participants = [];
+  const seen = new Set();
+  for (const p of rawParts) {
+    const nm = nfc(p.name).trim();
+    let player_id = '', player_name = nm;
+    if (p.is_guest) {
+      player_id = ''; player_name = nm;
+    } else {
+      const pl = playerByExactName(nm);
+      if (!pl) { toast(`"${nm}"은(는) 회원 명단에 없어요. 비회원이면 '비회원(게스트)'를 체크하세요.`, true); return; }
+      player_id = pl.player_id; player_name = pl.name;
+    }
+    const key = player_id ? ('m:' + player_id) : ('g:' + player_name);
+    if (seen.has(key)) { toast('참가자가 중복되었습니다.', true); return; }
+    seen.add(key);
+    participants.push({ player_id, player_name, score: p.score, is_win: !!p.is_win });
+  }
+
   const pin = await promptPin();
   if (pin == null) return;
   showLoader('저장 중…');
   try {
-    await api('updatePlay', { playerId: state.user.player_id, pin, payload: JSON.stringify({ session_id: sid, play_date, duration_min, rows }) });
+    const res = await api('updatePlay', { playerId: state.user.player_id, pin, payload: JSON.stringify({ session_id: sid, play_date, duration_min, participants }) });
     state.plays = await api('getPlays');
+    state.games = await api('getGames');
     state._myStats = null;
-    state._editSid = null;
-    toast('수정되었습니다.');
+    state._editSid = null; state._editParts = null;
     refreshSessionsView();
+    if (res && res.mode === 'replace') toast('수정되었습니다.');
+    else toast('참가자 변경은 DB 업데이트 후 적용돼요 (supabase_migration_editparts.sql 실행 필요).', true);
   } catch (e) {
     toast(e.message, true);
   } finally {
@@ -2034,9 +2113,12 @@ function renderMyPlaysTab() {
   state._mySessions = state.plays.filter(s =>
     s.participants.some(p => p.player_id === state.user.player_id));
   el.innerHTML = `
-    <div class="searchbox" style="margin-top:2px;">
-      <span>🔍</span>
-      <input id="my-play-search" placeholder="일자 · 게임명 · 참가자 검색 (쉼표로 여러 조건)" oninput="filterMyPlays()" />
+    <div style="display:flex;gap:8px;align-items:center;margin-top:2px;">
+      <div class="searchbox" style="flex:1;margin:0;">
+        <span>🔍</span>
+        <input id="my-play-search" placeholder="일자 · 게임명 · 참가자 검색 (쉼표로 여러 조건)" oninput="filterMyPlays()" />
+      </div>
+      <button class="btn ghost sm" style="flex:0 0 auto;padding:9px 12px;font-size:12px;white-space:nowrap;" onclick="openLinkGuestModal()">🔗 연동</button>
     </div>
     <div id="my-sessions"></div>`;
   filterMyPlays();
@@ -2076,6 +2158,131 @@ function filterMyPlays() {
     return terms.every(t => hay.includes(t));
   });
   renderSessionList('my-sessions', list);
+}
+
+// ===== 비회원(게스트) → 회원 연동 =====
+// 내가 수정권한 있는(작성자, 관리자는 전체) 기록의 게스트 참가자를 실제
+// 회원 계정으로 연결한다. 내부적으로 update_play(참가자 교체)를 사용하므로
+// 권한은 수정과 완전히 동일하다. (되돌리기는 해당 기록을 '수정'에서 다시
+// 게스트로 바꾸면 된다.)
+function canEditSession(s) {
+  return !!(state.user && (state.user.role === 'admin' ||
+    (s.created_by && String(s.created_by) === String(state.user.player_id))));
+}
+function guestLinkTargets() {
+  const out = [];
+  (state.plays || []).forEach(s => {
+    if (!canEditSession(s)) return;
+    s.participants.forEach(p => {
+      if (p.is_guest && (p.name || '').trim()) {
+        out.push({
+          session_id: s.session_id, record_id: p.record_id, guest_name: p.name,
+          play_date: String(s.play_date).substring(0, 10), game_name: s.game_name
+        });
+      }
+    });
+  });
+  return out;
+}
+function openLinkGuestModal() {
+  if (!state.user) { toast('로그인 후 이용하세요.', true); return; }
+  const body = document.getElementById('detail-body');
+  body.innerHTML = `
+    <h2 style="font-size:17px;font-weight:800;margin:2px 0 4px;">🔗 비회원 → 회원 연동</h2>
+    <div class="muted" style="font-size:12px;margin-bottom:10px;line-height:1.5;">
+      게스트로 참여한 기록을 실제 회원 계정에 연결해요.
+      ${state.user.role === 'admin' ? '(관리자: 전체 기록)' : '(내가 작성한 기록만)'}<br/>
+      연동하면 그 회원의 통계·기록에 합쳐집니다.
+    </div>
+    <div class="searchbox" style="margin:0 0 10px;">
+      <span>🔍</span>
+      <input id="link-search" placeholder="게스트 이름 · 게임 · 일자 검색" oninput="renderLinkList()" />
+    </div>
+    <div id="link-list"></div>`;
+  showDetailSheet();
+  renderLinkList();
+}
+function linkNameInput(e, inp) {
+  if (e && e.isComposing) return;
+  acRender(inp, 'player');
+}
+function renderLinkList() {
+  const el = document.getElementById('link-list');
+  if (!el) return;
+  const q = (document.getElementById('link-search')?.value || '').trim().toLowerCase();
+  let items = guestLinkTargets();
+  if (q) {
+    const terms = q.split(',').map(t => t.trim()).filter(Boolean);
+    items = items.filter(it => {
+      const hay = `${it.guest_name} ${it.game_name} ${it.play_date}`.toLowerCase();
+      return terms.every(t => hay.includes(t));
+    });
+  }
+  if (!items.length) {
+    el.innerHTML = `<div class="empty" style="padding:24px 0;"><div class="big">🙌</div>연동할 게스트 기록이 없어요.</div>`;
+    return;
+  }
+  el.innerHTML = items.map(it => `
+    <div class="link-row" style="border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px;">
+      <div style="font-size:12px;color:var(--text-sub);margin-bottom:2px;">${esc(it.play_date)} · ${esc(it.game_name)}</div>
+      <div style="font-weight:800;margin-bottom:8px;">게스트: ${esc(it.guest_name)}</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div class="ac-wrap" style="flex:1;min-width:0;">
+          <input class="input" placeholder="연결할 회원 이름" autocomplete="off"
+            oninput="linkNameInput(event, this)" oncompositionend="linkNameInput(event, this)" onblur="acHide(this)" />
+          <div class="ac-menu"></div>
+        </div>
+        <button class="btn sm" style="flex:0 0 auto;padding:9px 14px;" onclick="submitLink('${esc(it.session_id)}','${esc(it.record_id)}', this)">연동</button>
+      </div>
+    </div>`).join('');
+}
+async function submitLink(session_id, record_id, btn) {
+  const wrap = btn.closest('.link-row');
+  const inp = wrap.querySelector('.ac-wrap input');
+  const nm = nfc(inp.value).trim();
+  if (!nm) { toast('연결할 회원 이름을 입력하세요.', true); return; }
+  const pl = playerByExactName(nm);
+  if (!pl) { toast(`"${nm}"은(는) 회원 명단에 없어요. 정확한 회원 이름을 선택하세요.`, true); return; }
+  const s = (state.plays || []).find(x => x.session_id === session_id);
+  if (!s) { toast('기록을 찾을 수 없어요.', true); return; }
+  const target = s.participants.find(p => p.record_id === record_id);
+  if (!target) { toast('게스트 기록을 찾을 수 없어요.', true); return; }
+  // 대상 회원이 이미 이 판에 참가자로 있으면 중복 방지
+  if (s.participants.some(p => !p.is_guest && String(p.player_id) === String(pl.player_id))) {
+    toast(`이미 "${pl.name}" 회원이 이 판에 있어요.`, true); return;
+  }
+  if (!confirm(`"${target.name}"(게스트) → "${pl.name}" 회원으로 연동할까요?`)) return;
+
+  // 참가자 전체 재구성: 대상 게스트만 회원으로 교체, 나머지는 그대로 유지
+  const participants = s.participants.map(p => {
+    if (p.record_id === record_id) {
+      return { player_id: pl.player_id, player_name: pl.name, score: p.score, is_win: !!p.is_win };
+    }
+    return p.is_guest
+      ? { player_id: '', player_name: p.name, score: p.score, is_win: !!p.is_win }
+      : { player_id: p.player_id, player_name: p.name, score: p.score, is_win: !!p.is_win };
+  });
+
+  const pin = await promptPin();
+  if (pin == null) return;
+  showLoader('연동 중…');
+  try {
+    const res = await api('updatePlay', { playerId: state.user.player_id, pin,
+      payload: JSON.stringify({ session_id, play_date: s.play_date, duration_min: s.duration_min, participants }) });
+    if (!res || res.mode !== 'replace') {
+      toast('연동은 DB 업데이트 후 가능해요 (supabase_migration_editparts.sql 실행 필요).', true);
+      return;
+    }
+    state.plays = await api('getPlays');
+    state._myStats = null;
+    toast(`"${target.name}" → "${pl.name}" 연동 완료!`);
+    renderLinkList();                       // 연동된 게스트는 목록에서 사라짐
+    if (document.getElementById('my-sessions')) refreshMySessions();
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    hideLoader();
+  }
 }
 
 // 내 평점을 (중복 없이) 한 번만 불러오는 공용 로더.
@@ -3065,7 +3272,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1018 실시간 회원 조회 복구(배지는 실시간, 드롭다운만 조합 종료 시)';
+const APP_VERSION = 'v1019 수정 시 참가자 편집 + 비회원→회원 연동';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
