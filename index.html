@@ -505,7 +505,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1023</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1024</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -1513,8 +1513,7 @@ function editUpdateMemberBadge(i) {
 function editPartNameInput(e, inp, i) {
   state._editParts[i].name = nfc(inp.value);
   editUpdateMemberBadge(i);              // 실시간 회원 조회
-  if (e && e.isComposing) return;         // 조합 중엔 드롭다운만 보류
-  acRender(inp, 'player');
+  acRender(inp, 'player');              // 실시간 자동완성 드롭다운
 }
 function editUpdatePart(i, field, val) {
   state._editParts[i][field] = field === 'name' ? nfc(val) : val;
@@ -2228,7 +2227,6 @@ function openLinkGuestModal(scope) {
   renderLinkList();
 }
 function linkNameInput(e, inp) {
-  if (e && e.isComposing) return;
   acRender(inp, 'player');
 }
 function renderLinkList() {
@@ -2849,26 +2847,21 @@ function acHide(inp) {
   if (menu) setTimeout(() => menu.classList.remove('show'), 120);
 }
 
-// ===== 한글 조합(IME)과 실시간 조회 양립 =====
-// 카카오톡·삼성 등 인앱 브라우저의 한글 IME는 조합 도중 '입력창 바로 옆
-// 형제(.ac-menu)'가 통째로 다시 그려지면 조합 버퍼가 끊겨 자음·모음이 분리된다.
-// → 자동완성 드롭다운(acRender)만 조합이 끝났을 때(compositionend) 갱신하고,
-//   회원/게임 조회 배지는 다른 줄의 가벼운 텍스트 교체라 조합을 깨지 않으므로
-//   매 입력마다 실시간으로 갱신한다.
+// ===== 이름/게임명 입력: 실시간 조회 + 실시간 자동완성 =====
+// (참고) 인앱 브라우저 한글 IME는 조합 중 '.ac-menu' 재렌더로 자모가 분리될
+// 수 있으나, 사용자 요청에 따라 입력에 맞춰 하단 드롭다운이 바로 뜨는 것을
+// 우선한다 → 조합 여부와 무관하게 매 입력마다 자동완성/배지를 갱신한다.
 function partNameInput(e, inp, i) {
   addPlayState.participants[i].name = nfc(inp.value);
   updateMemberBadge(i);                 // 실시간 회원 조회(배지)
-  if (e && e.isComposing) return;        // 조합 중엔 드롭다운만 보류
-  acRender(inp, 'player');
+  acRender(inp, 'player');              // 실시간 자동완성 드롭다운
 }
 function gameNameInput(e, inp) {
-  updateGameBadge();                     // 실시간 게임 조회(배지)
-  if (e && e.isComposing) return;
+  updateGameBadge();
   acRender(inp, 'game');
 }
 function newGameNameInput(e, inp) {
-  checkNewGameName();                    // 실시간 중복 확인
-  if (e && e.isComposing) return;
+  checkNewGameName();
   acRender(inp, 'game');
 }
 
@@ -3324,7 +3317,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1023 연동 범위 분리: MY는 본인작성만, 관리자 전체는 관리자탭';
+const APP_VERSION = 'v1024 자동완성 드롭다운 실시간 복구(조합 중에도 표시)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
