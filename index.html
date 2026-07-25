@@ -505,7 +505,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1024</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1025</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -1718,7 +1718,10 @@ function gameCardHtml(g, opts = {}) {
         : `<div class="gcard-detail muted">등록된 요약이 없습니다.</div>`);
 
   const acts = [];
-  if (opts.adminEdit) acts.push(`<button class="gcard-pill edit" title="정보 수정 (admin)" onclick="event.stopPropagation(); openEditGame('${g.game_id}')">✏️</button>`);
+  // 관리자 또는 이 게임을 등록한 본인이면 우측 상단 연필(수정 팝업)
+  const canEditGame = state.user && (state.user.role === 'admin' ||
+    (g.created_by && String(g.created_by) === String(state.user.player_id)));
+  if (opts.adminEdit || canEditGame) acts.push(`<button class="gcard-pill edit" title="게임 정보 수정" onclick="event.stopPropagation(); openEditGame('${g.game_id}')">✏️</button>`);
   const actsHtml = acts.length ? `<div class="gcard-actions">${acts.join('')}</div>` : '';
   // 상세·후기 버튼은 평점 줄 오른쪽 끝(우측 하단)에 배치
   const br = [];
@@ -3035,7 +3038,8 @@ function openEditGame(gameId) {
   			<div id="eg-photo-preview"></div>
     </div>
     <div class="sheet-save" style="display:flex;gap:8px;">
-      <button class="btn danger" style="flex:1;" onclick="deleteGameAdmin('${g.game_id}')">🗑 삭제</button>
+      ${state.user && state.user.role === 'admin'
+        ? `<button class="btn danger" style="flex:1;" onclick="deleteGameAdmin('${g.game_id}')">🗑 삭제</button>` : ''}
       <button class="btn" style="flex:1;" onclick="submitEditGame('${g.game_id}')">수정 저장</button>
     </div>`;
   photoState.eg = '';
@@ -3317,7 +3321,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1024 자동완성 드롭다운 실시간 복구(조합 중에도 표시)';
+const APP_VERSION = 'v1025 게임 등록자 본인 수정 가능(카드 우측 상단 연필)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
