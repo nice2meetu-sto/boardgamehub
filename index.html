@@ -348,10 +348,10 @@
   .bar-col .bc.soft { color: var(--main-soft); }
   .bar-col .bm { font-size: 10px; color: var(--text-sub); }
   /* 카테고리별 가로 막대(긴 한글 분류명 대응 + 상위 N + 기타) */
-  .hbarchart { display: flex; flex-direction: column; gap: 3px; padding: 2px 0; }
+  .hbarchart { display: flex; flex-direction: column; gap: 1px; padding: 2px 0; }
   .hbar-row { display: flex; align-items: center; gap: 8px; }
-  .hbar-name { flex: 0 0 80px; font-size: 11px; color: var(--text); white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis; text-align: right; }
+  .hbar-name { flex: 0 0 66px; font-size: 11px; color: var(--text); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; text-align: left; }
   .hbar-track { flex: 1; height: 9px; background: var(--main-light); border-radius: 5px; overflow: hidden; }
   .hbar-track > i { display: block; height: 100%; background: var(--main); border-radius: 5px; min-width: 3px; transition: width .3s; }
   .hbar-track > i.soft { background: var(--main-soft); }
@@ -514,7 +514,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1028</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1029</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -3352,7 +3352,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1028 카테고리 가로막대 높이·행간격 축소';
+const APP_VERSION = 'v1029 카테고리 가로막대 이름 좌측정렬·폭축소, 행간격 1px';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
