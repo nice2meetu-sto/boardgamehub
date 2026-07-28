@@ -527,7 +527,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1036</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1037</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -3120,10 +3120,19 @@ function openEditGame(gameId) {
     <h2>게임 정보 수정</h2>
     <div class="field"><label>한글명</label><input class="input" id="eg-namekr" value="${esc(g.name_kr)}" /></div>
     <div class="field"><label>영문명</label><input class="input" id="eg-nameen" value="${esc(g.name_en)}" /></div>
-    <div class="field"><label>분류</label>
-      <select class="input" id="eg-category">
-        ${CATEGORIES.map(c => `<option value="${c}" ${g.category === c ? 'selected' : ''}>${c}</option>`).join('')}
-      </select>
+    <div class="row2">
+      <div class="field"><label>분류</label>
+        <select class="input" id="eg-category">
+          ${CATEGORIES.map(c => `<option value="${c}" ${g.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+          <span>난이도(weight)</span>
+          <button type="button" class="lnk-bgg" onclick="openBgg('eg-nameen','eg-namekr')">🎲 BGG↗</button>
+        </label>
+        <input class="input" id="eg-weight" type="number" step="0.01" value="${g.weight ?? ''}" />
+      </div>
     </div>
     <div class="row2">
       <div class="field"><label>최소 인원</label><input class="input" id="eg-min" type="number" value="${g.min_players ?? ''}" /></div>
@@ -3132,13 +3141,6 @@ function openEditGame(gameId) {
     <div class="row2">
       <div class="field"><label>최소 플레이타임(분)</label><input class="input" id="eg-time-min" type="number" value="${g.min_playtime ?? ''}" /></div>
       <div class="field"><label>최대 플레이타임(분)</label><input class="input" id="eg-time-max" type="number" value="${(g.max_playtime != null ? g.max_playtime : (g.playtime_min ?? '')) }" /></div>
-    </div>
-    <div class="field">
-      <label style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-        <span>난이도(weight)</span>
-        <button type="button" class="lnk-bgg" onclick="openBgg('eg-nameen','eg-namekr')">🎲 BGG↗</button>
-      </label>
-      <input class="input" id="eg-weight" type="number" step="0.01" value="${g.weight ?? ''}" />
     </div>
     <div class="field">
       <label style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
@@ -3445,7 +3447,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1036 이미지 URL 제목 옆 초기화 링크';
+const APP_VERSION = 'v1037 게임 수정폼도 분류+난이도 한 줄 배치';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
