@@ -358,7 +358,7 @@
   .hbar-val { flex: 0 0 auto; min-width: 16px; font-size: 11px; font-weight: 800; color: var(--text-sub); }
   /* 그래프 카드 상단 세그먼트 탭(월별 / 카테고리별 전환 티내기) */
   .chart-seg { display: inline-flex; gap: 3px; background: var(--main-light); border-radius: 999px; padding: 3px; }
-  .chart-seg .seg { font-size: 12px; font-weight: 800; color: var(--text-sub); padding: 4px 12px;
+  .chart-seg .seg { font-size: 12px; font-weight: 500; color: var(--text-sub); padding: 4px 12px;
     border-radius: 999px; line-height: 1.3; white-space: nowrap; }
   .chart-seg .seg.on { background: var(--main); color: #fff; }
   .legend-chips { display: flex; gap: 10px; font-size: 11px; font-weight: 700; color: var(--text-sub); }
@@ -425,6 +425,8 @@
      참가자 목록(#ap-participants)만 내부 스크롤 */
   #add-overlay .sheet { height: var(--sheet-h); display: flex; flex-direction: column; }
   #add-play-form { flex: 1; min-height: 0; flex-direction: column; }  /* display는 탭 전환 JS가 지정 */
+  /* 게임 추가 폼도 내부만 스크롤 → 그립(회색 바)·탭이 항상 고정으로 보이게 */
+  #add-game-form { flex: 1; min-height: 0; overflow-y: auto; }
   .ap-parts-field { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .ap-parts-field > #ap-participants { flex: 1; min-height: 0; overflow-y: auto; }
   @keyframes slideup { from { transform: translateY(30px); opacity: .6; } to { transform: translateY(0); opacity: 1; } }
@@ -519,7 +521,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1031</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1032</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2596,11 +2598,14 @@ function renderAddGameForm() {
       <label>영문 게임명 (선택)</label>
       <input class="input" id="ag-nameen" placeholder="예: Skull King" />
     </div>
-    <div class="field">
-      <label>보드게임 분류 *</label>
-      <select class="input" id="ag-category">
-        ${CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
-      </select>
+    <div class="row2">
+      <div class="field">
+        <label>보드게임 분류 *</label>
+        <select class="input" id="ag-category">
+          ${CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>난이도(weight)</label><input class="input" id="ag-weight" type="number" step="0.01" inputmode="decimal" /></div>
     </div>
     <div class="row2">
       <div class="field"><label>최소 인원</label><input class="input" id="ag-min" type="number" inputmode="numeric" /></div>
@@ -2610,7 +2615,6 @@ function renderAddGameForm() {
       <div class="field"><label>최소 플레이타임(분)</label><input class="input" id="ag-time-min" type="number" inputmode="numeric" placeholder="예: 30" /></div>
       <div class="field"><label>최대 플레이타임(분)</label><input class="input" id="ag-time-max" type="number" inputmode="numeric" placeholder="예: 60" /></div>
     </div>
-    <div class="field"><label>난이도(weight)</label><input class="input" id="ag-weight" type="number" step="0.01" inputmode="decimal" /></div>
     <div class="field">
       <label>이미지 URL (선택)</label>
       <div style="display:flex;gap:8px;align-items:center;">
@@ -3384,7 +3388,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1031 게임 최소~최대 플레이타임 + 플레이 순위(rank) 컬럼';
+const APP_VERSION = 'v1032 추가폼 분류+난이도 한줄·게임폼 그립 고정·세그먼트 글자 굵기 축소';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
