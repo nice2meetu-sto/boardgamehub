@@ -514,7 +514,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1026</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1027</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -924,22 +924,16 @@ function renderPlay() {
     .sort((a, b) => b.count - a.count);
   const catEl = document.getElementById('play-catchart');
   if (catList.length) {
-    // 상위 6개만 보여주고 나머지는 '기타'로 합쳐 세로 길이를 억제
-    const TOPN = 6;
-    let rows = catList;
-    if (catList.length > TOPN + 1) {
-      const rest = catList.slice(TOPN).reduce((s, c) => s + c.count, 0);
-      rows = catList.slice(0, TOPN).concat([{ cat: '기타', count: rest, rest: true }]);
-    }
-    const maxRow = Math.max(...rows.map(r => r.count));
+    // 모든 분류를 각각 가로 막대로 표시
+    const maxRow = Math.max(...catList.map(c => c.count));
     catEl.innerHTML = `<div class="card">
       <div class="section-title" style="margin-top:0;">카테고리별 플레이 횟수 ${scope === 'month' ? '(이번 달)' : '(누적)'}</div>
-      <div class="hbarchart">${rows.map(r => {
-        const pct = Math.max(4, Math.round(r.count / maxRow * 100));
+      <div class="hbarchart">${catList.map(c => {
+        const pct = Math.max(4, Math.round(c.count / maxRow * 100));
         return `<div class="hbar-row">
-          <span class="hbar-name">${esc(r.cat)}</span>
-          <span class="hbar-track"><i class="${r.rest ? 'soft' : ''}" style="width:${pct}%;"></i></span>
-          <span class="hbar-val">${r.count}</span>
+          <span class="hbar-name">${esc(c.cat)}</span>
+          <span class="hbar-track"><i style="width:${pct}%;"></i></span>
+          <span class="hbar-val">${c.count}</span>
         </div>`;
       }).join('')}</div>
     </div>`;
@@ -3358,7 +3352,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1026 카테고리 그래프 가로막대(상위6+기타) + 이미지 구글검색 버튼';
+const APP_VERSION = 'v1027 카테고리 그래프: 전 분류 각각 가로막대로 표시';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
