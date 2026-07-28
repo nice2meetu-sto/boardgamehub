@@ -521,7 +521,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1032</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1033</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2621,7 +2621,7 @@ function renderAddGameForm() {
         <input class="input" id="ag-image" placeholder="https://..." style="flex:1;min-width:0;" />
         <button type="button" class="btn ghost sm" style="flex:0 0 auto;padding:9px 12px;font-size:12px;white-space:nowrap;" onclick="openGoogleImages('ag-namekr')">🔍 구글</button>
       </div>
-      <div class="hint">구글 버튼 → 이미지 검색 후 사진을 길게 눌러 '이미지 주소 복사' → 여기 붙여넣기</div>
+      <div class="hint">구글 버튼 → 사진을 길게 눌러 '이미지 보기' → 상단 공유 버튼 → 링크 복사</div>
     </div>
     <div class="field"><label>게임 요약</label><textarea class="input" id="ag-summary" placeholder="게임 설명"></textarea></div>
     <div class="field">
@@ -3095,7 +3095,7 @@ function openEditGame(gameId) {
         <input class="input" id="eg-image" value="${esc(g.image_url)}" style="flex:1;min-width:0;" />
         <button type="button" class="btn ghost sm" style="flex:0 0 auto;padding:9px 12px;font-size:12px;white-space:nowrap;" onclick="openGoogleImages('eg-namekr')">🔍 구글</button>
       </div>
-      <div class="hint">구글 버튼 → 이미지 검색 후 사진을 길게 눌러 '이미지 주소 복사' → 여기 붙여넣기</div>
+      <div class="hint">구글 버튼 → 사진을 길게 눌러 '이미지 보기' → 상단 공유 버튼 → 링크 복사</div>
     </div>
     <div class="field"><label>게임 요약</label><textarea class="input" id="eg-summary">${esc(g.summary_kr)}</textarea></div>
     <div class="field">
@@ -3388,7 +3388,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1032 추가폼 분류+난이도 한줄·게임폼 그립 고정·세그먼트 글자 굵기 축소';
+const APP_VERSION = 'v1033 이미지 URL 안내문구 수정';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
