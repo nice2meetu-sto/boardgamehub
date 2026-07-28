@@ -361,6 +361,9 @@
   .chart-seg .seg { font-size: 12px; font-weight: 500; color: var(--text-sub); padding: 4px 12px;
     border-radius: 999px; line-height: 1.3; white-space: nowrap; }
   .chart-seg .seg.on { background: var(--main); color: #fff; }
+  /* 난이도 옆 BGG 참고 링크(작은 텍스트 버튼) */
+  .lnk-bgg { background: none; border: none; color: var(--main); font-size: 11px; font-weight: 700;
+    padding: 0; cursor: pointer; white-space: nowrap; }
   .legend-chips { display: flex; gap: 10px; font-size: 11px; font-weight: 700; color: var(--text-sub); }
   .legend-chips i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; vertical-align: -1px; margin-right: 4px; }
 
@@ -521,7 +524,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1033</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1034</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2605,7 +2608,13 @@ function renderAddGameForm() {
           ${CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
         </select>
       </div>
-      <div class="field"><label>난이도(weight)</label><input class="input" id="ag-weight" type="number" step="0.01" inputmode="decimal" /></div>
+      <div class="field">
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+          <span>난이도(weight)</span>
+          <button type="button" class="lnk-bgg" onclick="openBgg('ag-nameen','ag-namekr')">🎲 BGG↗</button>
+        </label>
+        <input class="input" id="ag-weight" type="number" step="0.01" inputmode="decimal" />
+      </div>
     </div>
     <div class="row2">
       <div class="field"><label>최소 인원</label><input class="input" id="ag-min" type="number" inputmode="numeric" /></div>
@@ -2642,6 +2651,14 @@ function openGoogleImages(nameId) {
   const nm = (document.getElementById(nameId) && document.getElementById(nameId).value || '').trim();
   const q = encodeURIComponent((nm ? nm + ' ' : '') + '보드게임');
   window.open('https://www.google.com/search?tbm=isch&q=' + q, '_blank', 'noopener');
+}
+// 게임명(영문 우선, 없으면 한글)으로 BGG 검색을 새 탭에서 열기(난이도 등 참고용)
+function openBgg(enId, krId) {
+  const en = (document.getElementById(enId) && document.getElementById(enId).value || '').trim();
+  const kr = (document.getElementById(krId) && document.getElementById(krId).value || '').trim();
+  const nm = en || kr;
+  window.open('https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q='
+    + encodeURIComponent(nm), '_blank', 'noopener');
 }
 
 // 파일을 최대 maxDim px 썸네일 JPEG data URI로 변환. GET 전송 위해 targetLen 이하로 압축.
@@ -3088,7 +3105,13 @@ function openEditGame(gameId) {
       <div class="field"><label>최소 플레이타임(분)</label><input class="input" id="eg-time-min" type="number" value="${g.min_playtime ?? ''}" /></div>
       <div class="field"><label>최대 플레이타임(분)</label><input class="input" id="eg-time-max" type="number" value="${(g.max_playtime != null ? g.max_playtime : (g.playtime_min ?? '')) }" /></div>
     </div>
-    <div class="field"><label>난이도(weight)</label><input class="input" id="eg-weight" type="number" step="0.01" value="${g.weight ?? ''}" /></div>
+    <div class="field">
+      <label style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+        <span>난이도(weight)</span>
+        <button type="button" class="lnk-bgg" onclick="openBgg('eg-nameen','eg-namekr')">🎲 BGG↗</button>
+      </label>
+      <input class="input" id="eg-weight" type="number" step="0.01" value="${g.weight ?? ''}" />
+    </div>
     <div class="field">
       <label>이미지 URL</label>
       <div style="display:flex;gap:8px;align-items:center;">
@@ -3388,7 +3411,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1033 이미지 URL 안내문구 수정';
+const APP_VERSION = 'v1034 난이도 옆 BGG 검색 버튼(영문명 우선)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
