@@ -35,7 +35,9 @@ create table if not exists public.games (
   category     text,
   min_players  numeric,
   max_players  numeric,
-  playtime_min numeric,
+  playtime_min numeric,          -- (레거시) 단일 플레이타임 → max_playtime 로 이관
+  min_playtime numeric,          -- 최소 플레이타임(분)
+  max_playtime numeric,          -- 최대 플레이타임(분)
   weight       numeric,
   summary_kr   text,
   image_url    text,
@@ -43,6 +45,11 @@ create table if not exists public.games (
   created_by   text,
   created_at   text
 );
+-- 기존 DB에 컬럼 추가 + 기존 playtime_min 값을 최대 플레이타임으로 이관
+alter table public.games add column if not exists min_playtime numeric;
+alter table public.games add column if not exists max_playtime numeric;
+update public.games set max_playtime = playtime_min
+ where max_playtime is null and playtime_min is not null;
 
 create table if not exists public.ratings (
   player_id  text not null,
@@ -66,9 +73,12 @@ create table if not exists public.playlogs (
   player_name  text,
   score        numeric,
   is_win       boolean,
+  rank         numeric,        -- 순위(선택 입력)
   created_by   text,          -- 입력자(본인만 수정/삭제 가능)
   created_at   text
 );
+-- 기존 DB에 순위 컬럼 추가
+alter table public.playlogs add column if not exists rank numeric;
 
 create table if not exists public.categories (
   name       text primary key,
@@ -199,7 +209,8 @@ as $$
   select coalesce(json_agg(json_build_object(
     'game_id', g.game_id, 'name_kr', g.name_kr, 'name_en', g.name_en,
     'category', g.category, 'min_players', g.min_players, 'max_players', g.max_players,
-    'playtime_min', g.playtime_min, 'weight', g.weight,
+    'playtime_min', g.playtime_min, 'min_playtime', g.min_playtime, 'max_playtime', g.max_playtime,
+    'weight', g.weight,
     'summary_kr', g.summary_kr, 'image_url', g.image_url, 'source', g.source,
     'created_by', g.created_by,
     'club_rating', rt.club_rating, 'rating_count', coalesce(rt.rating_count, 0),
@@ -225,7 +236,8 @@ as $$
         'name', coalesce(nullif(btrim(p.player_name), ''), pl.name, p.player_id),
         'is_guest', (p.player_id is null or p.player_id = '' or pl.player_id is null),
         'score', p.score,
-        'is_win', coalesce(p.is_win, false)
+        'is_win', coalesce(p.is_win, false),
+        'rank', p.rank
       ) as participant
     from public.playlogs p
     left join public.players pl on pl.player_id = p.player_id
@@ -440,13 +452,14 @@ begin
     v_maxrec := v_maxrec + 1;
     insert into public.playlogs(
       record_id, session_id, play_date, game_id, duration_min,
-      player_id, player_name, score, is_win, created_by, created_at)
+      player_id, player_name, score, is_win, rank, created_by, created_at)
     values(
       'R' || lpad(v_maxrec::text, 5, '0'), v_sid, v_date, v_gid, v_dur,
       nullif(v_part->>'player_id',''),
       coalesce(v_part->>'player_name',''),
       nullif(v_part->>'score','')::numeric,
       coalesce((v_part->>'is_win')::boolean, false),
+      nullif(v_part->>'rank','')::numeric,
       p_player_id, v_now
     );
   end loop;
@@ -498,7 +511,7 @@ begin
       v_maxrec := v_maxrec + 1;
       insert into public.playlogs(
         record_id, session_id, play_date, game_id, duration_min,
-        player_id, player_name, score, is_win, created_by, created_at)
+        player_id, player_name, score, is_win, rank, created_by, created_at)
       values(
         'R' || lpad(v_maxrec::text, 5, '0'), v_sid,
         coalesce(v_date, v_olddate), v_gid, v_dur,
@@ -506,6 +519,7 @@ begin
         coalesce(v_part->>'player_name',''),
         nullif(v_part->>'score','')::numeric,
         coalesce((v_part->>'is_win')::boolean, false),
+        nullif(v_part->>'rank','')::numeric,
         v_created, v_now      -- 작성자는 원본 유지(관리자 수정에도 보존)
       );
     end loop;
@@ -570,7 +584,7 @@ begin
 
   insert into public.games(
     game_id, name_kr, name_en, category,
-    min_players, max_players, playtime_min, weight,
+    min_players, max_players, min_playtime, max_playtime, weight,
     summary_kr, image_url, source, created_by, created_at)
   values(
     v_id,
@@ -578,7 +592,8 @@ begin
     coalesce(p_payload->>'category',''),
     nullif(p_payload->>'min_players','')::numeric,
     nullif(p_payload->>'max_players','')::numeric,
-    nullif(p_payload->>'playtime_min','')::numeric,
+    nullif(p_payload->>'min_playtime','')::numeric,
+    nullif(p_payload->>'max_playtime','')::numeric,
     nullif(p_payload->>'weight','')::numeric,
     coalesce(p_payload->>'summary_kr',''), coalesce(p_payload->>'image_url',''),
     'manual', p_player_id, v_now
@@ -612,7 +627,8 @@ begin
     category  = coalesce(p_payload->>'category', category),
     min_players  = case when p_payload ? 'min_players'  then nullif(p_payload->>'min_players','')::numeric  else min_players end,
     max_players  = case when p_payload ? 'max_players'  then nullif(p_payload->>'max_players','')::numeric  else max_players end,
-    playtime_min = case when p_payload ? 'playtime_min' then nullif(p_payload->>'playtime_min','')::numeric else playtime_min end,
+    min_playtime = case when p_payload ? 'min_playtime' then nullif(p_payload->>'min_playtime','')::numeric else min_playtime end,
+    max_playtime = case when p_payload ? 'max_playtime' then nullif(p_payload->>'max_playtime','')::numeric else max_playtime end,
     weight       = case when p_payload ? 'weight'       then nullif(p_payload->>'weight','')::numeric       else weight end,
     summary_kr = coalesce(p_payload->>'summary_kr', summary_kr),
     image_url  = coalesce(p_payload->>'image_url', image_url)
