@@ -524,7 +524,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1034</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1035</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2627,10 +2627,11 @@ function renderAddGameForm() {
     <div class="field">
       <label>이미지 URL (선택)</label>
       <div style="display:flex;gap:8px;align-items:center;">
-        <input class="input" id="ag-image" placeholder="https://..." style="flex:1;min-width:0;" />
+        <input class="input" id="ag-image" placeholder="https://..." style="flex:1;min-width:0;" oninput="previewImageUrl(this,'ag-url-preview')" />
         <button type="button" class="btn ghost sm" style="flex:0 0 auto;padding:9px 12px;font-size:12px;white-space:nowrap;" onclick="openGoogleImages('ag-namekr')">🔍 구글</button>
       </div>
       <div class="hint">구글 버튼 → 사진을 길게 눌러 '이미지 보기' → 상단 공유 버튼 → 링크 복사</div>
+      <div id="ag-url-preview"></div>
     </div>
     <div class="field"><label>게임 요약</label><textarea class="input" id="ag-summary" placeholder="게임 설명"></textarea></div>
     <div class="field">
@@ -2659,6 +2660,20 @@ function openBgg(enId, krId) {
   const nm = en || kr;
   window.open('https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q='
     + encodeURIComponent(nm), '_blank', 'noopener');
+}
+// 이미지 URL 입력칸 아래에 해당 사진 미리보기(불러오기 실패 시 안내)
+function previewImageUrl(inp, previewId) {
+  const el = document.getElementById(previewId);
+  if (!el) return;
+  const url = (inp.value || '').trim();
+  if (!/^(https?:|data:image)/i.test(url)) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div style="margin-top:8px;">
+      <img src="${esc(url)}" alt="미리보기"
+        style="max-width:100%;max-height:180px;border-radius:10px;object-fit:contain;background:#f2f1f8;display:none;"
+        onload="this.style.display='';this.nextElementSibling.style.display='none';"
+        onerror="this.style.display='none';this.nextElementSibling.style.display='';" />
+      <div class="hint" style="display:none;color:var(--danger);">이미지를 불러올 수 없어요. 링크를 다시 확인해 주세요.</div>
+    </div>`;
 }
 
 // 파일을 최대 maxDim px 썸네일 JPEG data URI로 변환. GET 전송 위해 targetLen 이하로 압축.
@@ -3115,10 +3130,11 @@ function openEditGame(gameId) {
     <div class="field">
       <label>이미지 URL</label>
       <div style="display:flex;gap:8px;align-items:center;">
-        <input class="input" id="eg-image" value="${esc(g.image_url)}" style="flex:1;min-width:0;" />
+        <input class="input" id="eg-image" value="${esc(g.image_url)}" style="flex:1;min-width:0;" oninput="previewImageUrl(this,'eg-url-preview')" />
         <button type="button" class="btn ghost sm" style="flex:0 0 auto;padding:9px 12px;font-size:12px;white-space:nowrap;" onclick="openGoogleImages('eg-namekr')">🔍 구글</button>
       </div>
       <div class="hint">구글 버튼 → 사진을 길게 눌러 '이미지 보기' → 상단 공유 버튼 → 링크 복사</div>
+      <div id="eg-url-preview"></div>
     </div>
     <div class="field"><label>게임 요약</label><textarea class="input" id="eg-summary">${esc(g.summary_kr)}</textarea></div>
     <div class="field">
@@ -3133,6 +3149,8 @@ function openEditGame(gameId) {
     </div>`;
   photoState.eg = '';
   showDetailSheet();
+  const egImg = document.getElementById('eg-image');
+  if (egImg) previewImageUrl(egImg, 'eg-url-preview');   // 기존 이미지 미리보기
 }
 document.getElementById('detail-overlay').addEventListener('click', e => {
   if (e.target.id === 'detail-overlay') closeOverlay();
@@ -3411,7 +3429,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1034 난이도 옆 BGG 검색 버튼(영문명 우선)';
+const APP_VERSION = 'v1035 이미지 URL 입력 시 미리보기 표시';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
