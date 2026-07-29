@@ -308,6 +308,10 @@
   .cal-cell.sel::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 0 2px var(--main); border-radius: 9px; }
   .session.clickable { cursor: pointer; }
   .session.clickable:active { background: #f6f5fb; }
+  /* 달력 게임 칩 줄: 헤더 아래에 sticky(상단 한계로 붙었다가 내리면 원위치) */
+  #my-cal-chips { position: sticky; top: var(--appbar-h, 52px); z-index: 30;
+    background: var(--bg); padding-top: 8px; padding-bottom: 8px; margin-bottom: 4px;
+    box-shadow: 0 6px 8px -6px rgba(0,0,0,.12); }
   /* 후기 작성 중앙 팝업 */
   #rvwrite-overlay { position: fixed; inset: 0; z-index: 150; background: rgba(20,20,30,.45);
     display: none; align-items: center; justify-content: center; padding: 20px; }
@@ -585,7 +589,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1046</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1047</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2427,7 +2431,7 @@ function renderMyPlaysTab() {
       <button class="btn ghost sm" style="flex:0 0 auto;align-self:stretch;display:flex;align-items:center;padding:0 14px;font-size:12px;white-space:nowrap;" onclick="openLinkGuestModal()">🔗 연동</button>
     </div>
     <div id="my-cal" class="cal-wrap"></div>
-    <div id="my-cal-chips" class="chip-row" style="margin-bottom:8px;display:none;"></div>
+    <div id="my-cal-chips" class="chip-row" style="display:none;"></div>
     <div id="my-sessions"></div>`;
   renderMyCalendar();
   filterMyPlays();
@@ -2489,6 +2493,16 @@ function toggleCalChip(gid) {
   const s = state._calGameFilter;
   if (s.has(gid)) s.delete(gid); else s.add(gid);   // 다시 누르면 해제(다중 선택)
   filterMyPlays();
+  scrollChipsToTop();   // 칩 줄을 헤더 아래(상단)로 올려 카드가 잘 보이게
+}
+// 칩 줄이 헤더 바로 아래(sticky 위치)로 오도록 스크롤. 카드가 모자라면 브라우저가
+// 최대 스크롤(=하단)로 clamp → 자연스럽게 '스크롤 최하단' 폴백.
+function scrollChipsToTop() {
+  const el = document.getElementById('my-cal-chips');
+  if (!el || el.style.display === 'none') return;
+  const abH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--appbar-h')) || 52;
+  const delta = el.getBoundingClientRect().top - abH;
+  if (Math.abs(delta) > 1) window.scrollBy({ top: delta, behavior: 'smooth' });
 }
 function renderMyCalendar() {
   const el = document.getElementById('my-cal');
@@ -3834,9 +3848,17 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1046 달력-카드 사이 게임별 칩(판수) 다중선택 필터';
+const APP_VERSION = 'v1047 칩 줄 sticky(헤더 아래 고정) + 클릭 시 상단 스크롤';
+// 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
+function syncAppbarHeight() {
+  const ab = document.querySelector('.appbar');
+  if (ab) document.documentElement.style.setProperty('--appbar-h', ab.offsetHeight + 'px');
+}
+window.addEventListener('resize', syncAppbarHeight);
+
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
+  syncAppbarHeight();
   const saved = localStorage.getItem('bg_user');
   if (saved) { try { state.user = JSON.parse(saved); } catch (e) {} }
   updateWhoami();
