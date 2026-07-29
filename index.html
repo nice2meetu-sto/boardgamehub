@@ -329,6 +329,11 @@
   .rvw-close { flex: 0 0 auto; font-size: 12px; font-weight: 700; color: var(--text-sub);
     background: var(--main-light); border-radius: 999px; padding: 6px 14px; cursor: pointer; white-space: nowrap; }
   .rvw-close:active { background: #ddd7f7; }
+  /* 후기 팝업 제목 옆 '후기 작성' 버튼 */
+  .rvw-write-btn { flex: 0 0 auto; font-size: 12px; font-weight: 800; color: #fff;
+    background: var(--main); border-radius: 999px; padding: 7px 14px; cursor: pointer; white-space: nowrap; }
+  .rvw-write-btn:active { background: var(--main-dark); }
+  .rvw-write-btn.locked { background: #e6e6ec; color: var(--text-sub); font-weight: 700; opacity: .75; }
   .rvw-done-tag { font-size: 10px; font-weight: 700; color: var(--text-sub);
     background: #dcdce4; border-radius: 6px; padding: 1px 6px; margin-left: 4px; white-space: nowrap; }
   .thumb.rvw-thumb-lg { width: 48px; height: 48px; border-radius: 12px; }
@@ -1041,6 +1046,18 @@ async function openReviewWrite() {
   try { await ensureMyRatings(); } catch (e) {}
   renderReviewWrite();
 }
+// 게임 선택 단계 건너뛰고 특정 게임의 후기 작성 에디터를 바로 연다(게임탭 후기 팝업용)
+async function openReviewWriteFor(gid) {
+  if (!state.user) { toast('로그인 후 이용하세요.', true); return; }
+  const ov = document.getElementById('rvwrite-overlay');
+  ov.classList.add('show');
+  openOverlay(() => ov.classList.remove('show'));
+  state._rvwGid = gid;
+  document.getElementById('rvwrite-body').innerHTML =
+    `<div class="empty" style="padding:20px 0;"><div class="spinner" style="margin:0 auto;"></div></div>`;
+  try { await ensureMyRatings(); } catch (e) {}
+  renderReviewWrite();
+}
 function closeReviewWrite() { closeOverlay(); }
 function reviewWritePick(gid) { state._rvwGid = gid; renderReviewWrite(); }
 function reviewWriteBack() { state._rvwGid = null; renderReviewWrite(); }
@@ -1540,10 +1557,23 @@ function reviewPillHtml(gameId, count, extraClass) {
 }
 
 // 게임 탭: [후기] 버튼 → 사람들이 남긴 후기(닉네임 + 코멘트)
+// 내가 이 게임을 플레이한 적 있는지(후기 작성 자격)
+function hasPlayedGame(gid) {
+  return !!(state.user && (state.plays || []).some(s =>
+    s.game_id === gid && s.participants.some(p => p.player_id === state.user.player_id)));
+}
 async function openReviews(gameId) {
+  state._openReviewsGid = gameId;
   const g = gameById(gameId);
   const title = g ? esc(g.name_kr || g.name_en) : '';
-  const head = `<h2 style="font-size:20px;font-weight:900;margin:2px 2px 12px;">💬<span class="muted" style="font-size:13px;font-weight:500;">· ${title}</span></h2>`;
+  const canWrite = hasPlayedGame(gameId);
+  const writeBtn = canWrite
+    ? `<button class="rvw-write-btn" onclick="openReviewWriteFor('${esc(String(gameId))}')">후기 작성</button>`
+    : `<button class="rvw-write-btn locked" onclick="toast(${state.user ? "'플레이 후 후기를 작성해보세요'" : "'로그인 후 작성할 수 있어요', true"})">🔒 후기 작성</button>`;
+  const head = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 2px 12px;">
+      <h2 style="font-size:20px;font-weight:900;margin:0;min-width:0;">💬<span class="muted" style="font-size:13px;font-weight:500;">· ${title}</span></h2>
+      ${writeBtn}
+    </div>`;
   const body = document.getElementById('detail-body');
   body.innerHTML = head + `<div class="empty"><div class="spinner" style="margin:0 auto;"></div></div>`;
   showDetailSheet();
@@ -2992,11 +3022,14 @@ async function saveRating(gameId) {
     if (hasRating) state.games = await api('getGames');
     toast('저장되었습니다!');
     if (state.myTab === 'games' && document.getElementById('my-games-cards')) filterMyGames();
-    // 후기 작성 팝업에서 저장했으면 닫고 후기 탭 갱신
+    // 후기 작성 팝업에서 저장했으면 닫고, 뒤에 있던 목록 갱신
     const rvOv = document.getElementById('rvwrite-overlay');
     if (rvOv && rvOv.classList.contains('show')) {
+      const reviewsGid = state._openReviewsGid;
+      const detailShown = document.getElementById('detail-overlay').classList.contains('show');
       closeReviewWrite();
       if (document.getElementById('view-reviews').classList.contains('active')) renderReviews();
+      else if (detailShown && reviewsGid) setTimeout(() => openReviews(reviewsGid), 60);   // 게임탭 후기 팝업 갱신
     }
   } catch (e) {
     toast(e.message, true);
@@ -3915,7 +3948,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1059 달력 기본 날짜선택 없음 + MY탭 연속클릭 세부탭 순환';
+const APP_VERSION = 'v1060 게임탭 후기 팝업에 후기작성 버튼(미플레이는 잠금)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
