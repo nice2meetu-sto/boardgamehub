@@ -589,7 +589,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1048</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1049</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2559,16 +2559,16 @@ function filterMyPlays() {
   const all = state._mySessions || [];
   const input = document.getElementById('my-play-search');
   const raw = input ? input.value : '';
+  // 검색어(또는 날짜)가 바뀌면 게임 칩 선택 초기화 — 칩 클릭 시엔 검색어가 그대로라 유지됨
+  if (raw !== state._lastSearch) { state._calGameFilter = null; state._lastSearch = raw; }
   const terms = raw.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
   const cal = document.getElementById('my-cal');
-
   const chipsEl = document.getElementById('my-cal-chips');
 
-  // 검색 중 → 달력·칩 숨기고 검색 결과 카드만
+  // 검색 중 → 달력 숨기고, 검색 결과 + 게임별 칩 표시(칩으로 게임 필터)
   if (terms.length) {
     if (cal) cal.style.display = 'none';
-    if (chipsEl) { chipsEl.style.display = 'none'; chipsEl.innerHTML = ''; }
-    const list = all.filter(s => {
+    const matched = all.filter(s => {
       const hay = [
         String(s.play_date || ''),
         String(s.game_name || ''),
@@ -2576,6 +2576,9 @@ function filterMyPlays() {
       ].join(' ').toLowerCase();
       return terms.every(t => hay.includes(t));
     });
+    renderCalChips(matched);   // 검색 결과의 게임별 칩(이름+판수)
+    const sel = state._calGameFilter;
+    const list = (sel && sel.size) ? matched.filter(s => sel.has(s.game_id)) : matched;
     renderSessionList('my-sessions', list, { linkGame: true });
     return;
   }
@@ -3848,7 +3851,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1048 달력-칩 사이 여백 축소';
+const APP_VERSION = 'v1049 검색 시에도 게임별 칩 분류 표시';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
