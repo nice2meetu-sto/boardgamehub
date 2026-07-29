@@ -585,7 +585,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1045</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1046</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2427,6 +2427,7 @@ function renderMyPlaysTab() {
       <button class="btn ghost sm" style="flex:0 0 auto;align-self:stretch;display:flex;align-items:center;padding:0 14px;font-size:12px;white-space:nowrap;" onclick="openLinkGuestModal()">🔗 연동</button>
     </div>
     <div id="my-cal" class="cal-wrap"></div>
+    <div id="my-cal-chips" class="chip-row" style="margin-bottom:8px;display:none;"></div>
     <div id="my-sessions"></div>`;
   renderMyCalendar();
   filterMyPlays();
@@ -2457,12 +2458,36 @@ function calMonthShift(delta) {
   const d = new Date(Y, M - 1 + delta, 1);
   state._calMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   state._calDay = null;     // 월 이동 시 선택 해제
+  state._calGameFilter = null;
   renderMyCalendar();
   filterMyPlays();
 }
 function selectCalDay(ds) {
   state._calDay = (state._calDay === ds) ? null : ds;   // 다시 누르면 해제
+  state._calGameFilter = null;   // 날짜 바뀌면 게임 칩 선택 초기화
   renderMyCalendar();
+  filterMyPlays();
+}
+// 선택한 날의 게임별 칩(이름 + 판수). 여러 게임 플레이 시 분류용.
+function renderCalChips(dayList) {
+  const el = document.getElementById('my-cal-chips');
+  if (!el) return;
+  const order = [], cnt = {}, name = {};
+  dayList.forEach(s => {
+    if (cnt[s.game_id] == null) { cnt[s.game_id] = 0; order.push(s.game_id); name[s.game_id] = s.game_name; }
+    cnt[s.game_id]++;
+  });
+  if (!order.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const sel = state._calGameFilter || new Set();
+  el.style.display = '';
+  el.innerHTML = order.map(gid =>
+    `<span class="chip ${sel.has(gid) ? 'on' : ''}" onclick="toggleCalChip('${esc(String(gid))}')">${esc(name[gid])} <b style="margin-left:4px;">${cnt[gid]}</b></span>`
+  ).join('');
+}
+function toggleCalChip(gid) {
+  if (!state._calGameFilter) state._calGameFilter = new Set();
+  const s = state._calGameFilter;
+  if (s.has(gid)) s.delete(gid); else s.add(gid);   // 다시 누르면 해제(다중 선택)
   filterMyPlays();
 }
 function renderMyCalendar() {
@@ -2523,9 +2548,12 @@ function filterMyPlays() {
   const terms = raw.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
   const cal = document.getElementById('my-cal');
 
-  // 검색 중 → 달력 숨기고 검색 결과 카드만
+  const chipsEl = document.getElementById('my-cal-chips');
+
+  // 검색 중 → 달력·칩 숨기고 검색 결과 카드만
   if (terms.length) {
     if (cal) cal.style.display = 'none';
+    if (chipsEl) { chipsEl.style.display = 'none'; chipsEl.innerHTML = ''; }
     const list = all.filter(s => {
       const hay = [
         String(s.play_date || ''),
@@ -2541,9 +2569,13 @@ function filterMyPlays() {
   // 검색 없음 → 달력 표시, 선택한 날짜의 기록만(없으면 안내)
   if (cal) cal.style.display = '';
   if (state._calDay) {
-    const list = all.filter(s => String(s.play_date).substring(0, 10) === state._calDay);
+    const dayList = all.filter(s => String(s.play_date).substring(0, 10) === state._calDay);
+    renderCalChips(dayList);   // 그날 게임별 칩(이름+판수)
+    const sel = state._calGameFilter;
+    const list = (sel && sel.size) ? dayList.filter(s => sel.has(s.game_id)) : dayList;
     renderSessionList('my-sessions', list, { linkGame: true });
   } else {
+    if (chipsEl) { chipsEl.style.display = 'none'; chipsEl.innerHTML = ''; }
     const el = document.getElementById('my-sessions');
     if (el) el.innerHTML = all.length
       ? `<div class="empty" style="padding:18px 0;">달력에서 날짜를 선택하면<br/>그날의 플레이 기록이 표시돼요.</div>`
@@ -3802,7 +3834,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1045 달력 선택일 기억 + 플레이 카드 클릭시 게임상세 이동';
+const APP_VERSION = 'v1046 달력-카드 사이 게임별 칩(판수) 다중선택 필터';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
