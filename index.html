@@ -659,7 +659,7 @@
     <button class="tab on" id="tab-games" onclick="switchView('games')"><span class="ico">🎯</span>게임</button>
     <button class="tab-add" onclick="openAddSheet()" aria-label="추가"><span class="plus">+</span><span class="lbl">추가</span></button>
     <button class="tab" id="tab-reviews" onclick="switchView('reviews')"><span class="ico">💬</span>후기</button>
-    <button class="tab" id="tab-my" onclick="switchView('my')"><span class="ico">👤</span>MY</button>
+    <button class="tab" id="tab-my" onclick="onMyTabClick()"><span class="ico">👤</span>MY</button>
   </div>
 </div>
 
@@ -2099,6 +2099,14 @@ function renderMy() {
   else renderMyGames();
 }
 
+// 하단 MY 탭: MY가 아니면 MY로, 이미 MY면 세부탭(전체→플레이→게임) 순환
+function onMyTabClick() {
+  const onMy = document.getElementById('view-my').classList.contains('active');
+  if (!onMy || !state.user) { switchView('my'); return; }
+  const order = ['overview', 'plays', 'games'];
+  const cur = state.myTab || 'overview';
+  switchMyTab(order[(order.indexOf(cur) + 1) % order.length]);
+}
 function switchMyTab(tab) {
   state.myTab = tab;
   try { localStorage.setItem('bg_mytab', tab); } catch (e) {}   // 새로고침 후 세부 탭 복원용
@@ -2437,10 +2445,11 @@ function renderMyPlaysTab() {
     s.participants.some(p => p.player_id === state.user.player_id));
   // 첫 방문에만 기본값(가장 최근 플레이일) 설정 → 이후엔 마지막으로 본 달/일자 기억
   if (state._calMonth == null) {
+    // 첫 진입: 달은 가장 최근 플레이의 달(없으면 이번 달), 날짜는 아무것도 선택 안 함
     const dates = state._mySessions.map(s => String(s.play_date).substring(0, 10)).filter(Boolean).sort();
     const recent = dates.length ? dates[dates.length - 1] : new Date().toISOString().substring(0, 10);
     state._calMonth = recent.substring(0, 7);
-    state._calDay = dates.length ? recent : null;
+    state._calDay = null;
   }
   el.innerHTML = `
     <div style="display:flex;gap:8px;align-items:center;margin-top:2px;margin-bottom:12px;">
@@ -3906,7 +3915,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1058 새로고침 시 MY 세부탭·게임상세도 복원';
+const APP_VERSION = 'v1059 달력 기본 날짜선택 없음 + MY탭 연속클릭 세부탭 순환';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
