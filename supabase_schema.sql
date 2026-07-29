@@ -425,6 +425,28 @@ as $$
   where r.game_id = p_game_id and r.review is not null and btrim(r.review) <> '';
 $$;
 
+-- 전체 후기(모든 게임) — 최신순. 후기 탭(채팅 UI)용.
+create or replace function public.get_all_reviews()
+returns json
+language sql stable security definer
+set search_path = public
+as $$
+  select coalesce(json_agg(json_build_object(
+    'player_id',   r.player_id,
+    'player_name', pl.name,
+    'game_id',     r.game_id,
+    'game_name',   coalesce(g.name_kr, g.name_en, '(알 수 없는 게임)'),
+    'game_image',  coalesce(g.image_url, ''),
+    'review',      r.review,
+    'rating',      r.rating,
+    'updated_at',  r.updated_at
+  ) order by r.updated_at desc nulls last), '[]'::json)
+  from public.ratings r
+  left join public.players pl on pl.player_id = r.player_id
+  left join public.games   g  on g.game_id   = r.game_id
+  where r.review is not null and btrim(r.review) <> '';
+$$;
+
 -- 플레이 결과 추가(세션 1건 = 참가자 여러 행)
 create or replace function public.add_play(p_player_id text, p_pin text, p_payload jsonb)
 returns json
@@ -687,6 +709,7 @@ grant execute on function public.save_rating(text, text, text, numeric)         
 grant execute on function public.save_review(text, text, text, text)                to anon;
 grant execute on function public.save_memo(text, text, text, text)                  to anon;
 grant execute on function public.get_reviews(text)                                  to anon;
+grant execute on function public.get_all_reviews()                                  to anon;
 grant execute on function public.add_play(text, text, jsonb)                        to anon;
 grant execute on function public.update_play(text, text, jsonb)                     to anon;
 grant execute on function public.delete_play(text, text, text)                      to anon;
