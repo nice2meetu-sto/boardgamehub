@@ -282,6 +282,10 @@
     color: var(--text); white-space: pre-wrap; word-break: break-word; cursor: pointer; }
   .rvm.mine .rvm-bubble { background: var(--main-light); border-color: transparent; border-radius: 14px 4px 14px 14px; }
   .rvm-bubble:active { filter: brightness(.97); }
+  /* 말풍선 옆 날짜(채팅 타임스탬프): 남의 후기=오른쪽, 내 후기=왼쪽 */
+  .rvm-bubble-row { display: flex; align-items: flex-end; gap: 5px; min-width: 0; }
+  .rvm.mine .rvm-bubble-row { flex-direction: row-reverse; }
+  .rvm-date { font-size: 10px; color: var(--text-sub); white-space: nowrap; flex: 0 0 auto; padding-bottom: 2px; }
   /* 후기 작성 중앙 팝업 */
   #rvwrite-overlay { position: fixed; inset: 0; z-index: 150; background: rgba(20,20,30,.45);
     display: none; align-items: center; justify-content: center; padding: 20px; }
@@ -559,7 +563,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1040</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1041</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -841,9 +845,26 @@ function replaceTopOverlay(hideFn) {  // 시트→상세 등 같은 depth로 화
   if (_overlays.length) _overlays[_overlays.length - 1] = hideFn;
   else openOverlay(hideFn);
 }
+let _backExitArmed = false;
+let _backExitTimer = null;
 window.addEventListener('popstate', () => {
-  if (_overlays.length) { const h = _overlays.pop(); if (h) { try { h(); } catch (e) {} } }
+  // 열린 오버레이(시트/팝업)가 있으면 맨 위부터 닫기
+  if (_overlays.length) { const h = _overlays.pop(); if (h) { try { h(); } catch (e) {} } return; }
+  // 베이스(닫을 오버레이 없음)에서 뒤로가기 → 실수 종료 방지(이중 확인)
+  if (_backExitArmed) {
+    _backExitArmed = false;
+    clearTimeout(_backExitTimer);
+    try { history.back(); } catch (e) {}   // 한 번 더 → 실제 종료(이전 화면으로)
+    return;
+  }
+  _backExitArmed = true;
+  toast('뒤로가기를 한 번 더 누르면 종료됩니다.');
+  try { history.pushState(null, ''); } catch (e) {}   // 가드 재삽입 → 이번 뒤로가기 무효화
+  clearTimeout(_backExitTimer);
+  _backExitTimer = setTimeout(() => { _backExitArmed = false; }, 2000);
 });
+// 시작 시 가드 1개 삽입 → 첫 뒤로가기를 가로채 실수 종료 방지
+try { history.pushState(null, ''); } catch (e) {}
 // detail-overlay(공용 시트)는 내용만 바뀌며 여러 번 열리므로, 처음 열 때만 히스토리 push
 function showDetailSheet() {
   const el = document.getElementById('detail-overlay');
@@ -892,6 +913,7 @@ function gameById(id) { return state.games.find(g => g.game_id === id); }
 
 // ===== 네비게이션 =====
 function switchView(name) {
+  try { localStorage.setItem('bg_view', name); } catch (e) {}   // 새로고침 후 같은 탭 복원용
   ['play', 'games', 'reviews', 'my'].forEach(v => {
     document.getElementById('view-' + v).classList.toggle('active', v === name);
     document.getElementById('tab-' + v).classList.toggle('on', v === name);
@@ -918,6 +940,12 @@ async function renderReviews() {
   }
   renderReviewChunk(true);
 }
+// 후기 날짜 → 'YY.M.D.' (예: 2026-07-24 → 26.7.24.)
+function fmtChatDate(s) {
+  const d = String(s || '').substring(0, 10).split('-');
+  if (d.length !== 3 || !d[0]) return '';
+  return `${d[0].slice(2)}.${Number(d[1])}.${Number(d[2])}.`;
+}
 // 후기 1건 → 채팅 말풍선(내 후기는 오른쪽, 남의 후기는 왼쪽)
 function rvMsgHtml(r) {
   const mine = state.user && String(r.player_id) === String(state.user.player_id);
@@ -931,7 +959,10 @@ function rvMsgHtml(r) {
     ${avatar}
     <div class="rvm-body">
       <div class="rvm-head">${head}</div>
-      <div class="rvm-bubble" onclick="showGameInfo('${gid}')">${esc(r.review || '')}</div>
+      <div class="rvm-bubble-row">
+        <div class="rvm-bubble" onclick="showGameInfo('${gid}')">${esc(r.review || '')}</div>
+        <span class="rvm-date">${fmtChatDate(r.updated_at)}</span>
+      </div>
     </div>
   </div>`;
 }
@@ -1040,6 +1071,7 @@ async function loadCore(manual) {
     renderPlay();
     renderGames();
     if (state.user && document.getElementById('view-my').classList.contains('active')) renderMy();
+    if (!manual) restoreView();   // 최초 로드(=새로고침): 마지막으로 보던 탭 복원
     if (manual) toast('최신 데이터로 업데이트했어요.');
   } catch (e) {
     toast('연결 실패: ' + e.message, true);
@@ -1050,6 +1082,14 @@ async function loadCore(manual) {
 
 // 🔄 수동 업데이트 버튼용
 function refreshAll() { loadCore(true); }
+
+// 새로고침(전체 페이지 리로드) 후 마지막으로 보던 탭으로 복원.
+// 기본 활성 탭이 'games'이므로 그 외일 때만 전환.
+function restoreView() {
+  let v = null;
+  try { v = localStorage.getItem('bg_view'); } catch (e) {}
+  if (v && v !== 'games' && ['play', 'games', 'reviews', 'my'].includes(v)) switchView(v);
+}
 
 // ============================================================
 //  VIEW: 플레이
@@ -3644,7 +3684,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1040 후기 바로쓰기 팝업 + 추가시트 취소·저장 분리 + 탭추가버튼 위치';
+const APP_VERSION = 'v1041 후기 말풍선 날짜 + 새로고침 탭유지 + 이중확인 종료';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
