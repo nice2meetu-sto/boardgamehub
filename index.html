@@ -337,6 +337,10 @@
   .rvw-write-btn.done { background: var(--main-light); color: var(--main); font-weight: 800; }
   .rvw-done-tag { font-size: 10px; font-weight: 700; color: var(--text-sub);
     background: #dcdce4; border-radius: 6px; padding: 1px 6px; margin-left: 4px; white-space: nowrap; }
+  /* 게임정보 팝업: 후기 제목 줄(고정) + 후기 목록(내부 스크롤) */
+  .gi-review-head { display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; margin: 18px 2px 8px; }
+  .gi-reviews-scroll { max-height: 42vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .thumb.rvw-thumb-lg { width: 48px; height: 48px; border-radius: 12px; }
   /* 게임메모 편집 오버레이 (게임 상세 위) */
   #gd-memo-overlay, #gd-session-overlay { position: fixed; inset: 0; z-index: 150; background: rgba(20,20,30,.45);
@@ -1325,15 +1329,30 @@ function gameInfoInnerHtml(g) {
 async function showGameInfo(gameId) {
   const g = gameById(gameId);
   if (!g) { toast('게임 정보를 찾을 수 없습니다.', true); return; }
+  state._openReviewsGid = gameId;
+  state._detailKind = 'gameinfo';
   const body = document.getElementById('detail-body');
-  body.innerHTML = gameInfoInnerHtml(g)
-    + `<div class="section-title" style="margin:18px 0 8px;font-size:14px;">💬 후기</div>
-       <div id="gi-reviews"><div class="empty" style="padding:14px 0;"><div class="spinner" style="margin:0 auto;"></div></div></div>`;
+  // 게임 정보 + 후기 제목 줄은 고정, 후기 목록만 내부 스크롤(시트 최대 높이 초과 시)
+  const headHtml = () => `<div class="gi-review-head">
+      <div class="section-title" style="margin:0;font-size:14px;">💬 후기 <span id="gi-rvcount" class="muted" style="font-size:12px;font-weight:600;"></span></div>
+      <span id="gi-writebtn">${reviewWriteBtnHtml(gameId)}</span>
+    </div>`;
+  const shell = (inner) => gameInfoInnerHtml(g)
+    + headHtml()
+    + `<div id="gi-reviews" class="gi-reviews-scroll">${inner}</div>`;
+  body.innerHTML = shell(`<div class="empty" style="padding:14px 0;"><div class="spinner" style="margin:0 auto;"></div></div>`);
   showDetailSheet();
+  if (state.user) {
+    try { await ensureMyRatings(); } catch (e) {}   // 작성 완료 여부 판별용
+    const wb = document.getElementById('gi-writebtn');
+    if (wb) wb.innerHTML = reviewWriteBtnHtml(gameId);   // 로그인 상태 반영
+  }
   try {
     const reviews = await api('getReviews', { gameId });
     const el = document.getElementById('gi-reviews');
     if (!el) return;   // 그새 다른 시트로 이동했으면 무시
+    const cnt = document.getElementById('gi-rvcount');
+    if (cnt) cnt.textContent = (reviews && reviews.length) ? `(${reviews.length})` : '';
     el.innerHTML = (reviews && reviews.length)
       ? reviews.map(r => `<div class="rv-row">
           <div class="rv-name">${esc(r.name)}<span class="rv-when">${esc(String(r.updated_at || '').substring(0, 10))}</span></div>
@@ -1563,26 +1582,30 @@ function hasPlayedGame(gid) {
   return !!(state.user && (state.plays || []).some(s =>
     s.game_id === gid && s.participants.some(p => p.player_id === state.user.player_id)));
 }
+// 후기 작성 버튼 HTML (openReviews / showGameInfo 공용) — 플레이 여부·작성 완료 여부에 따라 3가지 상태
+function reviewWriteBtnHtml(gameId) {
+  const canWrite = hasPlayedGame(gameId);
+  const done = !!(state._myRatings && state._myRatings[gameId] && (state._myRatings[gameId].review || '').trim());
+  if (!canWrite) {
+    return `<button class="rvw-write-btn locked" onclick="toast(${state.user ? "'플레이 후 후기를 작성해보세요'" : "'로그인 후 작성할 수 있어요', true"})">🔒 후기 작성</button>`;
+  } else if (done) {
+    // 작성 완료: 회색(잠금 디자인) — 단, 눌러서 수정 가능
+    return `<button class="rvw-write-btn locked" onclick="openReviewWriteFor('${esc(String(gameId))}')">작성 완료</button>`;
+  }
+  // 후기 작성: 옅은 보라(기존 작성완료 디자인)
+  return `<button class="rvw-write-btn done" onclick="openReviewWriteFor('${esc(String(gameId))}')">후기 작성</button>`;
+}
+
 async function openReviews(gameId) {
   state._openReviewsGid = gameId;
+  state._detailKind = 'reviews';
   const body = document.getElementById('detail-body');
   body.innerHTML = `<div class="empty"><div class="spinner" style="margin:0 auto;"></div></div>`;
   showDetailSheet();
   if (state.user) { try { await ensureMyRatings(); } catch (e) {} }   // 작성 완료 여부 판별용
   const g = gameById(gameId);
   const title = g ? esc(g.name_kr || g.name_en) : '';
-  const canWrite = hasPlayedGame(gameId);
-  const done = !!(state._myRatings && state._myRatings[gameId] && (state._myRatings[gameId].review || '').trim());
-  let writeBtn;
-  if (!canWrite) {
-    writeBtn = `<button class="rvw-write-btn locked" onclick="toast(${state.user ? "'플레이 후 후기를 작성해보세요'" : "'로그인 후 작성할 수 있어요', true"})">🔒 후기 작성</button>`;
-  } else if (done) {
-    // 작성 완료: 회색(잠금 디자인) — 단, 눌러서 수정 가능
-    writeBtn = `<button class="rvw-write-btn locked" onclick="openReviewWriteFor('${esc(String(gameId))}')">작성 완료</button>`;
-  } else {
-    // 후기 작성: 옅은 보라(기존 작성완료 디자인)
-    writeBtn = `<button class="rvw-write-btn done" onclick="openReviewWriteFor('${esc(String(gameId))}')">후기 작성</button>`;
-  }
+  const writeBtn = reviewWriteBtnHtml(gameId);
   const head = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 2px 12px;">
       <h2 style="font-size:20px;font-weight:900;margin:0;min-width:0;">💬<span class="muted" style="font-size:13px;font-weight:500;">· ${title}</span></h2>
       ${writeBtn}
@@ -3040,7 +3063,10 @@ async function saveRating(gameId) {
       const detailShown = document.getElementById('detail-overlay').classList.contains('show');
       closeReviewWrite();
       if (document.getElementById('view-reviews').classList.contains('active')) renderReviews();
-      else if (detailShown && reviewsGid) setTimeout(() => openReviews(reviewsGid), 60);   // 게임탭 후기 팝업 갱신
+      else if (detailShown && reviewsGid) {   // 게임탭 후기/게임정보 팝업 갱신
+        const fn = state._detailKind === 'gameinfo' ? showGameInfo : openReviews;
+        setTimeout(() => fn(reviewsGid), 60);
+      }
     }
   } catch (e) {
     toast(e.message, true);
@@ -3959,7 +3985,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1062 후기 작성=옅은보라, 작성완료=회색으로 디자인 교체';
+const APP_VERSION = 'v1063 게임정보 팝업에도 후기 작성 버튼+후기 갯수+후기 목록 내부 스크롤';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
