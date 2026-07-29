@@ -1116,9 +1116,20 @@ function refreshAll() { loadCore(true); }
 // 새로고침(전체 페이지 리로드) 후 마지막으로 보던 탭으로 복원.
 // 기본 활성 탭이 'games'이므로 그 외일 때만 전환.
 function restoreView() {
-  let v = null;
-  try { v = localStorage.getItem('bg_view'); } catch (e) {}
+  let v = null, mytab = null, gd = null;
+  try {
+    v = localStorage.getItem('bg_view');
+    mytab = localStorage.getItem('bg_mytab');
+    gd = localStorage.getItem('bg_gd');
+  } catch (e) {}
+  // 메인 탭 복원(기본 활성이 games라 그 외일 때만 전환)
   if (v && v !== 'games' && ['play', 'games', 'reviews', 'my'].includes(v)) switchView(v);
+  // MY 세부 탭 복원(로그인 + MY 탭일 때만)
+  if (v === 'my' && state.user && mytab && mytab !== 'overview' && ['plays', 'games'].includes(mytab)) {
+    switchMyTab(mytab);
+  }
+  // 게임 상세 페이지 복원(존재하는 게임일 때만; 열어둔 채 새로고침한 경우)
+  if (gd && gameById(gd)) openGameDetail(gd);
 }
 
 // ============================================================
@@ -1482,8 +1493,12 @@ function openGameDetail(gameId) {
   const fromSheet = el.classList.contains('show');   // 공용 시트에서 열렸는지
   el.classList.remove('show');
   state._gd = { gid: gameId, col: 'winrate', dir: 'desc' };
+  try { localStorage.setItem('bg_gd', gameId); } catch (e) {}   // 새로고침 후 상세 복원용
   renderGameDetail();
-  const hideFn = () => document.getElementById('gd-page').classList.remove('show');
+  const hideFn = () => {
+    document.getElementById('gd-page').classList.remove('show');
+    try { localStorage.removeItem('bg_gd'); } catch (e) {}      // 닫으면 복원 기억 삭제
+  };
   // 시트→상세는 같은 depth로 교체, 카드에서 바로 열면 새 항목 push
   if (fromSheet && _overlays.length) replaceTopOverlay(hideFn);
   else openOverlay(hideFn);
@@ -2086,6 +2101,7 @@ function renderMy() {
 
 function switchMyTab(tab) {
   state.myTab = tab;
+  try { localStorage.setItem('bg_mytab', tab); } catch (e) {}   // 새로고침 후 세부 탭 복원용
   ['overview', 'plays', 'games'].forEach(t => {
     document.getElementById('mytab-' + t).classList.toggle('on', t === tab);
     document.getElementById('my-' + t).style.display = t === tab ? 'block' : 'none';
@@ -3890,7 +3906,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1057 후기쓰기 팝업 닫기 버튼 pill 형식으로';
+const APP_VERSION = 'v1058 새로고침 시 MY 세부탭·게임상세도 복원';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
