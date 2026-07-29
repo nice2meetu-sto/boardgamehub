@@ -282,6 +282,22 @@
     color: var(--text); white-space: pre-wrap; word-break: break-word; cursor: pointer; }
   .rvm.mine .rvm-bubble { background: var(--main-light); border-color: transparent; border-radius: 14px 4px 14px 14px; }
   .rvm-bubble:active { filter: brightness(.97); }
+  /* 후기 작성 중앙 팝업 */
+  #rvwrite-overlay { position: fixed; inset: 0; z-index: 150; background: rgba(20,20,30,.45);
+    display: none; align-items: center; justify-content: center; padding: 20px; }
+  #rvwrite-overlay.show { display: flex; }
+  .rvwrite-card { background: var(--bg); border-radius: 18px; width: 100%; max-width: 420px;
+    max-height: 82vh; overflow-y: auto; padding: 18px 16px calc(16px + env(safe-area-inset-bottom, 0)); }
+  .rvw-list { display: flex; flex-direction: column; gap: 8px; }
+  .rvw-pick { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    padding: 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+  .rvw-pick:active { background: #f6f5fb; }
+  .rvw-pick.done { background: #eeeef2; border-color: #e2e2ea; }   /* 후기 쓴 게임 = 옅은 회색 */
+  .rvw-pick .thumb.rvw-thumb { width: 42px; height: 42px; border-radius: 10px; }
+  .rvw-pick-name { font-weight: 700; font-size: 14px; min-width: 0; }
+  .rvw-done-tag { font-size: 10px; font-weight: 700; color: var(--text-sub);
+    background: #dcdce4; border-radius: 6px; padding: 1px 6px; margin-left: 4px; white-space: nowrap; }
+  .thumb.rvw-thumb-lg { width: 48px; height: 48px; border-radius: 12px; }
   /* 게임메모 편집 오버레이 (게임 상세 위) */
   #gd-memo-overlay, #gd-session-overlay { position: fixed; inset: 0; z-index: 150; background: rgba(20,20,30,.45);
     display: none; align-items: center; justify-content: center; padding: 20px; }
@@ -419,7 +435,7 @@
     flex: 0 0 auto; align-self: center; width: 56px; height: 56px; margin: 0 4px;
     background: var(--main); color: #fff; border-radius: 50%;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    transform: translateY(-16px); box-shadow: 0 6px 16px rgba(83,74,183,.4);
+    transform: translateY(-6px); box-shadow: 0 4px 12px rgba(83,74,183,.35);
   }
   .tab-add:active { background: var(--main-dark); }
   .tab-add .plus { font-size: 22px; line-height: 1; font-weight: 300; }
@@ -543,7 +559,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1039</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1040</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -578,7 +594,10 @@
 
   <!-- ===== VIEW: 후기 (채팅형) ===== -->
   <div class="view" id="view-reviews">
-    <div class="section-title" style="margin-top:2px;">💬 모두의 게임 후기</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px;margin-bottom:10px;">
+      <div class="section-title" style="margin:0;">💬 모두의 게임 후기</div>
+      <button class="btn ghost sm" style="padding:7px 12px;font-size:12px;white-space:nowrap;" onclick="openReviewWrite()">✏️ 후기 쓰기</button>
+    </div>
     <div class="rv-chat" id="reviews-list"></div>
   </div>
 
@@ -628,6 +647,13 @@
   <div class="sheet">
     <div class="sheet-grip"></div>
     <div id="detail-body"></div>
+  </div>
+</div>
+
+<!-- ===== 후기 작성(중앙 팝업) ===== -->
+<div id="rvwrite-overlay">
+  <div class="rvwrite-card">
+    <div id="rvwrite-body"></div>
   </div>
 </div>
 
@@ -929,6 +955,66 @@ function renderReviewChunk(reset) {
       if (entries.some(e => e.isIntersecting)) renderReviewChunk(false);
     }, { rootMargin: '300px' });
     _rvObserver.observe(document.getElementById('rv-sentinel'));
+  }
+}
+
+// ===== 후기 바로 쓰기(중앙 팝업): 최근 플레이 게임 선택 → 별점·후기 작성 =====
+function recentlyPlayedGames() {
+  const seen = new Set(); const firstIdx = {};
+  (state.plays || []).forEach((s, i) => {
+    if (s.participants.some(p => p.player_id === (state.user && state.user.player_id))) {
+      if (!seen.has(s.game_id)) { seen.add(s.game_id); firstIdx[s.game_id] = i; }
+    }
+  });
+  return (state.games || []).filter(g => seen.has(g.game_id))
+    .sort((a, b) => firstIdx[a.game_id] - firstIdx[b.game_id]);
+}
+async function openReviewWrite() {
+  if (!state.user) { toast('후기를 쓰려면 MY에서 로그인하세요.', true); switchView('my'); return; }
+  const ov = document.getElementById('rvwrite-overlay');
+  ov.classList.add('show');
+  openOverlay(() => ov.classList.remove('show'));
+  state._rvwGid = null;
+  document.getElementById('rvwrite-body').innerHTML =
+    `<div class="empty" style="padding:20px 0;"><div class="spinner" style="margin:0 auto;"></div></div>`;
+  try { await ensureMyRatings(); } catch (e) {}
+  renderReviewWrite();
+}
+function closeReviewWrite() { closeOverlay(); }
+function reviewWritePick(gid) { state._rvwGid = gid; renderReviewWrite(); }
+function reviewWriteBack() { state._rvwGid = null; renderReviewWrite(); }
+function renderReviewWrite() {
+  const body = document.getElementById('rvwrite-body');
+  if (!body) return;
+  if (!state._rvwGid) {
+    const played = recentlyPlayedGames();
+    const cards = played.length ? played.map(g => {
+      const rr = state._myRatings && state._myRatings[g.game_id];
+      const done = !!(rr && (rr.review || '').trim());
+      return `<button type="button" class="rvw-pick ${done ? 'done' : ''}" onclick="reviewWritePick('${g.game_id}')">
+        ${thumb(g.image_url, 'rvw-thumb')}
+        <span class="rvw-pick-name">${esc(g.name_kr || g.name_en)}${done ? '<span class="rvw-done-tag">후기완료</span>' : ''}</span>
+      </button>`;
+    }).join('') : `<div class="muted" style="font-size:13px;text-align:center;padding:20px 0;">최근 플레이한 게임이 없어요.<br/>플레이 결과를 먼저 추가해 주세요.</div>`;
+    body.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;">
+        <h3 style="font-size:16px;font-weight:800;margin:0;">✏️ 후기 쓸 게임 선택</h3>
+        <button type="button" class="lnk-clear" onclick="closeReviewWrite()">닫기</button>
+      </div>
+      <div class="rvw-list">${cards}</div>`;
+  } else {
+    const g = gameById(state._rvwGid);
+    if (!g) { reviewWriteBack(); return; }
+    body.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;">
+        <button type="button" class="lnk-clear" onclick="reviewWriteBack()">‹ 게임 다시 선택</button>
+        <button type="button" class="lnk-clear" onclick="closeReviewWrite()">닫기</button>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;">
+        ${thumb(g.image_url, 'rvw-thumb-lg')}
+        <div style="font-weight:800;font-size:15px;min-width:0;">${esc(g.name_kr || g.name_en)}</div>
+      </div>
+      ${ratingEditorHtml(g)}`;
   }
 }
 
@@ -2636,6 +2722,12 @@ async function saveRating(gameId) {
     if (hasRating) state.games = await api('getGames');
     toast('저장되었습니다!');
     if (state.myTab === 'games' && document.getElementById('my-games-cards')) filterMyGames();
+    // 후기 작성 팝업에서 저장했으면 닫고 후기 탭 갱신
+    const rvOv = document.getElementById('rvwrite-overlay');
+    if (rvOv && rvOv.classList.contains('show')) {
+      closeReviewWrite();
+      if (document.getElementById('view-reviews').classList.contains('active')) renderReviews();
+    }
   } catch (e) {
     toast(e.message, true);
   } finally {
@@ -2670,6 +2762,9 @@ function openAddSheet() {
 function closeAddSheet() { closeOverlay(); }
 document.getElementById('add-overlay').addEventListener('click', e => {
   if (e.target.id === 'add-overlay') closeOverlay();
+});
+document.getElementById('rvwrite-overlay').addEventListener('click', e => {
+  if (e.target.id === 'rvwrite-overlay') closeOverlay();
 });
 
 function switchAddTab(tab) {
@@ -2742,7 +2837,10 @@ function renderAddGameForm() {
       <div id="ag-photo-preview"></div>
       <div class="hint">사진을 올리면 작게 압축해서 저장합니다. 올리면 url 대신 사용합니다</div>
     </div>
-    <button class="btn sheet-save" onclick="submitAddGame()">게임 추가</button>`;
+    <div class="sheet-save" style="display:flex;gap:8px;">
+      <button class="btn ghost" style="flex:1;" onclick="closeAddSheet()">취소</button>
+      <button class="btn" style="flex:1;" onclick="submitAddGame()">저장</button>
+    </div>`;
   photoState.ag = '';
 }
 
@@ -3003,7 +3101,10 @@ function renderAddPlayForm() {
       </div>
       <div id="ap-participants" onscroll="apScrollBtnUpdate()"></div>
     </div>
-    <button class="btn sheet-save" onclick="submitAddPlay()">플레이 결과 저장</button>`;
+    <div class="sheet-save" style="display:flex;gap:8px;">
+      <button class="btn ghost" style="flex:1;" onclick="closeAddSheet()">취소</button>
+      <button class="btn" style="flex:1;" onclick="submitAddPlay()">저장</button>
+    </div>`;
   renderParticipants();
 }
 
@@ -3543,7 +3644,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1039 후기 클릭→게임정보 팝업(후기 목록 포함), 추가 버튼 탭바 중앙 이동';
+const APP_VERSION = 'v1040 후기 바로쓰기 팝업 + 추가시트 취소·저장 분리 + 탭추가버튼 위치';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
