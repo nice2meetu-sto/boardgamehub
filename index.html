@@ -318,6 +318,11 @@
   #rvwrite-overlay.show { display: flex; }
   .rvwrite-card { background: var(--bg); border-radius: 18px; width: 100%; max-width: 420px;
     max-height: 82vh; overflow-y: auto; padding: 18px 16px calc(16px + env(safe-area-inset-bottom, 0)); }
+  /* 게임 선택 화면: 제목·닫기 고정, 게임 목록만 내부 스크롤 */
+  .rvwrite-card.picking { display: flex; flex-direction: column; overflow: hidden; }
+  .rvwrite-card.picking > #rvwrite-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+  .rvwrite-card.picking .rvw-pick-head { flex: 0 0 auto; }
+  .rvwrite-card.picking .rvw-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .rvw-list { display: flex; flex-direction: column; gap: 8px; }
   .rvw-pick { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
     padding: 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
@@ -1069,6 +1074,8 @@ function reviewWriteBack() { state._rvwGid = null; renderReviewWrite(); }
 function renderReviewWrite() {
   const body = document.getElementById('rvwrite-body');
   if (!body) return;
+  const card = body.closest('.rvwrite-card');
+  if (card) card.classList.toggle('picking', !state._rvwGid);
   if (!state._rvwGid) {
     const played = recentlyPlayedGames();
     const cards = played.length ? played.map(g => {
@@ -1080,7 +1087,7 @@ function renderReviewWrite() {
       </button>`;
     }).join('') : `<div class="muted" style="font-size:13px;text-align:center;padding:20px 0;">최근 플레이한 게임이 없어요.<br/>플레이 결과를 먼저 추가해 주세요.</div>`;
     body.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;">
+      <div class="rvw-pick-head" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;">
         <h3 style="font-size:16px;font-weight:800;margin:0;">✏️ 후기 쓸 게임 선택</h3>
         <button type="button" class="rvw-close" onclick="closeReviewWrite()">✕ 닫기</button>
       </div>
@@ -3985,7 +3992,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1063 게임정보 팝업에도 후기 작성 버튼+후기 갯수+후기 목록 내부 스크롤';
+const APP_VERSION = 'v1064 후기 쓸 게임 선택 창: 제목·닫기 고정, 게임 목록만 내부 스크롤';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
