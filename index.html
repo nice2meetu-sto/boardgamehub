@@ -414,15 +414,16 @@
   }
   .tab .ico { font-size: 20px; line-height: 1; }
   .tab.on { color: var(--main); font-weight: 700; }
-  .fab {
-    position: fixed; bottom: calc(var(--tabbar-h) + 16px + env(safe-area-inset-bottom, 0)); z-index: 55;
-    left: 50%; margin-left: calc(var(--maxw) / 2 - 74px);
-    width: 56px; height: 56px; border-radius: 50%; background: var(--main); color: #fff;
-    font-size: 30px; font-weight: 300; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 6px 18px rgba(83,74,183,.45);
+  /* 탭바 중앙 원형 추가 버튼(살짝 위로 튀어나옴) */
+  .tab-add {
+    flex: 0 0 auto; align-self: center; width: 56px; height: 56px; margin: 0 4px;
+    background: var(--main); color: #fff; border-radius: 50%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transform: translateY(-16px); box-shadow: 0 6px 16px rgba(83,74,183,.4);
   }
-  @media (max-width: 720px) { .fab { left: auto; right: 18px; margin-left: 0; } }
-  .fab:active { background: var(--main-dark); }
+  .tab-add:active { background: var(--main-dark); }
+  .tab-add .plus { font-size: 22px; line-height: 1; font-weight: 300; }
+  .tab-add .lbl { font-size: 10px; font-weight: 700; line-height: 1.2; margin-top: 1px; }
 
   /* ===== Modal / sheet ===== */
   .overlay {
@@ -542,7 +543,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1038</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1039</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -599,13 +600,11 @@
     </div>
   </div>
 
-  <!-- FAB -->
-  <button class="fab" onclick="openAddSheet()">+</button>
-
-  <!-- Tabbar -->
+  <!-- Tabbar (가운데 원형 추가 버튼) -->
   <div class="tabbar">
     <button class="tab" id="tab-play" onclick="switchView('play')"><span class="ico">📋</span>플레이</button>
     <button class="tab on" id="tab-games" onclick="switchView('games')"><span class="ico">🎯</span>게임</button>
+    <button class="tab-add" onclick="openAddSheet()" aria-label="추가"><span class="plus">+</span><span class="lbl">추가</span></button>
     <button class="tab" id="tab-reviews" onclick="switchView('reviews')"><span class="ico">💬</span>후기</button>
     <button class="tab" id="tab-my" onclick="switchView('my')"><span class="ico">👤</span>MY</button>
   </div>
@@ -901,12 +900,12 @@ function rvMsgHtml(r) {
     ? esc(r.game_name || '')
     : `${esc(r.game_name || '')} · ${esc(r.player_name || '익명')}`;
   const avatar = mine ? ''
-    : `<div onclick="openGameDetail('${gid}')" style="flex:0 0 auto;">${thumb(r.game_image, 'rvm-av')}</div>`;
+    : `<div onclick="showGameInfo('${gid}')" style="flex:0 0 auto;">${thumb(r.game_image, 'rvm-av')}</div>`;
   return `<div class="rvm ${mine ? 'mine' : ''}">
     ${avatar}
     <div class="rvm-body">
       <div class="rvm-head">${head}</div>
-      <div class="rvm-bubble" onclick="openGameDetail('${gid}')">${esc(r.review || '')}</div>
+      <div class="rvm-bubble" onclick="showGameInfo('${gid}')">${esc(r.review || '')}</div>
     </div>
   </div>`;
 }
@@ -1137,12 +1136,29 @@ function gameInfoInnerHtml(g) {
     <div style="white-space:pre-wrap;font-size:13px;color:#444;">${g.summary_kr ? esc(g.summary_kr) : '<span class="muted">등록된 요약이 없습니다.</span>'}</div>`;
 }
 
-// 게임 정보 보기(읽기 전용 시트)
-function showGameInfo(gameId) {
+// 게임 정보 보기(읽기 전용 시트) + 하단에 그 게임 후기 목록
+async function showGameInfo(gameId) {
   const g = gameById(gameId);
   if (!g) { toast('게임 정보를 찾을 수 없습니다.', true); return; }
-  document.getElementById('detail-body').innerHTML = gameInfoInnerHtml(g);
+  const body = document.getElementById('detail-body');
+  body.innerHTML = gameInfoInnerHtml(g)
+    + `<div class="section-title" style="margin:18px 0 8px;font-size:14px;">💬 후기</div>
+       <div id="gi-reviews"><div class="empty" style="padding:14px 0;"><div class="spinner" style="margin:0 auto;"></div></div></div>`;
   showDetailSheet();
+  try {
+    const reviews = await api('getReviews', { gameId });
+    const el = document.getElementById('gi-reviews');
+    if (!el) return;   // 그새 다른 시트로 이동했으면 무시
+    el.innerHTML = (reviews && reviews.length)
+      ? reviews.map(r => `<div class="rv-row">
+          <div class="rv-name">${esc(r.name)}<span class="rv-when">${esc(String(r.updated_at || '').substring(0, 10))}</span></div>
+          <div class="rv-text">${esc(r.review)}</div>
+        </div>`).join('')
+      : `<div class="muted" style="font-size:12px;padding:6px 2px;">아직 남긴 후기가 없어요.</div>`;
+  } catch (e) {
+    const el = document.getElementById('gi-reviews');
+    if (el) el.innerHTML = `<div class="muted" style="font-size:12px;padding:6px 2px;">후기를 불러오지 못했어요.</div>`;
+  }
 }
 
 // MY-게임기록 펼침: 게임 기본 정보 + 일자별 플레이 요약(일자·승패·내점수·최고점수)
@@ -3527,7 +3543,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1038 후기 탭(채팅형) 추가 — 전체 후기 최신순·10개씩 무한스크롤';
+const APP_VERSION = 'v1039 후기 클릭→게임정보 팝업(후기 목록 포함), 추가 버튼 탭바 중앙 이동';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
