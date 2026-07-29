@@ -287,10 +287,12 @@
   .rvm.mine .rvm-bubble-row { flex-direction: row-reverse; }
   .rvm-date { font-size: 10px; color: var(--text-sub); white-space: nowrap; flex: 0 0 auto; padding-bottom: 2px; }
   /* MY-플레이 달력 */
+  .cal-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px; margin-bottom: 12px; }
   .cal-head { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 8px; }
   .cal-nav { background: none; border: none; font-size: 20px; color: var(--text-sub); padding: 2px 12px; cursor: pointer; line-height: 1; }
   .cal-title { font-weight: 800; font-size: 15px; min-width: 74px; text-align: center; }
-  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 14px; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 0; }
   .cal-wd { text-align: center; font-size: 11px; color: var(--text-sub); font-weight: 700; padding-bottom: 2px; }
   .cal-wd.sun { color: #d9534f; } .cal-wd.sat { color: #4a7bd9; }
   .cal-cell { position: relative; aspect-ratio: 1; border-radius: 9px; background: var(--card);
@@ -581,7 +583,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1043</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1044</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2416,7 +2418,7 @@ function renderMyPlaysTab() {
       </div>
       <button class="btn ghost sm" style="flex:0 0 auto;align-self:stretch;display:flex;align-items:center;padding:0 14px;font-size:12px;white-space:nowrap;" onclick="openLinkGuestModal()">🔗 연동</button>
     </div>
-    <div id="my-cal"></div>
+    <div id="my-cal" class="cal-wrap"></div>
     <div id="my-sessions"></div>`;
   renderMyCalendar();
   filterMyPlays();
@@ -2465,13 +2467,14 @@ function renderMyCalendar() {
   const wd = ['일', '월', '화', '수', '목', '금', '토']
     .map((w, i) => `<div class="cal-wd${i === 0 ? ' sun' : (i === 6 ? ' sat' : '')}">${w}</div>`).join('');
   const cells = [];
-  for (let i = 0; i < firstDow; i++) cells.push('<div class="cal-cell empty"></div>');
   for (let d = 1; d <= daysInMonth; d++) {
     const ds = `${Y}-${String(M).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const sess = byDate[ds] || [];
     const img = sess.length ? topGameImageForDay(sess) : '';
     const sel = state._calDay === ds;
-    cells.push(`<div class="cal-cell ${sess.length ? 'has' : ''} ${img ? 'img' : ''} ${sel ? 'sel' : ''}" ${sess.length ? `onclick="selectCalDay('${ds}')"` : ''}>
+    // 1일은 해당 요일 칸에서 시작(빈 셀 없이 → 모든 주 간격 균일)
+    const colStart = d === 1 ? `style="grid-column-start:${firstDow + 1};"` : '';
+    cells.push(`<div class="cal-cell ${sess.length ? 'has' : ''} ${img ? 'img' : ''} ${sel ? 'sel' : ''}" ${colStart} ${sess.length ? `onclick="selectCalDay('${ds}')"` : ''}>
       ${img ? `<img class="cal-img" src="${esc(img)}" loading="lazy" referrerpolicy="no-referrer" alt="" onerror="this.remove()" />` : ''}
       <span class="cal-d">${d}</span>
     </div>`);
@@ -2535,7 +2538,7 @@ function filterMyPlays() {
   } else {
     const el = document.getElementById('my-sessions');
     if (el) el.innerHTML = all.length
-      ? `<div class="empty" style="padding:18px 0;"><div class="big">📅</div>달력에서 날짜를 선택하면<br/>그날의 플레이 기록이 표시돼요.</div>`
+      ? `<div class="empty" style="padding:18px 0;">달력에서 날짜를 선택하면<br/>그날의 플레이 기록이 표시돼요.</div>`
       : `<div class="empty"><div class="big">🎲</div>아직 플레이 기록이 없어요.<br/>+ 버튼으로 결과를 추가해보세요.</div>`;
   }
 }
@@ -3791,7 +3794,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1043 MY-플레이 달력(날짜별 대표게임 이미지·클릭시 그날 기록)';
+const APP_VERSION = 'v1044 달력 주 간격 균일화 + 카드 배경 + 안내문구 이모지 제거';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
