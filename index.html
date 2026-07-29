@@ -589,7 +589,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1051</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1052</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2471,6 +2471,8 @@ function selectCalDay(ds) {
   state._calGameFilter = null;   // 날짜 바뀌면 게임 칩 선택 초기화
   renderMyCalendar();
   filterMyPlays();
+  const chips = document.getElementById('my-cal-chips');   // 기본 '전체' 칩(맨 왼쪽)이 보이게
+  if (chips) chips.scrollLeft = 0;
 }
 // 선택한 날의 게임별 칩(이름 + 판수). 여러 게임 플레이 시 분류용.
 function renderCalChips(dayList) {
@@ -2506,13 +2508,17 @@ function selectAllCalChips() {
   state._calGameFilter = null;
   filterMyPlays();
 }
-// 칩 줄이 헤더 바로 아래(sticky 위치)로 오도록 스크롤. 카드가 모자라면 브라우저가
-// 최대 스크롤(=하단)로 clamp → 자연스럽게 '스크롤 최하단' 폴백.
+// 선택한 칩의 '첫 카드'가 (헤더+칩 줄) 바로 아래에 오도록 스크롤.
+// (칩 줄은 sticky로 이미 상단 고정이라, 칩이 아니라 첫 카드 기준으로 맞춰야 함)
+// 카드가 모자라면 브라우저가 최대 스크롤(=하단)로 clamp → 자연스러운 하단 폴백.
 function scrollChipsToTop() {
-  const el = document.getElementById('my-cal-chips');
-  if (!el || el.style.display === 'none') return;
+  const chip = document.getElementById('my-cal-chips');
+  const sessions = document.getElementById('my-sessions');
+  if (!chip || chip.style.display === 'none' || !sessions) return;
   const abH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--appbar-h')) || 52;
-  const delta = el.getBoundingClientRect().top - abH;
+  const first = sessions.querySelector('.session') || sessions;
+  const desiredTop = abH + chip.offsetHeight;   // 칩 줄 바로 아래
+  const delta = first.getBoundingClientRect().top - desiredTop;
   if (Math.abs(delta) > 1) window.scrollBy({ top: delta, behavior: 'smooth' });
 }
 function renderMyCalendar() {
@@ -3862,7 +3868,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1051 게임 칩 단일 선택(다른 칩 선택 시 기존 자동 해제)';
+const APP_VERSION = 'v1052 칩 선택 시 첫 카드로 스크롤 + 날짜 변경 시 칩 줄 좌측 이동';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
