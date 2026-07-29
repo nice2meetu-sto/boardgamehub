@@ -563,7 +563,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1041</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1042</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -940,11 +940,11 @@ async function renderReviews() {
   }
   renderReviewChunk(true);
 }
-// 후기 날짜 → 'YY.M.D.' (예: 2026-07-24 → 26.7.24.)
+// 후기 날짜 → 'M.D.' (예: 2026-07-24 → 7.24.)
 function fmtChatDate(s) {
   const d = String(s || '').substring(0, 10).split('-');
   if (d.length !== 3 || !d[0]) return '';
-  return `${d[0].slice(2)}.${Number(d[1])}.${Number(d[2])}.`;
+  return `${Number(d[1])}.${Number(d[2])}.`;
 }
 // 후기 1건 → 채팅 말풍선(내 후기는 오른쪽, 남의 후기는 왼쪽)
 function rvMsgHtml(r) {
@@ -3684,7 +3684,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1041 후기 말풍선 날짜 + 새로고침 탭유지 + 이중확인 종료';
+const APP_VERSION = 'v1042 후기 날짜 연도 제거(M.D.)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
