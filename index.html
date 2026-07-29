@@ -325,6 +325,10 @@
   .rvw-pick.done { background: #eeeef2; border-color: #e2e2ea; }   /* 후기 쓴 게임 = 옅은 회색 */
   .rvw-pick .thumb.rvw-thumb { width: 42px; height: 42px; border-radius: 10px; }
   .rvw-pick-name { font-weight: 700; font-size: 14px; min-width: 0; }
+  /* 후기 작성 팝업 닫기 버튼(작은 pill) */
+  .rvw-close { flex: 0 0 auto; font-size: 12px; font-weight: 700; color: var(--text-sub);
+    background: var(--main-light); border-radius: 999px; padding: 6px 14px; cursor: pointer; white-space: nowrap; }
+  .rvw-close:active { background: #ddd7f7; }
   .rvw-done-tag { font-size: 10px; font-weight: 700; color: var(--text-sub);
     background: #dcdce4; border-radius: 6px; padding: 1px 6px; margin-left: 4px; white-space: nowrap; }
   .thumb.rvw-thumb-lg { width: 48px; height: 48px; border-radius: 12px; }
@@ -1056,7 +1060,7 @@ function renderReviewWrite() {
     body.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;">
         <h3 style="font-size:16px;font-weight:800;margin:0;">✏️ 후기 쓸 게임 선택</h3>
-        <button type="button" class="lnk-clear" onclick="closeReviewWrite()">닫기</button>
+        <button type="button" class="rvw-close" onclick="closeReviewWrite()">✕ 닫기</button>
       </div>
       <div class="rvw-list">${cards}</div>`;
   } else {
@@ -1065,7 +1069,7 @@ function renderReviewWrite() {
     body.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;">
         <button type="button" class="lnk-clear" onclick="reviewWriteBack()">‹ 게임 다시 선택</button>
-        <button type="button" class="lnk-clear" onclick="closeReviewWrite()">닫기</button>
+        <button type="button" class="rvw-close" onclick="closeReviewWrite()">✕ 닫기</button>
       </div>
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;">
         ${thumb(g.image_url, 'rvw-thumb-lg')}
@@ -3886,7 +3890,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1056 BGG 검색 URL에 B1=Go 추가(검색 실행 보장)';
+const APP_VERSION = 'v1057 후기쓰기 팝업 닫기 버튼 pill 형식으로';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
