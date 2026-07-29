@@ -589,7 +589,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1050</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1051</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2494,7 +2494,9 @@ function toggleCalChip(gid) {
   if (!state._calGameFilter) state._calGameFilter = new Set();
   const s = state._calGameFilter;
   let added;
-  if (s.has(gid)) { s.delete(gid); added = false; } else { s.add(gid); added = true; }
+  // 단일 선택: 같은 칩 다시 누르면 해제, 다른 칩 누르면 기존 선택은 자동 해제
+  if (s.has(gid)) { s.clear(); added = false; }
+  else { s.clear(); s.add(gid); added = true; }
   filterMyPlays();
   if (added) scrollChipsToTop();   // 선택할 때만 상단으로 스크롤(해제 시엔 이동 없음)
 }
@@ -3860,7 +3862,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1050 전체 칩(총 판수) 추가 + 칩 해제 시 스크롤 이동 없음';
+const APP_VERSION = 'v1051 게임 칩 단일 선택(다른 칩 선택 시 기존 자동 해제)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
