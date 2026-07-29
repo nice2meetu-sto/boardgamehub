@@ -589,7 +589,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1052</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1053</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -1900,7 +1900,7 @@ function renderCategoryFilter() {
     `<span class="chip ${!cur ? 'on' : ''}" onclick="setCatFilter(null)">전체</span>` +
     cats.map(c => `<span class="chip ${cur === c ? 'on' : ''}" onclick="setCatFilter('${esc(c)}')">${esc(c)}</span>`).join('');
 }
-function setCatFilter(c) { state.gameFilter.category = c; renderGames(); }
+function setCatFilter(c) { state.gameFilter.category = c; renderGames(); centerSelectedChip('cat-filter'); }
 
 function renderPlayerCountFilter() {
   const cur = state.gameFilter.playerCount;
@@ -1911,7 +1911,7 @@ function renderPlayerCountFilter() {
     counts.map(n => `<span class="chip ${cur === n ? 'on' : ''}" onclick="setPcFilter(${n})">${n}명</span>`).join('') +
     `<span class="chip ${cur === 7 ? 'on' : ''}" onclick="setPcFilter(7)">7명+</span>`;
 }
-function setPcFilter(n) { state.gameFilter.playerCount = n; renderGames(); }
+function setPcFilter(n) { state.gameFilter.playerCount = n; renderGames(); centerSelectedChip('player-filter'); }
 
 function renderWeightFilter() {
   const cur = state.gameFilter.weight;
@@ -1920,7 +1920,7 @@ function renderWeightFilter() {
     `<span class="chip ${!cur ? 'on' : ''}" onclick="setWeightFilter(null)">난이도 전체</span>` +
     WEIGHT_BUCKETS.map(b => `<span class="chip ${cur === b.key ? 'on' : ''}" onclick="setWeightFilter('${b.key}')">${b.label}</span>`).join('');
 }
-function setWeightFilter(key) { state.gameFilter.weight = key; renderGames(); }
+function setWeightFilter(key) { state.gameFilter.weight = key; renderGames(); centerSelectedChip('weight-filter'); }
 
 document.getElementById('game-search').addEventListener('input', e => {
   state.gameFilter.search = e.target.value.trim().toLowerCase();
@@ -2500,7 +2500,10 @@ function toggleCalChip(gid) {
   if (s.has(gid)) { s.clear(); added = false; }
   else { s.clear(); s.add(gid); added = true; }
   filterMyPlays();
-  if (added) scrollChipsToTop();   // 선택할 때만 상단으로 스크롤(해제 시엔 이동 없음)
+  if (added) {   // 선택할 때만: 첫 카드로 스크롤 + 선택 칩을 가로 중앙으로
+    scrollChipsToTop();
+    centerSelectedChip('my-cal-chips');
+  }
 }
 // '전체' 칩 → 게임 필터 해제(전체 보기). 해제 성격이라 스크롤 이동 없음.
 function selectAllCalChips() {
@@ -2520,6 +2523,20 @@ function scrollChipsToTop() {
   const desiredTop = abH + chip.offsetHeight;   // 칩 줄 바로 아래
   const delta = first.getBoundingClientRect().top - desiredTop;
   if (Math.abs(delta) > 1) window.scrollBy({ top: delta, behavior: 'smooth' });
+}
+// 선택한 칩을 가로 스크롤 행의 중앙쯤으로 이동
+function centerChipInRow(chipEl) {
+  const row = chipEl && chipEl.closest('.chip-row');
+  if (!row) return;
+  const rowRect = row.getBoundingClientRect();
+  const chipRect = chipEl.getBoundingClientRect();
+  const delta = (chipRect.left + chipRect.width / 2) - (rowRect.left + rowRect.width / 2);
+  row.scrollTo({ left: row.scrollLeft + delta, behavior: 'smooth' });
+}
+// 지정한 chip-row의 선택(.on) 칩을 중앙으로
+function centerSelectedChip(rowId) {
+  const on = document.querySelector('#' + rowId + ' .chip.on');
+  if (on) centerChipInRow(on);
 }
 function renderMyCalendar() {
   const el = document.getElementById('my-cal');
@@ -3868,7 +3885,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1052 칩 선택 시 첫 카드로 스크롤 + 날짜 변경 시 칩 줄 좌측 이동';
+const APP_VERSION = 'v1053 선택 칩 가로 중앙 이동(플레이 칩·게임탭 필터 칩)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
