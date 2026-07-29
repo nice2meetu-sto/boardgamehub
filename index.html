@@ -306,6 +306,8 @@
   .cal-cell.img .cal-d { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.75); }
   .cal-cell.sel { outline: 2px solid var(--main); outline-offset: -2px; }
   .cal-cell.sel::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 0 2px var(--main); border-radius: 9px; }
+  .session.clickable { cursor: pointer; }
+  .session.clickable:active { background: #f6f5fb; }
   /* 후기 작성 중앙 팝업 */
   #rvwrite-overlay { position: fixed; inset: 0; z-index: 150; background: rgba(20,20,30,.45);
     display: none; align-items: center; justify-content: center; padding: 20px; }
@@ -583,7 +585,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1044</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1045</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -1689,7 +1691,11 @@ function renderSessionList(containerId, sessions, opts = {}) {
         <span class="pname">${esc(p.name)}${p.is_win ? '<span class="crown">👑</span>' : ''}</span>
         <span class="pscore">${p.score == null ? '' : esc(p.score) + '점'}</span>
       </div>`).join('');
-    return `<div class="session">
+    // linkGame: 카드(수정/작성자 버튼 제외) 클릭 → 그 게임 상세로 이동
+    const cardOpen = opts.linkGame
+      ? `<div class="session clickable" onclick="openGameDetail('${esc(String(s.game_id))}')">`
+      : `<div class="session">`;
+    return `${cardOpen}
       <div class="session-head">
         ${thumb(s.game_image, 'session-thumb')}
         <div style="flex:1;min-width:0;">
@@ -1697,9 +1703,9 @@ function renderSessionList(containerId, sessions, opts = {}) {
           <div class="g-meta">${esc(String(s.play_date).substring(0,10))}${dur} · ${s.participants.length}명${creator}</div>
         </div>
         ${canEdit
-          ? `<button class="btn ghost sm" style="padding:5px 12px;font-size:12px;flex:0 0 auto;" onclick="startEditSession('${esc(s.session_id)}')">수정</button>`
+          ? `<button class="btn ghost sm" style="padding:5px 12px;font-size:12px;flex:0 0 auto;" onclick="event.stopPropagation(); startEditSession('${esc(s.session_id)}')">수정</button>`
           : (s.created_by
-              ? `<button class="btn sm author" style="padding:5px 12px;font-size:12px;flex:0 0 auto;" onclick="authorToast('${esc(String(s.created_by))}')">${esc(playerNameById(s.created_by))}</button>`
+              ? `<button class="btn sm author" style="padding:5px 12px;font-size:12px;flex:0 0 auto;" onclick="event.stopPropagation(); authorToast('${esc(String(s.created_by))}')">${esc(playerNameById(s.created_by))}</button>`
               : '')}
       </div>
       <div class="participants">${parts}</div>
@@ -2405,11 +2411,13 @@ function renderMyPlaysTab() {
   state._editSid = null;   // 탭 진입 시 수정 모드 해제
   state._mySessions = state.plays.filter(s =>
     s.participants.some(p => p.player_id === state.user.player_id));
-  // 기본 달 = 가장 최근 플레이의 달(없으면 이번 달), 기본 선택일 = 가장 최근 플레이일
-  const dates = state._mySessions.map(s => String(s.play_date).substring(0, 10)).filter(Boolean).sort();
-  const recent = dates.length ? dates[dates.length - 1] : new Date().toISOString().substring(0, 10);
-  state._calMonth = recent.substring(0, 7);
-  state._calDay = dates.length ? recent : null;
+  // 첫 방문에만 기본값(가장 최근 플레이일) 설정 → 이후엔 마지막으로 본 달/일자 기억
+  if (state._calMonth == null) {
+    const dates = state._mySessions.map(s => String(s.play_date).substring(0, 10)).filter(Boolean).sort();
+    const recent = dates.length ? dates[dates.length - 1] : new Date().toISOString().substring(0, 10);
+    state._calMonth = recent.substring(0, 7);
+    state._calDay = dates.length ? recent : null;
+  }
   el.innerHTML = `
     <div style="display:flex;gap:8px;align-items:center;margin-top:2px;margin-bottom:12px;">
       <div class="searchbox" style="flex:1;margin:0;">
@@ -2526,7 +2534,7 @@ function filterMyPlays() {
       ].join(' ').toLowerCase();
       return terms.every(t => hay.includes(t));
     });
-    renderSessionList('my-sessions', list);
+    renderSessionList('my-sessions', list, { linkGame: true });
     return;
   }
 
@@ -2534,7 +2542,7 @@ function filterMyPlays() {
   if (cal) cal.style.display = '';
   if (state._calDay) {
     const list = all.filter(s => String(s.play_date).substring(0, 10) === state._calDay);
-    renderSessionList('my-sessions', list);
+    renderSessionList('my-sessions', list, { linkGame: true });
   } else {
     const el = document.getElementById('my-sessions');
     if (el) el.innerHTML = all.length
@@ -3794,7 +3802,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1044 달력 주 간격 균일화 + 카드 배경 + 안내문구 이모지 제거';
+const APP_VERSION = 'v1045 달력 선택일 기억 + 플레이 카드 클릭시 게임상세 이동';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
