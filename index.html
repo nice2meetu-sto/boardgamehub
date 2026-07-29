@@ -288,7 +288,7 @@
   .rvm-date { font-size: 10px; color: var(--text-sub); white-space: nowrap; flex: 0 0 auto; padding-bottom: 2px; }
   /* MY-플레이 달력 */
   .cal-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-    padding: 12px; margin-bottom: 12px; }
+    padding: 12px; margin-bottom: 2px; }
   .cal-head { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 8px; }
   .cal-nav { background: none; border: none; font-size: 20px; color: var(--text-sub); padding: 2px 12px; cursor: pointer; line-height: 1; }
   .cal-title { font-weight: 800; font-size: 15px; min-width: 74px; text-align: center; }
@@ -310,7 +310,7 @@
   .session.clickable:active { background: #f6f5fb; }
   /* 달력 게임 칩 줄: 헤더 아래에 sticky(상단 한계로 붙었다가 내리면 원위치) */
   #my-cal-chips { position: sticky; top: var(--appbar-h, 52px); z-index: 30;
-    background: var(--bg); padding-top: 8px; padding-bottom: 8px; margin-bottom: 4px;
+    background: var(--bg); padding-top: 5px; padding-bottom: 8px; margin-bottom: 4px;
     box-shadow: 0 6px 8px -6px rgba(0,0,0,.12); }
   /* 후기 작성 중앙 팝업 */
   #rvwrite-overlay { position: fixed; inset: 0; z-index: 150; background: rgba(20,20,30,.45);
@@ -589,7 +589,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1047</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1048</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -3848,7 +3848,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1047 칩 줄 sticky(헤더 아래 고정) + 클릭 시 상단 스크롤';
+const APP_VERSION = 'v1048 달력-칩 사이 여백 축소';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
