@@ -286,6 +286,24 @@
   .rvm-bubble-row { display: flex; align-items: flex-end; gap: 5px; min-width: 0; }
   .rvm.mine .rvm-bubble-row { flex-direction: row-reverse; }
   .rvm-date { font-size: 10px; color: var(--text-sub); white-space: nowrap; flex: 0 0 auto; padding-bottom: 2px; }
+  /* MY-플레이 달력 */
+  .cal-head { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 8px; }
+  .cal-nav { background: none; border: none; font-size: 20px; color: var(--text-sub); padding: 2px 12px; cursor: pointer; line-height: 1; }
+  .cal-title { font-weight: 800; font-size: 15px; min-width: 74px; text-align: center; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 14px; }
+  .cal-wd { text-align: center; font-size: 11px; color: var(--text-sub); font-weight: 700; padding-bottom: 2px; }
+  .cal-wd.sun { color: #d9534f; } .cal-wd.sat { color: #4a7bd9; }
+  .cal-cell { position: relative; aspect-ratio: 1; border-radius: 9px; background: var(--card);
+    border: 1px solid var(--border); overflow: hidden; }
+  .cal-cell.empty { background: none; border: none; }
+  .cal-cell.has { cursor: pointer; }
+  .cal-cell.has:not(.img) { background: var(--main-light); }   /* 플레이 있으나 이미지 없는 날 */
+  .cal-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .cal-d { position: absolute; top: 3px; left: 5px; font-size: 11px; font-weight: 600; color: var(--text-sub); z-index: 1; }
+  .cal-cell.has:not(.img) .cal-d { color: var(--main); font-weight: 800; }
+  .cal-cell.img .cal-d { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.75); }
+  .cal-cell.sel { outline: 2px solid var(--main); outline-offset: -2px; }
+  .cal-cell.sel::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 0 2px var(--main); border-radius: 9px; }
   /* 후기 작성 중앙 팝업 */
   #rvwrite-overlay { position: fixed; inset: 0; z-index: 150; background: rgba(20,20,30,.45);
     display: none; align-items: center; justify-content: center; padding: 20px; }
@@ -563,7 +581,7 @@
 <body>
 <div id="app">
   <div class="appbar">
-    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1042</span></h1>
+    <h1><span class="dice">🎲</span> 보드게임 Hub <span id="build-tag" style="font-size:10px;font-weight:500;color:var(--text-sub);vertical-align:middle;">v1043</span></h1>
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="admin-btn" onclick="openAdminPage()" title="관리자 페이지"
               style="display:none;background:#fff3e0;color:#c77700;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🛠</button>
@@ -2385,6 +2403,11 @@ function renderMyPlaysTab() {
   state._editSid = null;   // 탭 진입 시 수정 모드 해제
   state._mySessions = state.plays.filter(s =>
     s.participants.some(p => p.player_id === state.user.player_id));
+  // 기본 달 = 가장 최근 플레이의 달(없으면 이번 달), 기본 선택일 = 가장 최근 플레이일
+  const dates = state._mySessions.map(s => String(s.play_date).substring(0, 10)).filter(Boolean).sort();
+  const recent = dates.length ? dates[dates.length - 1] : new Date().toISOString().substring(0, 10);
+  state._calMonth = recent.substring(0, 7);
+  state._calDay = dates.length ? recent : null;
   el.innerHTML = `
     <div style="display:flex;gap:8px;align-items:center;margin-top:2px;margin-bottom:12px;">
       <div class="searchbox" style="flex:1;margin:0;">
@@ -2393,8 +2416,73 @@ function renderMyPlaysTab() {
       </div>
       <button class="btn ghost sm" style="flex:0 0 auto;align-self:stretch;display:flex;align-items:center;padding:0 14px;font-size:12px;white-space:nowrap;" onclick="openLinkGuestModal()">🔗 연동</button>
     </div>
+    <div id="my-cal"></div>
     <div id="my-sessions"></div>`;
+  renderMyCalendar();
   filterMyPlays();
+}
+
+// ===== 플레이 달력 =====
+// 내 세션을 날짜별로 묶기
+function myPlaysByDate() {
+  const map = {};
+  (state._mySessions || []).forEach(s => {
+    const d = String(s.play_date).substring(0, 10);
+    (map[d] = map[d] || []).push(s);
+  });
+  return map;
+}
+// 그날 가장 많이 플레이한 게임의 이미지
+function topGameImageForDay(sessions) {
+  const cnt = {}; let best = 0, img = '';
+  sessions.forEach(s => {
+    const k = s.game_id;
+    cnt[k] = (cnt[k] || 0) + 1;
+    if (cnt[k] > best) { best = cnt[k]; img = s.game_image || ''; }
+  });
+  return img;
+}
+function calMonthShift(delta) {
+  const [Y, M] = state._calMonth.split('-').map(Number);
+  const d = new Date(Y, M - 1 + delta, 1);
+  state._calMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  state._calDay = null;     // 월 이동 시 선택 해제
+  renderMyCalendar();
+  filterMyPlays();
+}
+function selectCalDay(ds) {
+  state._calDay = (state._calDay === ds) ? null : ds;   // 다시 누르면 해제
+  renderMyCalendar();
+  filterMyPlays();
+}
+function renderMyCalendar() {
+  const el = document.getElementById('my-cal');
+  if (!el) return;
+  const [Y, M] = state._calMonth.split('-').map(Number);
+  const byDate = myPlaysByDate();
+  const daysInMonth = new Date(Y, M, 0).getDate();
+  const firstDow = new Date(Y, M - 1, 1).getDay();   // 0=일
+  const wd = ['일', '월', '화', '수', '목', '금', '토']
+    .map((w, i) => `<div class="cal-wd${i === 0 ? ' sun' : (i === 6 ? ' sat' : '')}">${w}</div>`).join('');
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push('<div class="cal-cell empty"></div>');
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${Y}-${String(M).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const sess = byDate[ds] || [];
+    const img = sess.length ? topGameImageForDay(sess) : '';
+    const sel = state._calDay === ds;
+    cells.push(`<div class="cal-cell ${sess.length ? 'has' : ''} ${img ? 'img' : ''} ${sel ? 'sel' : ''}" ${sess.length ? `onclick="selectCalDay('${ds}')"` : ''}>
+      ${img ? `<img class="cal-img" src="${esc(img)}" loading="lazy" referrerpolicy="no-referrer" alt="" onerror="this.remove()" />` : ''}
+      <span class="cal-d">${d}</span>
+    </div>`);
+  }
+  el.innerHTML = `
+    <div class="cal-head">
+      <button class="cal-nav" onclick="calMonthShift(-1)">‹</button>
+      <span class="cal-title">${Y}.${M}</span>
+      <button class="cal-nav" onclick="calMonthShift(1)">›</button>
+    </div>
+    <div class="cal-grid">${wd}${cells.join('')}</div>`;
 }
 
 // 로그인한 본인이 특정 게임에서 낸 점수들의 평균/최고 (점수 없으면 has=false)
@@ -2422,15 +2510,34 @@ function filterMyPlays() {
   const input = document.getElementById('my-play-search');
   const raw = input ? input.value : '';
   const terms = raw.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
-  const list = !terms.length ? all : all.filter(s => {
-    const hay = [
-      String(s.play_date || ''),
-      String(s.game_name || ''),
-      ...s.participants.map(p => String(p.name || ''))
-    ].join(' ').toLowerCase();
-    return terms.every(t => hay.includes(t));
-  });
-  renderSessionList('my-sessions', list);
+  const cal = document.getElementById('my-cal');
+
+  // 검색 중 → 달력 숨기고 검색 결과 카드만
+  if (terms.length) {
+    if (cal) cal.style.display = 'none';
+    const list = all.filter(s => {
+      const hay = [
+        String(s.play_date || ''),
+        String(s.game_name || ''),
+        ...s.participants.map(p => String(p.name || ''))
+      ].join(' ').toLowerCase();
+      return terms.every(t => hay.includes(t));
+    });
+    renderSessionList('my-sessions', list);
+    return;
+  }
+
+  // 검색 없음 → 달력 표시, 선택한 날짜의 기록만(없으면 안내)
+  if (cal) cal.style.display = '';
+  if (state._calDay) {
+    const list = all.filter(s => String(s.play_date).substring(0, 10) === state._calDay);
+    renderSessionList('my-sessions', list);
+  } else {
+    const el = document.getElementById('my-sessions');
+    if (el) el.innerHTML = all.length
+      ? `<div class="empty" style="padding:18px 0;"><div class="big">📅</div>달력에서 날짜를 선택하면<br/>그날의 플레이 기록이 표시돼요.</div>`
+      : `<div class="empty"><div class="big">🎲</div>아직 플레이 기록이 없어요.<br/>+ 버튼으로 결과를 추가해보세요.</div>`;
+  }
 }
 
 // ===== 비회원(게스트) → 회원 연동 =====
@@ -3684,7 +3791,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1042 후기 날짜 연도 제거(M.D.)';
+const APP_VERSION = 'v1043 MY-플레이 달력(날짜별 대표게임 이미지·클릭시 그날 기록)';
 function init() {
   console.log('BoardGameHub build:', APP_VERSION);
   const saved = localStorage.getItem('bg_user');
