@@ -334,6 +334,7 @@
     background: var(--main); border-radius: 999px; padding: 7px 14px; cursor: pointer; white-space: nowrap; }
   .rvw-write-btn:active { background: var(--main-dark); }
   .rvw-write-btn.locked { background: #e6e6ec; color: var(--text-sub); font-weight: 700; opacity: .75; }
+  .rvw-write-btn.done { background: var(--main-light); color: var(--main); font-weight: 800; }
   .rvw-done-tag { font-size: 10px; font-weight: 700; color: var(--text-sub);
     background: #dcdce4; border-radius: 6px; padding: 1px 6px; margin-left: 4px; white-space: nowrap; }
   .thumb.rvw-thumb-lg { width: 48px; height: 48px; border-radius: 12px; }
@@ -1564,19 +1565,27 @@ function hasPlayedGame(gid) {
 }
 async function openReviews(gameId) {
   state._openReviewsGid = gameId;
+  const body = document.getElementById('detail-body');
+  body.innerHTML = `<div class="empty"><div class="spinner" style="margin:0 auto;"></div></div>`;
+  showDetailSheet();
+  if (state.user) { try { await ensureMyRatings(); } catch (e) {} }   // 작성 완료 여부 판별용
   const g = gameById(gameId);
   const title = g ? esc(g.name_kr || g.name_en) : '';
   const canWrite = hasPlayedGame(gameId);
-  const writeBtn = canWrite
-    ? `<button class="rvw-write-btn" onclick="openReviewWriteFor('${esc(String(gameId))}')">후기 작성</button>`
-    : `<button class="rvw-write-btn locked" onclick="toast(${state.user ? "'플레이 후 후기를 작성해보세요'" : "'로그인 후 작성할 수 있어요', true"})">🔒 후기 작성</button>`;
+  const done = !!(state._myRatings && state._myRatings[gameId] && (state._myRatings[gameId].review || '').trim());
+  let writeBtn;
+  if (!canWrite) {
+    writeBtn = `<button class="rvw-write-btn locked" onclick="toast(${state.user ? "'플레이 후 후기를 작성해보세요'" : "'로그인 후 작성할 수 있어요', true"})">🔒 후기 작성</button>`;
+  } else if (done) {
+    writeBtn = `<button class="rvw-write-btn done" onclick="openReviewWriteFor('${esc(String(gameId))}')">작성 완료</button>`;
+  } else {
+    writeBtn = `<button class="rvw-write-btn" onclick="openReviewWriteFor('${esc(String(gameId))}')">후기 작성</button>`;
+  }
   const head = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 2px 12px;">
       <h2 style="font-size:20px;font-weight:900;margin:0;min-width:0;">💬<span class="muted" style="font-size:13px;font-weight:500;">· ${title}</span></h2>
       ${writeBtn}
     </div>`;
-  const body = document.getElementById('detail-body');
   body.innerHTML = head + `<div class="empty"><div class="spinner" style="margin:0 auto;"></div></div>`;
-  showDetailSheet();
   try {
     const reviews = await api('getReviews', { gameId });
     const list = (reviews && reviews.length)
@@ -3948,7 +3957,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1060 게임탭 후기 팝업에 후기작성 버튼(미플레이는 잠금)';
+const APP_VERSION = 'v1061 후기 작성완료 게임은 [작성 완료] 버튼으로 표시';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
