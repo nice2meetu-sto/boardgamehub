@@ -1577,9 +1577,11 @@ async function openReviews(gameId) {
   if (!canWrite) {
     writeBtn = `<button class="rvw-write-btn locked" onclick="toast(${state.user ? "'플레이 후 후기를 작성해보세요'" : "'로그인 후 작성할 수 있어요', true"})">🔒 후기 작성</button>`;
   } else if (done) {
-    writeBtn = `<button class="rvw-write-btn done" onclick="openReviewWriteFor('${esc(String(gameId))}')">작성 완료</button>`;
+    // 작성 완료: 회색(잠금 디자인) — 단, 눌러서 수정 가능
+    writeBtn = `<button class="rvw-write-btn locked" onclick="openReviewWriteFor('${esc(String(gameId))}')">작성 완료</button>`;
   } else {
-    writeBtn = `<button class="rvw-write-btn" onclick="openReviewWriteFor('${esc(String(gameId))}')">후기 작성</button>`;
+    // 후기 작성: 옅은 보라(기존 작성완료 디자인)
+    writeBtn = `<button class="rvw-write-btn done" onclick="openReviewWriteFor('${esc(String(gameId))}')">후기 작성</button>`;
   }
   const head = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 2px 12px;">
       <h2 style="font-size:20px;font-weight:900;margin:0;min-width:0;">💬<span class="muted" style="font-size:13px;font-weight:500;">· ${title}</span></h2>
@@ -3957,7 +3959,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1061 후기 작성완료 게임은 [작성 완료] 버튼으로 표시';
+const APP_VERSION = 'v1062 후기 작성=옅은보라, 작성완료=회색으로 디자인 교체';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
