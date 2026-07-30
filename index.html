@@ -1516,32 +1516,42 @@ function gameChartSvg(sessions, uid) {
     return { date: String(s.play_date).substring(5, 10), best: scores.length ? Math.max(...scores) : null, mine, sid: s.session_id };
   });
   if (!pts.length) return `<div class="muted" style="font-size:12px;padding:10px 2px;text-align:center;">점수 기록이 없어요.</div>`;
-  const W = 340, H = 116, padT = 24, padB = 20, padX = 8;
+  const W = 340, H = 116, padT = 16, padB = 20, padX = 8;
   const plotH = H - padT - padB, baseY = padT + plotH;
   const n = pts.length, slot = (W - padX * 2) / n;
-  const maxV = Math.max(1, ...pts.map(p => Math.max(p.best || 0, p.mine || 0)));
-  const y = v => padT + plotH * (1 - v / maxV);
+  // 스케일: 0을 항상 포함하되, 음수 점수가 있으면 그 최솟값이 바닥이 되도록 lo를 내린다.
+  const vals = [];
+  pts.forEach(p => { if (p.best != null) vals.push(p.best); if (p.mine != null) vals.push(p.mine); });
+  const hi = Math.max(0, ...vals), lo = Math.min(0, ...vals);
+  const span = (hi - lo) || 1;
+  const y = v => padT + plotH * (1 - (v - lo) / span);
+  const zeroY = y(0);
   const cx = i => padX + slot * (i + 0.5);
   const bw = Math.min(slot * 0.56, 26);
   let bars = '', labels = '';
   const line = [];
+  // 음수가 있을 때만 0 기준선(옅게)
+  const zeroLine = lo < 0 ? `<line x1="${padX}" y1="${zeroY.toFixed(1)}" x2="${(W - padX).toFixed(1)}" y2="${zeroY.toFixed(1)}" stroke="#eceaf3" stroke-width="1" style="pointer-events:none;"/>` : '';
   pts.forEach((p, i) => {
     const x = cx(i);
     if (p.best != null) {
       const by = y(p.best);
-      bars += `<path d="${topRoundRect(x - bw / 2, by, bw, baseY - by, 5)}" fill="var(--main)" style="cursor:pointer;" onclick="showBarSession('${esc(p.sid)}')"/>`;
-      labels += `<text x="${x.toFixed(1)}" y="${(by - 8).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="#8a86a8" style="pointer-events:none;">${p.best}</text>`;
+      const topY = Math.min(by, zeroY), h = Math.abs(zeroY - by);   // 0 기준으로 위(양수)/아래(음수)로 자람
+      bars += `<path d="${topRoundRect(x - bw / 2, topY, bw, h, 5)}" fill="var(--main)" style="cursor:pointer;" onclick="showBarSession('${esc(p.sid)}')"/>`;
+      const labelY = by <= zeroY ? by - 8 : by + 12;   // 음수 막대면 라벨을 아래로
+      labels += `<text x="${x.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle" font-size="9.5" fill="#8a86a8" style="pointer-events:none;">${p.best}</text>`;
     }
     if (p.mine != null) {
       const my = y(p.mine);
       line.push({ x, y: my });
-      labels += `<text x="${x.toFixed(1)}" y="${(my + 13).toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#d9d5f3" style="pointer-events:none;">${p.mine}</text>`;
+      const mineLabelY = my > baseY - 16 ? my - 7 : my + 13;   // 바닥 근처면 날짜와 안 겹치게 위로
+      labels += `<text x="${x.toFixed(1)}" y="${mineLabelY.toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#d9d5f3" style="pointer-events:none;">${p.mine}</text>`;
     }
     labels += `<text x="${x.toFixed(1)}" y="${(H - 5).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9a97a8" style="pointer-events:none;">${p.date}</text>`;
   });
   const curve = smoothPath(line);
   const path = curve ? `<path d="${curve}" fill="none" stroke="#d9d5f3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"/>` : '';
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;">${bars}${path}${labels}</svg>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;">${zeroLine}${bars}${path}${labels}</svg>`;
 }
 
 function openGameDetail(gameId) {
@@ -4072,7 +4082,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1082 MY-게임기록: 메타+평점 함께, 영문명 숨김, 후기 없을 때 보라색 안내';
+const APP_VERSION = 'v1083 점수 추이 그래프: 음수 점수 스케일 반영 + 상단 여백 축소';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
