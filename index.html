@@ -1263,12 +1263,11 @@ function renderPlay() {
   const ranks = competitionRanks(list, g => g.count);   // 동일 판수 = 공동 순위
   el.innerHTML = list.map((g, i) => `
     <div class="session" style="display:flex;align-items:center;gap:12px;position:relative;${g.id ? 'cursor:pointer;' : ''}" ${g.id ? `onclick="showGameInfo('${g.id}')"` : ''}>
-      ${g.id ? `<div class="gcard-actions br">${reviewPillHtml(g.id, g.review_count, null, 'info')}</div>` : ''}
       <div class="grow-rank">${ranks[i]}</div>
       ${thumb(g.image, 'session-thumb')}
       <div style="flex:1;min-width:0;">
         <div class="g-name" style="font-weight:700;">${esc(g.name)}</div>
-        <div class="g-meta">${g.count}판 · ${clubRatingMini(g.club_rating, g.rating_count)}</div>
+        <div class="g-meta">${g.count}판 · ${clubRatingMini(g.club_rating, g.rating_count)} · ${reviewCountInline(g.review_count)}</div>
       </div>
     </div>`).join('');
 }
@@ -1589,6 +1588,12 @@ function reviewPillHtml(gameId, count, extraClass, action) {
   const cnt = n > 0 ? ` <small style="font-weight:500;color:var(--text-sub);">(${n})</small>` : '';
   const fn = action === 'info' ? 'showGameInfo' : 'openReviews';
   return `<button class="gcard-pill review${extraClass ? ' ' + extraClass : ''}" onclick="event.stopPropagation(); ${fn}('${gameId}')">💬${cnt}</button>`;
+}
+
+// 후기 표시(평점 옆 인라인, 버튼 아님): 💬 + 개수(있을 때만) — 카드 전체 탭이 게임정보 팝업을 여는 곳에서 사용
+function reviewCountInline(count) {
+  const n = Number(count) || 0;
+  return `💬${n > 0 ? ' (' + n + ')' : ''}`;
 }
 
 // 게임 탭: [후기] 버튼 → 사람들이 남긴 후기(닉네임 + 코멘트)
@@ -2061,7 +2066,7 @@ function filteredGames() {
 
 // 게임 카드 헤더(사진 옆 정보 정렬): 이름·분류·메타·Hub평점(+내 평점)
 // showMine=true 이면 Hub 평점 옆에 '나 ★ X.X' 표시(게임 기록 카드와 동일)
-function gameCardTopHtml(g, showMine) {
+function gameCardTopHtml(g, showMine, extra = {}) {
   const meta = [];
   if (g.min_players || g.max_players) {
     const mn = g.min_players || '?', mx = g.max_players || '?';
@@ -2089,28 +2094,39 @@ function gameCardTopHtml(g, showMine) {
           ${g.category ? `<span class="badge" style="margin-left:6px;">${esc(g.category)}</span>` : ''}</div>
         ${g.name_en && g.name_kr ? `<div class="gcard-en">${esc(g.name_en)}</div>` : ''}
         <div class="gcard-meta">${meta.map(m => `<span>${m}</span>`).join('')}</div>
-        <div class="gcard-ratings">${club}${mine}</div>
+        <div class="gcard-ratings">${extra.reviewCount != null
+          ? `<span style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${club}<span class="muted" style="font-size:12px;">· ${reviewCountInline(extra.reviewCount)}</span></span>`
+          : club}${mine}</div>
       </div>`;
 }
 
 function gameCardHtml(g, opts = {}) {
-  // 펼침 영역: 내 게임기록은 '평점 에디터', 그 외는 '게임 요약'
+  // 관리자 또는 이 게임을 등록한 본인이면 수정(연필) 버튼
+  const canEditGame = state.user && (state.user.role === 'admin' ||
+    (g.created_by && String(g.created_by) === String(state.user.player_id)));
+  const editBtn = (opts.adminEdit || canEditGame)
+    ? `<button class="gcard-pill edit" title="게임 정보 수정" onclick="event.stopPropagation(); openEditGame('${g.game_id}')">✏️</button>` : '';
+
+  // 통합-게임 탭: 카드 전체 탭 → 전체 정보 팝업(showGameInfo, 후기탭·플레이탭과 동일).
+  // 후기 표시는 평점 옆으로, 수정(연필)은 우측 하단으로 이동(긴 게임명이 연필과 겹치지 않게).
+  if (opts.review && !opts.ratingEditor) {
+    return `<div class="gcard" data-gid="${g.game_id}" style="cursor:pointer;" onclick="showGameInfo('${g.game_id}')">
+      <div class="gcard-top">
+        ${gameCardTopHtml(g, false, { reviewCount: g.review_count })}
+        ${editBtn ? `<div class="gcard-actions br">${editBtn}</div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  // 그 외(MY-게임 등): 기존 유지 — 펼침(요약/평점 에디터) + 우측 상단 연필 + 우측 하단 상세
   const detail = opts.ratingEditor
     ? `<div class="gcard-editwrap">${ratingEditorHtml(g)}</div>`
     : (g.summary_kr
         ? `<div class="gcard-detail">${esc(g.summary_kr)}</div>`
         : `<div class="gcard-detail muted">등록된 요약이 없습니다.</div>`);
-
-  const acts = [];
-  // 관리자 또는 이 게임을 등록한 본인이면 우측 상단 연필(수정 팝업)
-  const canEditGame = state.user && (state.user.role === 'admin' ||
-    (g.created_by && String(g.created_by) === String(state.user.player_id)));
-  if (opts.adminEdit || canEditGame) acts.push(`<button class="gcard-pill edit" title="게임 정보 수정" onclick="event.stopPropagation(); openEditGame('${g.game_id}')">✏️</button>`);
-  const actsHtml = acts.length ? `<div class="gcard-actions">${acts.join('')}</div>` : '';
-  // 상세·후기 버튼은 평점 줄 오른쪽 끝(우측 하단)에 배치
+  const actsHtml = editBtn ? `<div class="gcard-actions">${editBtn}</div>` : '';
   const br = [];
   if (opts.ratingEditor) br.push(`<button class="gcard-pill" onclick="event.stopPropagation(); openGameDetail('${g.game_id}')">상세</button>`);
-  if (opts.review) br.push(reviewPillHtml(g.game_id, g.review_count));
   const reviewHtml = br.length ? `<div class="gcard-actions br">${br.join('')}</div>` : '';
 
   return `<div class="gcard" data-gid="${g.game_id}">
@@ -4035,7 +4051,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1077 게임 폼 인원 입력칸 너비 3:3:4(최소·최대 축소, 베스트 확대)';
+const APP_VERSION = 'v1078 통합-게임 탭 카드=전체 정보 팝업, 후기수는 평점 옆, 연필은 우하단으로';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
