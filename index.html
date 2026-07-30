@@ -2446,12 +2446,16 @@ function myCategoryChartSvg() {
   const n = cats.length, slot = (W - padX * 2) / n;
   const maxV = Math.max(1, ...cats.map(c => c.plays));
   const y = v => padT + plotH * (1 - v / maxV);
+  // 1판 막대는 너무 짧아 배경에 묻힘 → 1판일 때만 최소 높이(약 3칸)를 확보(값 2 이상은 그대로 비례).
+  const barFloorV = Math.min(3, maxV);
   const cx = i => padX + slot * (i + 0.5);
   const bw = Math.min(slot * 0.56, 26);
   let bars = '', labels = '';
   const line = [];
   cats.forEach((c, i) => {
-    const x = cx(i), by = y(c.plays);
+    const x = cx(i);
+    const barV = c.plays === 1 ? barFloorV : c.plays;   // 막대 높이만 보정, 표시 숫자는 실제 값
+    const by = y(barV);
     bars += `<path d="${topRoundRect(x - bw / 2, by, bw, baseY - by, 5)}" fill="var(--main)"/>`;
     labels += `<text x="${x.toFixed(1)}" y="${(by - 8).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="#8a86a8">${c.plays}</text>`;
     const gy = y(c.games);
@@ -4001,7 +4005,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1066 평점 별 선택 id 중복 버그 수정(에디터 범위 안에서만 조회)';
+const APP_VERSION = 'v1067 카테고리 그래프: 1판 막대 최소 높이 확보(배경에 안 묻히게)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
