@@ -410,8 +410,8 @@
   .gd-table th.act { color: var(--main); }
   .gd-table tbody tr.me { background: var(--main-light); }
   .gd-table td:first-child { font-weight: 600; }
-  /* 플레이 기준 표: 일자 칸(날짜 길이에 맞게, 여유 최소화) */
-  .gd-table th.gd-date, .gd-table td.gd-date { min-width: 55px; }
+  /* 플레이 기준 표: 일자 칸은 내용(날짜)에 딱 맞게 축소(불필요한 여백 제거) */
+  .gd-table th.gd-date, .gd-table td.gd-date { width: 1%; white-space: nowrap; padding-left: 4px; padding-right: 4px; }
 
   /* rating editor (MY 게임기록) */
   .rate-edit { }
@@ -1560,7 +1560,7 @@ function openGameDetail(gameId) {
   const el = document.getElementById('detail-overlay');
   const fromSheet = el.classList.contains('show');   // 공용 시트에서 열렸는지
   el.classList.remove('show');
-  state._gd = { gid: gameId, view: 'play', col: 'winrate', dir: 'desc', pcol: 'ord', pdir: 'desc' };
+  state._gd = { gid: gameId, view: 'player', col: 'winrate', dir: 'desc', pcol: 'ord', pdir: 'desc' };
   try { localStorage.setItem('bg_gd', gameId); } catch (e) {}   // 새로고침 후 상세 복원용
   renderGameDetail();
   const hideFn = () => {
@@ -4143,7 +4143,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1085 플레이 기준 표: 일자 너비 축소, 굵은 표시를 판수→나로 이동';
+const APP_VERSION = 'v1086 플레이 표 일자칸 내용맞춤 축소 + 기본 뷰 플레이어로';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
