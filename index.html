@@ -3011,7 +3011,7 @@ function ratingEditorHtml(g) {
     </div>
     <label style="font-size:12px;font-weight:700;color:var(--text-sub);display:block;margin-top:10px;margin-bottom:5px;">한줄 후기 <span class="muted" style="font-weight:500;">(게임 탭에 공개돼요)</span></label>
     <textarea class="input" id="review-${g.game_id}" placeholder="이 게임 어땠나요? 후기를 공유해 주세요!">${esc(review)}</textarea>
-    <button class="btn" style="margin-top:5px;width:100%;padding:9px;" onclick="saveRating('${g.game_id}')">평점·후기 저장</button>
+    <button class="btn" style="margin-top:5px;width:100%;padding:9px;" onclick="saveRating(event, '${g.game_id}')">평점·후기 저장</button>
   </div>`;
 }
 
@@ -3034,18 +3034,25 @@ function pickStar(e, starIndex) {
   const rect = e.target.getBoundingClientRect();
   const isLeft = (e.clientX - rect.left) < rect.width / 2;
   const val = starIndex - (isLeft ? 0.5 : 0);
-  const gid = e.target.closest('.rate-edit').dataset.gid;
-  const container = document.getElementById('stars-' + gid);
+  // 같은 게임의 평점 에디터가 MY-게임 탭과 후기 팝업에 동시에 존재할 수 있어(id 중복)
+  // 전역 getElementById 대신 클릭된 에디터(.rate-edit) 범위 안에서만 찾는다.
+  const wrap = e.target.closest('.rate-edit');
+  if (!wrap) return;
+  const container = wrap.querySelector('.stars');
   container.innerHTML = starsHtml(val);
   container.dataset.val = val;
-  document.getElementById('rateval-' + gid).textContent = (val / 1).toFixed(1) + ' 점';
+  const rv = wrap.querySelector('.rate-val');
+  if (rv) rv.textContent = (val / 1).toFixed(1) + ' 점';
 }
 
-async function saveRating(gameId) {
+async function saveRating(ev, gameId) {
   if (!state.user) { toast('로그인이 필요합니다.', true); return; }
-  const container = document.getElementById('stars-' + gameId);
-  const val = Number(container.dataset.val || 0);
-  const review = document.getElementById('review-' + gameId).value;
+  // 클릭된 저장 버튼이 속한 에디터(.rate-edit) 범위에서만 값을 읽는다(id 중복 대비).
+  const wrap = ev && ev.target ? ev.target.closest('.rate-edit') : null;
+  const container = wrap ? wrap.querySelector('.stars') : document.getElementById('stars-' + gameId);
+  const val = Number((container && container.dataset.val) || 0);
+  const reviewEl = wrap ? wrap.querySelector('textarea') : document.getElementById('review-' + gameId);
+  const review = reviewEl ? reviewEl.value : '';
   const hasRating = val > 0;
   const hasReview = review.trim() !== '';
   // 둘 중 하나만 입력해도 저장(빈 칸은 기존 값 그대로 유지)
@@ -3994,7 +4001,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1065 통합-플레이 탭 후기 버튼도 게임 정보 창으로 열기(게임 탭은 기존대로 후기만)';
+const APP_VERSION = 'v1066 평점 별 선택 id 중복 버그 수정(에디터 범위 안에서만 조회)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
