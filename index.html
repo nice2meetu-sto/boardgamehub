@@ -1311,7 +1311,7 @@ function gameInfoInnerHtml(g) {
     const mn = g.min_players || '?', mx = g.max_players || '?';
     meta.push(`👥 ${mn}${mx !== mn ? '~' + mx : ''}명`);
   }
-  if (g.best_players) meta.push(`🤩${g.best_players}명`);
+  if (g.best_players) meta.push(`🤩 ${g.best_players}명`);
   { const _pt = playtimeText(g); if (_pt) meta.push(`⏱ ${_pt}`); }
   if (g.weight) meta.push(`🧠 ${Number(g.weight).toFixed(2)}`);
 
@@ -2062,7 +2062,7 @@ function gameCardTopHtml(g, showMine) {
     const mn = g.min_players || '?', mx = g.max_players || '?';
     meta.push(`👥 ${mn}${mx !== mn ? '~' + mx : ''}명`);
   }
-  if (g.best_players) meta.push(`🤩${g.best_players}명`);
+  if (g.best_players) meta.push(`🤩 ${g.best_players}명`);
   { const _pt = playtimeText(g); if (_pt) meta.push(`⏱ ${_pt}`); }
   if (g.weight) meta.push(`🧠 ${Number(g.weight).toFixed(2)}`);
 
@@ -3860,7 +3860,7 @@ function adminGameSearch() {
       const mn = g.min_players || '?', mx = g.max_players || '?';
       meta.push(`👥 ${mn}${mx !== mn ? '~' + mx : ''}명`);
     }
-    if (g.best_players) meta.push(`🤩${g.best_players}명`);
+    if (g.best_players) meta.push(`🤩 ${g.best_players}명`);
     { const _pt = playtimeText(g); if (_pt) meta.push(`⏱ ${_pt}`); }
     if (g.weight) meta.push(`🧠 ${Number(g.weight).toFixed(2)}`);
     return `<div class="adm-gcard" onclick="openEditGame('${g.game_id}')">
@@ -4017,7 +4017,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1070 게임 [베스트 인원] 컬럼 추가(입력 폼 + 카드 메타 🤩N명)';
+const APP_VERSION = 'v1071 베스트 인원 메타 이모지 뒤 공백 추가(다른 메타와 통일)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
