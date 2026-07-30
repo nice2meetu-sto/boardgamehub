@@ -219,6 +219,9 @@
   .gcard.open .gcard-detail { display: block; }
   .gcard-editwrap { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
   .gcard.open .gcard-editwrap { display: block; }
+  /* MY 게임기록: 사진 아래 내가 쓴 후기(줄글, 전체 너비) */
+  .gcard-myreview { margin-top: 10px; padding: 9px 11px; background: var(--bg); border-radius: 10px;
+    font-size: 13px; color: #444; line-height: 1.5; white-space: pre-wrap; word-break: break-word; cursor: pointer; }
 
   /* MY 게임기록: 일자별 플레이 요약 */
   /* 게임 정보 + 요약 제목은 시트 상단에 고정, 아래 리스트만 스크롤 */
@@ -2096,8 +2099,8 @@ function gameCardTopHtml(g, showMine, extra = {}) {
         <div class="gcard-name">${esc(g.name_kr || g.name_en)}
           ${g.category ? `<span class="badge" style="margin-left:6px;">${esc(g.category)}</span>` : ''}</div>
         ${g.name_en && g.name_kr ? `<div class="gcard-en">${esc(g.name_en)}</div>` : ''}
-        <div class="gcard-meta">${meta.map(m => `<span>${m}</span>`).join('')}</div>
-        <div class="gcard-ratings">${extra.reviewCount != null
+        ${extra.hideMeta ? '' : `<div class="gcard-meta">${meta.map(m => `<span>${m}</span>`).join('')}</div>`}
+        <div class="gcard-ratings" style="${extra.hideMeta ? 'margin-top:8px;' : ''}">${extra.reviewCount != null
           ? `<span style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${club}<span class="muted" style="font-size:16px;font-weight:500;">· ${reviewCountInline(extra.reviewCount)}</span></span>`
           : club}${mine}</div>
       </div>`;
@@ -2110,6 +2113,8 @@ function gameCardHtml(g, opts = {}) {
   const editBtn = (opts.adminEdit || canEditGame)
     ? `<button class="gcard-pill edit" title="게임 정보 수정" onclick="event.stopPropagation(); openEditGame('${g.game_id}')">✏️</button>` : '';
 
+  const actsHtml = editBtn ? `<div class="gcard-actions">${editBtn}</div>` : '';
+
   // 통합-게임 탭: 카드 전체 탭 → 전체 정보 팝업(showGameInfo, 후기탭·플레이탭과 동일).
   // 후기 표시는 평점 옆으로, 수정(연필)은 우측 하단으로 이동(긴 게임명이 연필과 겹치지 않게).
   if (opts.review && !opts.ratingEditor) {
@@ -2121,22 +2126,32 @@ function gameCardHtml(g, opts = {}) {
     </div>`;
   }
 
-  // 그 외(MY-게임 등): 기존 유지 — 펼침(요약/평점 에디터) + 우측 상단 연필 + 우측 하단 상세
-  const detail = opts.ratingEditor
-    ? `<div class="gcard-editwrap">${ratingEditorHtml(g)}</div>`
-    : (g.summary_kr
-        ? `<div class="gcard-detail">${esc(g.summary_kr)}</div>`
-        : `<div class="gcard-detail muted">등록된 요약이 없습니다.</div>`);
-  const actsHtml = editBtn ? `<div class="gcard-actions">${editBtn}</div>` : '';
-  const br = [];
-  if (opts.ratingEditor) br.push(`<button class="gcard-pill" onclick="event.stopPropagation(); openGameDetail('${g.game_id}')">상세</button>`);
-  const reviewHtml = br.length ? `<div class="gcard-actions br">${br.join('')}</div>` : '';
+  // MY-게임기록: 메타 대신 평점(전체 평균+내 평점) 표시, 사진 아래엔 내가 쓴 후기(줄글).
+  // 카드를 누르면 평점·후기 수정 에디터가 펼쳐짐.
+  if (opts.ratingEditor) {
+    const myR = (state._myRatings && state._myRatings[g.game_id]) || null;
+    const myReview = myR && (myR.review || '').trim();
+    const reviewBlock = myReview
+      ? `<div class="gcard-myreview" onclick="toggleCard(this)">💬 ${esc(myReview)}</div>` : '';
+    return `<div class="gcard" data-gid="${g.game_id}">
+      ${actsHtml}
+      <div class="gcard-top" onclick="toggleCard(this)">
+        ${gameCardTopHtml(g, true, { hideMeta: true })}
+        <div class="gcard-actions br"><button class="gcard-pill" onclick="event.stopPropagation(); openGameDetail('${g.game_id}')">상세</button></div>
+      </div>
+      ${reviewBlock}
+      <div class="gcard-editwrap">${ratingEditorHtml(g)}</div>
+    </div>`;
+  }
 
+  // 그 외: 게임 요약 펼침 카드
+  const detail = g.summary_kr
+    ? `<div class="gcard-detail">${esc(g.summary_kr)}</div>`
+    : `<div class="gcard-detail muted">등록된 요약이 없습니다.</div>`;
   return `<div class="gcard" data-gid="${g.game_id}">
     ${actsHtml}
     <div class="gcard-top" onclick="toggleCard(this)">
-      ${gameCardTopHtml(g, opts.ratingEditor)}
-      ${reviewHtml}
+      ${gameCardTopHtml(g, false)}
     </div>
     ${detail}
   </div>`;
@@ -4054,7 +4069,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1080 게임 탭 후기 💬/개수를 평점(16px)·평점 개수(11px)와 크기 통일';
+const APP_VERSION = 'v1081 MY-게임기록 카드: 메타 대신 평점, 사진 아래 내 후기 표시(수정 유지)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
