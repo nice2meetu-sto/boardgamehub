@@ -410,8 +410,8 @@
   .gd-table th.act { color: var(--main); }
   .gd-table tbody tr.me { background: var(--main-light); }
   .gd-table td:first-child { font-weight: 600; }
-  /* 플레이 기준 표: 일자 칸은 넓게(날짜가 길어서) */
-  .gd-table th.gd-date, .gd-table td.gd-date { min-width: 82px; }
+  /* 플레이 기준 표: 일자 칸(날짜 길이에 맞게, 여유 최소화) */
+  .gd-table th.gd-date, .gd-table td.gd-date { min-width: 55px; }
 
   /* rating editor (MY 게임기록) */
   .rate-edit { }
@@ -1784,9 +1784,9 @@ function renderGameDetail() {
     const parrow = c => gd.pcol === c ? (gd.pdir === 'asc' ? ' ▲' : ' ▼') : '';
     const pth = (c, label, cls) => `<th class="${cls || ''}${gd.pcol === c ? ' act' : ''}" onclick="sortGameDetail('${c}')">${label}${parrow(c)}</th>`;
     const prows = plays.length ? plays.map(p => `<tr style="cursor:pointer;" onclick="showBarSession('${esc(p.sid)}')">
-      <td>${p.ord}</td>
+      <td style="font-weight:400;">${p.ord}</td>
       <td class="gd-date">${esc(p.date)}</td>
-      <td>${p.mine == null ? '-' : p.mine}</td>
+      <td style="font-weight:700;">${p.mine == null ? '-' : p.mine}</td>
       <td>${p.avg == null ? '-' : p.avg}</td>
       <td>${p.best == null ? '-' : p.best}</td>
     </tr>`).join('') : `<tr><td colspan="5" class="muted" style="text-align:center;padding:16px 0;">플레이 기록이 없어요.</td></tr>`;
@@ -4143,7 +4143,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1084 게임상세 함께플레이 기록: 플레이/플레이어 전환(플레이 기준=판별 기록)';
+const APP_VERSION = 'v1085 플레이 기준 표: 일자 너비 축소, 굵은 표시를 판수→나로 이동';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
