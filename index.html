@@ -3620,8 +3620,8 @@ function renderAddPlayForm() {
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex:0 0 auto;flex-wrap:wrap;">
         <label style="margin:0;">참가자 (비회원은 체크)</label>
         <span style="display:flex;gap:6px;flex:0 0 auto;">
-          <button class="btn ghost sm" style="padding:5px 11px;font-size:12px;" onclick="openPartHistory()">🕘 이력</button>
           <button class="btn ghost sm" id="ap-scroll-btn" style="padding:5px 11px;font-size:12px;" onclick="apScrollToggle()">↓ 아래로</button>
+          <button class="btn ghost sm" style="padding:5px 11px;font-size:12px;" onclick="openPartHistory()">이력</button>
           <button class="btn ghost sm" style="padding:5px 11px;font-size:12px;" onclick="addParticipant()">추가</button>
         </span>
       </div>
@@ -4239,7 +4239,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1088 플레이 추가: 참가자 이력 불러오기(지난 구성 묶음) + 버튼명 정리';
+const APP_VERSION = 'v1089 참가자 버튼: 이력 이모지 제거 + 아래로/이력 순서 교체';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
