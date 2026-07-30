@@ -341,6 +341,21 @@
   .rvw-close { flex: 0 0 auto; font-size: 12px; font-weight: 700; color: var(--text-sub);
     background: var(--main-light); border-radius: 999px; padding: 6px 14px; cursor: pointer; white-space: nowrap; }
   .rvw-close:active { background: #ddd7f7; }
+  /* 참가자 이력 불러오기 팝업 */
+  #parthist-overlay { position: fixed; inset: 0; z-index: 190; background: rgba(20,20,30,.45);
+    display: none; align-items: center; justify-content: center; padding: 20px; }
+  #parthist-overlay.show { display: flex; }
+  .parthist-card { background: var(--bg); border-radius: 18px; width: 100%; max-width: 420px;
+    max-height: 72vh; display: flex; flex-direction: column; overflow: hidden;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0)); }
+  .parthist-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; flex: 0 0 auto; }
+  .parthist-head h3 { font-size: 16px; font-weight: 800; margin: 0; }
+  #parthist-list { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .parthist-row { display: block; width: 100%; text-align: left; border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; background: var(--card); cursor: pointer; }
+  .parthist-row:active { background: #f6f5fb; }
+  .parthist-names { font-weight: 700; font-size: 14px; line-height: 1.45; word-break: break-word; }
+  .parthist-meta { font-size: 11px; color: var(--text-sub); margin-top: 3px; }
   /* 후기 팝업 제목 옆 '후기 작성' 버튼 */
   .rvw-write-btn { flex: 0 0 auto; font-size: 12px; font-weight: 800; color: #fff;
     background: var(--main); border-radius: 999px; padding: 7px 14px; cursor: pointer; white-space: nowrap; }
@@ -712,6 +727,17 @@
 <div id="rvwrite-overlay">
   <div class="rvwrite-card">
     <div id="rvwrite-body"></div>
+  </div>
+</div>
+
+<!-- ===== 참가자 이력 불러오기 팝업 ===== -->
+<div id="parthist-overlay">
+  <div class="parthist-card">
+    <div class="parthist-head">
+      <h3>👥 참가자 불러오기</h3>
+      <button type="button" class="rvw-close" onclick="closeOverlay()">✕ 닫기</button>
+    </div>
+    <div id="parthist-list"></div>
   </div>
 </div>
 
@@ -3259,6 +3285,9 @@ document.getElementById('add-overlay').addEventListener('click', e => {
 document.getElementById('rvwrite-overlay').addEventListener('click', e => {
   if (e.target.id === 'rvwrite-overlay') closeOverlay();
 });
+document.getElementById('parthist-overlay').addEventListener('click', e => {
+  if (e.target.id === 'parthist-overlay') closeOverlay();
+});
 
 function switchAddTab(tab) {
   document.getElementById('addtab-game').classList.toggle('on', tab === 'game');
@@ -3588,11 +3617,12 @@ function renderAddPlayForm() {
       </div>
     </div>
     <div class="field ap-parts-field">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex:0 0 auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex:0 0 auto;flex-wrap:wrap;">
         <label style="margin:0;">참가자 (비회원은 체크)</label>
         <span style="display:flex;gap:6px;flex:0 0 auto;">
-          <button class="btn ghost sm" id="ap-scroll-btn" style="padding:5px 12px;font-size:12px;" onclick="apScrollToggle()">↓ 아래로</button>
-          <button class="btn ghost sm" style="padding:5px 12px;font-size:12px;" onclick="addParticipant()">+ 참가자 추가</button>
+          <button class="btn ghost sm" style="padding:5px 11px;font-size:12px;" onclick="openPartHistory()">🕘 이력</button>
+          <button class="btn ghost sm" id="ap-scroll-btn" style="padding:5px 11px;font-size:12px;" onclick="apScrollToggle()">↓ 아래로</button>
+          <button class="btn ghost sm" style="padding:5px 11px;font-size:12px;" onclick="addParticipant()">추가</button>
         </span>
       </div>
       <div id="ap-participants" onscroll="apScrollBtnUpdate()"></div>
@@ -3722,6 +3752,69 @@ function addParticipant() {
   // 새로 추가된 참가자 입력칸이 보이도록 목록을 맨 아래로 스크롤
   const el = document.getElementById('ap-participants');
   if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+}
+
+// ===== 참가자 이력(지난 참가자 묶음) 불러오기 =====
+// 내가 참여한 세션들의 참가자 구성을 같은 구성끼리 합쳐(횟수+최근일자) 최근순으로 반환
+function participantHistory() {
+  const uid = state.user ? state.user.player_id : null;
+  if (!uid) return [];
+  const map = new Map();
+  (state.plays || []).forEach(s => {
+    const parts = s.participants || [];
+    if (!parts.some(p => p.player_id === uid)) return;   // 내가 참여한 세션만
+    const roster = [], keyParts = [];
+    parts.forEach(p => {
+      const isGuest = !!p.is_guest || !p.player_id;
+      const name = (!isGuest && p.player_id) ? (playerNameById(p.player_id) || p.name || '') : (p.name || '');
+      if (!nfc(name).trim()) return;
+      roster.push({ name: name, is_guest: isGuest });
+      keyParts.push(isGuest ? ('g:' + nfc(name).trim().toLowerCase()) : ('m:' + p.player_id));
+    });
+    if (!roster.length) return;
+    const setKey = keyParts.slice().sort().join('|');
+    const d = String(s.play_date).substring(0, 10);
+    let e = map.get(setKey);
+    if (!e) { e = { count: 0, lastDate: '', roster }; map.set(setKey, e); }
+    e.count++;
+    if (d > e.lastDate) { e.lastDate = d; e.roster = roster; }   // 최근 구성으로 이름 최신화
+  });
+  return Array.from(map.values()).sort((a, b) => String(b.lastDate).localeCompare(String(a.lastDate))).slice(0, 8);
+}
+function openPartHistory() {
+  const hist = participantHistory();
+  if (!hist.length) { toast('불러올 참가자 이력이 없어요.', true); return; }
+  state._partHist = hist;
+  document.getElementById('parthist-list').innerHTML = hist.map((e, idx) => {
+    const names = e.roster.map(r => `${guestTag(r.is_guest)}${esc(r.name)}`).join(' · ');
+    const p = String(e.lastDate).split('-');
+    const dateTxt = (p.length === 3) ? `${+p[1]}/${+p[2]}` : e.lastDate;
+    return `<button type="button" class="parthist-row" onclick="applyPartHistory(${idx})">
+      <div class="parthist-names">${names}</div>
+      <div class="parthist-meta">${e.count}번 · 최근 ${dateTxt}</div>
+    </button>`;
+  }).join('');
+  const ov = document.getElementById('parthist-overlay');
+  ov.classList.add('show');
+  openOverlay(() => ov.classList.remove('show'));
+}
+function applyPartHistory(idx) {
+  const e = (state._partHist || [])[idx];
+  if (!e) return;
+  const cur = addPlayState.participants;
+  const loaded = e.roster.map(r => ({ name: r.name, score: '', is_win: false, is_guest: r.is_guest }));
+  // 기본 빈 1줄이면 통째로 교체, 이미 입력했으면 중복(이름) 제외하고 이어붙이기
+  const isDefaultBlank = cur.length === 1 && !nfc(cur[0].name || '').trim() && !String(cur[0].score || '').trim();
+  if (isDefaultBlank) {
+    addPlayState.participants = loaded;
+  } else {
+    const keyOf = p => (p.is_guest ? 'g:' : 'm:') + nfc(p.name || '').trim().toLowerCase();
+    const seen = new Set(cur.map(keyOf));
+    loaded.forEach(p => { const k = keyOf(p); if (!seen.has(k)) { cur.push(p); seen.add(k); } });
+  }
+  closeOverlay();   // 이력 팝업 닫기
+  renderParticipants();
+  toast('참가자를 불러왔어요!');
 }
 
 // 참가자 목록 스크롤 토글: 맨 위에 있으면 [↓ 아래로], 내려가 있으면 [↑ 위로]
@@ -4146,7 +4239,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1087 관리자 게임 카드: 사진 아래 등록자 표시';
+const APP_VERSION = 'v1088 플레이 추가: 참가자 이력 불러오기(지난 구성 묶음) + 버튼명 정리';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
