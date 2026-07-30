@@ -1297,6 +1297,11 @@ function fitText(el, max, min) {
   });
 }
 
+// 비회원(게스트) 표시: 이름 앞에 붙는 작은 보라색 '비' 배지('나' 표시와 같은 크기)
+function guestTag(isGuest) {
+  return isGuest ? `<span style="color:var(--main);font-size:10px;">비</span> ` : '';
+}
+
 // 게임 카드처럼 컴팩트한 평점 표시(★ 8.5 (3) / 평가없음)
 function clubRatingMini(rating, count) {
   return (rating != null)
@@ -1421,7 +1426,7 @@ function showSessionDetail(sid) {
   const dur = s.duration_min ? ` · ${s.duration_min}분` : '';
   const parts = s.participants.map(p => `
     <div class="prow ${p.is_win ? 'win' : ''}">
-      <span class="pname">${esc(p.name)}${p.is_win ? '<span class="crown">👑</span>' : ''}</span>
+      <span class="pname">${guestTag(p.is_guest)}${esc(p.name)}${p.is_win ? '<span class="crown">👑</span>' : ''}</span>
       <span class="pscore">${p.score == null || p.score === '' ? '' : esc(p.score) + '점'}</span>
     </div>`).join('');
   document.getElementById('detail-body').innerHTML = `
@@ -1468,7 +1473,7 @@ function gamePlayerStats(gid) {
     s.participants.forEach(p => {
       const key = p.player_id ? ('m:' + p.player_id) : ('g:' + (p.name || ''));
       let r = map.get(key);
-      if (!r) { r = { name: p.name || '(이름없음)', wins: 0, games: 0, scores: [], isMe: p.player_id && p.player_id === uid }; map.set(key, r); }
+      if (!r) { r = { name: p.name || '(이름없음)', wins: 0, games: 0, scores: [], isMe: p.player_id && p.player_id === uid, isGuest: !!p.is_guest }; map.set(key, r); }
       r.games += 1;
       if (p.is_win) r.wins += 1;
       const sc = (p.score == null || p.score === '') ? null : Number(p.score);
@@ -1476,7 +1481,7 @@ function gamePlayerStats(gid) {
     });
   });
   return Array.from(map.values()).map(r => ({
-    name: r.name, isMe: r.isMe, wins: r.wins, games: r.games,
+    name: r.name, isMe: r.isMe, isGuest: r.isGuest, wins: r.wins, games: r.games,
     winrate: r.games ? Math.round(r.wins / r.games * 1000) / 10 : 0,
     avg: r.scores.length ? Math.round(r.scores.reduce((a, b) => a + b, 0) / r.scores.length * 10) / 10 : null,
     best: r.scores.length ? Math.max(...r.scores) : null
@@ -1563,7 +1568,7 @@ function showBarSession(sid) {
   }).map(p => {
     const isMe = p.player_id && p.player_id === uid;
     return `<tr class="${isMe ? 'me' : ''}">
-      <td>${esc(p.name)}${p.is_win ? ' 👑' : ''}${isMe ? ' <span style="color:var(--main);font-size:10px;">나</span>' : ''}</td>
+      <td>${guestTag(p.is_guest)}${esc(p.name)}${p.is_win ? ' 👑' : ''}${isMe ? ' <span style="color:var(--main);font-size:10px;">나</span>' : ''}</td>
       <td style="text-align:right;">${p.score == null || p.score === '' ? '-' : esc(p.score) + '점'}</td>
     </tr>`;
   }).join('');
@@ -1720,7 +1725,7 @@ function renderGameDetail() {
   const arrow = c => gd.col === c ? (gd.dir === 'asc' ? ' ▲' : ' ▼') : '';
   const th = (c, label) => `<th class="${gd.col === c ? 'act' : ''}" onclick="sortGameDetail('${c}')">${label}${arrow(c)}</th>`;
   const rows = players.map(p => `<tr class="${p.isMe ? 'me' : ''}">
-    <td>${esc(p.name)}${p.isMe ? ' <span style="color:var(--main);font-size:10px;">나</span>' : ''}</td>
+    <td>${guestTag(p.isGuest)}${esc(p.name)}${p.isMe ? ' <span style="color:var(--main);font-size:10px;">나</span>' : ''}</td>
     <td>${p.wins}</td><td>${p.winrate}%</td><td>${p.games}</td>
     <td>${p.avg == null ? '-' : p.avg}</td><td>${p.best == null ? '-' : p.best}</td>
   </tr>`).join('');
@@ -1785,7 +1790,7 @@ function renderSessionList(containerId, sessions, opts = {}) {
 
     const parts = s.participants.map(p => `
       <div class="prow ${p.is_win ? 'win' : ''}">
-        <span class="pname">${esc(p.name)}${p.is_win ? '<span class="crown">👑</span>' : ''}</span>
+        <span class="pname">${guestTag(p.is_guest)}${esc(p.name)}${p.is_win ? '<span class="crown">👑</span>' : ''}</span>
         <span class="pscore">${p.score == null ? '' : esc(p.score) + '점'}</span>
       </div>`).join('');
     // linkGame: 카드(수정/작성자 버튼 제외) 클릭 → 그 게임 상세로 이동
@@ -4017,7 +4022,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1073 범위 구분자 ~ → - 로 변경(인원·플레이타임·난이도, 공간 절약)';
+const APP_VERSION = 'v1074 비회원(게스트) 이름 앞에 작은 보라색 비 배지 표시(참가자 목록 전반)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
