@@ -2805,7 +2805,7 @@ function openLinkGuestModal(scope) {
       <span id="link-count" style="font-size:12px;color:var(--text-sub);">0건 선택</span>
     </div>
     <div id="link-list" style="max-height:42vh;overflow-y:auto;"></div>
-    <div style="position:sticky;bottom:0;background:var(--card);padding:10px 0 2px;margin-top:8px;border-top:1px solid var(--border);">
+    <div style="position:sticky;bottom:0;background:var(--bg);padding:10px 0 2px;margin-top:8px;border-top:1px solid var(--border);">
       <div class="ac-wrap">
         <input class="input" id="link-member" placeholder="연결할 회원 이름" autocomplete="off"
           oninput="linkNameInput(event, this)" oncompositionend="linkNameInput(event, this)" onblur="acHide(this)" />
@@ -4035,7 +4035,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1075 연동 모달: 연결할 회원 이름 실시간 회원 확인 배지 추가';
+const APP_VERSION = 'v1076 연동 모달 하단 sticky 바 배경을 시트 배경색으로 맞춤(흰 띠 제거)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
