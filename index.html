@@ -213,6 +213,8 @@
   .rate-club { font-weight: 900; font-size: 16px; color: var(--main); }
   .rate-club .star { color: var(--win); }
   .rate-club small { font-size: 11px; color: var(--text-sub); font-weight: 500; }
+  /* 평점 옆 후기 표시: 개수는 평점 개수와 동일한 11px 회색 */
+  .gcard-ratings small { font-size: 11px; color: var(--text-sub); font-weight: 500; }
   .gcard-detail { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; color: #444; white-space: pre-wrap; }
   .gcard.open .gcard-detail { display: block; }
   .gcard-editwrap { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
@@ -2096,7 +2098,7 @@ function gameCardTopHtml(g, showMine, extra = {}) {
         ${g.name_en && g.name_kr ? `<div class="gcard-en">${esc(g.name_en)}</div>` : ''}
         <div class="gcard-meta">${meta.map(m => `<span>${m}</span>`).join('')}</div>
         <div class="gcard-ratings">${extra.reviewCount != null
-          ? `<span style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${club}<span class="muted" style="font-size:12px;">· ${reviewCountInline(extra.reviewCount)}</span></span>`
+          ? `<span style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${club}<span class="muted" style="font-size:16px;font-weight:500;">· ${reviewCountInline(extra.reviewCount)}</span></span>`
           : club}${mine}</div>
       </div>`;
 }
@@ -4052,7 +4054,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1079 플레이 탭 후기 💬/개수 크기·색을 별점 기호·개수와 통일(덜 튀게)';
+const APP_VERSION = 'v1080 게임 탭 후기 💬/개수를 평점(16px)·평점 개수(11px)와 크기 통일';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
