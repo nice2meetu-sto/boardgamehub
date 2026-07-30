@@ -2,12 +2,22 @@
 --  마이그레이션: 게임 [베스트 인원] 컬럼 추가
 --  Supabase 대시보드 → SQL Editor 에 통째로 붙여넣고 Run (여러 번 실행해도 안전).
 --
---  games.best_players(권장/베스트 인원, 단일 값) 추가.
+--  games.best_players(권장/베스트 인원) 추가. "4" 또는 "4-5" 같은 자유 텍스트 저장.
 --  get_games / add_game / update_game 가 best_players 를 함께 처리하도록 갱신.
 -- ============================================================
 
--- ---- 컬럼 추가 ----
-alter table public.games add column if not exists best_players numeric;
+-- ---- 컬럼 추가(text). 이전에 numeric으로 만든 경우 text로 변환(여러 번 실행 안전) ----
+alter table public.games add column if not exists best_players text;
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'games'
+      and column_name = 'best_players' and data_type <> 'text'
+  ) then
+    alter table public.games alter column best_players type text using best_players::text;
+  end if;
+end $$;
 
 -- ---- get_games: best_players 포함 ----
 create or replace function public.get_games()
@@ -69,7 +79,7 @@ begin
     coalesce(p_payload->>'category',''),
     nullif(p_payload->>'min_players','')::numeric,
     nullif(p_payload->>'max_players','')::numeric,
-    nullif(p_payload->>'best_players','')::numeric,
+    nullif(p_payload->>'best_players',''),
     nullif(p_payload->>'min_playtime','')::numeric,
     nullif(p_payload->>'max_playtime','')::numeric,
     nullif(p_payload->>'weight','')::numeric,
@@ -105,7 +115,7 @@ begin
     category  = coalesce(p_payload->>'category', category),
     min_players  = case when p_payload ? 'min_players'  then nullif(p_payload->>'min_players','')::numeric  else min_players end,
     max_players  = case when p_payload ? 'max_players'  then nullif(p_payload->>'max_players','')::numeric  else max_players end,
-    best_players = case when p_payload ? 'best_players' then nullif(p_payload->>'best_players','')::numeric else best_players end,
+    best_players = case when p_payload ? 'best_players' then nullif(p_payload->>'best_players','') else best_players end,
     min_playtime = case when p_payload ? 'min_playtime' then nullif(p_payload->>'min_playtime','')::numeric else min_playtime end,
     max_playtime = case when p_payload ? 'max_playtime' then nullif(p_payload->>'max_playtime','')::numeric else max_playtime end,
     weight       = case when p_payload ? 'weight'       then nullif(p_payload->>'weight','')::numeric       else weight end,

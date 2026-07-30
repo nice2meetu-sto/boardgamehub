@@ -35,7 +35,7 @@ create table if not exists public.games (
   category     text,
   min_players  numeric,
   max_players  numeric,
-  best_players numeric,          -- 권장/베스트 인원(단일 값)
+  best_players text,             -- 권장/베스트 인원("4" 또는 "4-5" 자유 텍스트)
   playtime_min numeric,          -- (레거시) 단일 플레이타임 → max_playtime 로 이관
   min_playtime numeric,          -- 최소 플레이타임(분)
   max_playtime numeric,          -- 최대 플레이타임(분)
@@ -616,7 +616,7 @@ begin
     coalesce(p_payload->>'category',''),
     nullif(p_payload->>'min_players','')::numeric,
     nullif(p_payload->>'max_players','')::numeric,
-    nullif(p_payload->>'best_players','')::numeric,
+    nullif(p_payload->>'best_players',''),
     nullif(p_payload->>'min_playtime','')::numeric,
     nullif(p_payload->>'max_playtime','')::numeric,
     nullif(p_payload->>'weight','')::numeric,
@@ -652,7 +652,7 @@ begin
     category  = coalesce(p_payload->>'category', category),
     min_players  = case when p_payload ? 'min_players'  then nullif(p_payload->>'min_players','')::numeric  else min_players end,
     max_players  = case when p_payload ? 'max_players'  then nullif(p_payload->>'max_players','')::numeric  else max_players end,
-    best_players = case when p_payload ? 'best_players' then nullif(p_payload->>'best_players','')::numeric else best_players end,
+    best_players = case when p_payload ? 'best_players' then nullif(p_payload->>'best_players','') else best_players end,
     min_playtime = case when p_payload ? 'min_playtime' then nullif(p_payload->>'min_playtime','')::numeric else min_playtime end,
     max_playtime = case when p_payload ? 'max_playtime' then nullif(p_payload->>'max_playtime','')::numeric else max_playtime end,
     weight       = case when p_payload ? 'weight'       then nullif(p_payload->>'weight','')::numeric       else weight end,
