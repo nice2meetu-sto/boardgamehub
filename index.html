@@ -3196,9 +3196,9 @@ function renderAddGameForm() {
       </div>
     </div>
     <div class="row2">
-      <div class="field"><label>최소 인원</label><input class="input" id="ag-min" type="number" inputmode="numeric" /></div>
-      <div class="field"><label>최대 인원</label><input class="input" id="ag-max" type="number" inputmode="numeric" /></div>
-      <div class="field"><label>베스트 인원</label><input class="input" id="ag-best" type="text" placeholder="예: 4 또는 4-5" /></div>
+      <div class="field" style="flex:3;"><label>최소 인원</label><input class="input" id="ag-min" type="number" inputmode="numeric" /></div>
+      <div class="field" style="flex:3;"><label>최대 인원</label><input class="input" id="ag-max" type="number" inputmode="numeric" /></div>
+      <div class="field" style="flex:4;"><label>베스트 인원</label><input class="input" id="ag-best" type="text" placeholder="예: 4 또는 4-5" /></div>
     </div>
     <div class="row2">
       <div class="field"><label>최소 플레이타임(분)</label><input class="input" id="ag-time-min" type="number" inputmode="numeric" placeholder="예: 30" /></div>
@@ -3720,9 +3720,9 @@ function openEditGame(gameId) {
       </div>
     </div>
     <div class="row2">
-      <div class="field"><label>최소 인원</label><input class="input" id="eg-min" type="number" value="${g.min_players ?? ''}" /></div>
-      <div class="field"><label>최대 인원</label><input class="input" id="eg-max" type="number" value="${g.max_players ?? ''}" /></div>
-      <div class="field"><label>베스트 인원</label><input class="input" id="eg-best" type="text" value="${esc(g.best_players ?? '')}" placeholder="예: 4 또는 4-5" /></div>
+      <div class="field" style="flex:3;"><label>최소 인원</label><input class="input" id="eg-min" type="number" value="${g.min_players ?? ''}" /></div>
+      <div class="field" style="flex:3;"><label>최대 인원</label><input class="input" id="eg-max" type="number" value="${g.max_players ?? ''}" /></div>
+      <div class="field" style="flex:4;"><label>베스트 인원</label><input class="input" id="eg-best" type="text" value="${esc(g.best_players ?? '')}" placeholder="예: 4 또는 4-5" /></div>
     </div>
     <div class="row2">
       <div class="field"><label>최소 플레이타임(분)</label><input class="input" id="eg-time-min" type="number" value="${g.min_playtime ?? ''}" /></div>
@@ -4035,7 +4035,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1076 연동 모달 하단 sticky 바 배경을 시트 배경색으로 맞춤(흰 띠 제거)';
+const APP_VERSION = 'v1077 게임 폼 인원 입력칸 너비 3:3:4(최소·최대 축소, 베스트 확대)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
