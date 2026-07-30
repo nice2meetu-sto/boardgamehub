@@ -1311,6 +1311,7 @@ function gameInfoInnerHtml(g) {
     const mn = g.min_players || '?', mx = g.max_players || '?';
     meta.push(`👥 ${mn}${mx !== mn ? '~' + mx : ''}명`);
   }
+  if (g.best_players) meta.push(`🤩${g.best_players}명`);
   { const _pt = playtimeText(g); if (_pt) meta.push(`⏱ ${_pt}`); }
   if (g.weight) meta.push(`🧠 ${Number(g.weight).toFixed(2)}`);
 
@@ -2061,6 +2062,7 @@ function gameCardTopHtml(g, showMine) {
     const mn = g.min_players || '?', mx = g.max_players || '?';
     meta.push(`👥 ${mn}${mx !== mn ? '~' + mx : ''}명`);
   }
+  if (g.best_players) meta.push(`🤩${g.best_players}명`);
   { const _pt = playtimeText(g); if (_pt) meta.push(`⏱ ${_pt}`); }
   if (g.weight) meta.push(`🧠 ${Number(g.weight).toFixed(2)}`);
 
@@ -3178,6 +3180,7 @@ function renderAddGameForm() {
     <div class="row2">
       <div class="field"><label>최소 인원</label><input class="input" id="ag-min" type="number" inputmode="numeric" /></div>
       <div class="field"><label>최대 인원</label><input class="input" id="ag-max" type="number" inputmode="numeric" /></div>
+      <div class="field"><label>베스트 인원</label><input class="input" id="ag-best" type="number" inputmode="numeric" /></div>
     </div>
     <div class="row2">
       <div class="field"><label>최소 플레이타임(분)</label><input class="input" id="ag-time-min" type="number" inputmode="numeric" placeholder="예: 30" /></div>
@@ -3324,6 +3327,7 @@ async function submitAddGame() {
     category,
     min_players: document.getElementById('ag-min').value,
     max_players: document.getElementById('ag-max').value,
+    best_players: document.getElementById('ag-best').value,
     min_playtime: document.getElementById('ag-time-min').value,
     max_playtime: document.getElementById('ag-time-max').value,
     weight: document.getElementById('ag-weight').value,
@@ -3700,6 +3704,7 @@ function openEditGame(gameId) {
     <div class="row2">
       <div class="field"><label>최소 인원</label><input class="input" id="eg-min" type="number" value="${g.min_players ?? ''}" /></div>
       <div class="field"><label>최대 인원</label><input class="input" id="eg-max" type="number" value="${g.max_players ?? ''}" /></div>
+      <div class="field"><label>베스트 인원</label><input class="input" id="eg-best" type="number" value="${g.best_players ?? ''}" /></div>
     </div>
     <div class="row2">
       <div class="field"><label>최소 플레이타임(분)</label><input class="input" id="eg-time-min" type="number" value="${g.min_playtime ?? ''}" /></div>
@@ -3769,6 +3774,7 @@ async function submitEditGame(gameId) {
     category: document.getElementById('eg-category').value,
     min_players: document.getElementById('eg-min').value,
     max_players: document.getElementById('eg-max').value,
+    best_players: document.getElementById('eg-best').value,
     min_playtime: document.getElementById('eg-time-min').value,
     max_playtime: document.getElementById('eg-time-max').value,
     weight: document.getElementById('eg-weight').value,
@@ -3854,6 +3860,7 @@ function adminGameSearch() {
       const mn = g.min_players || '?', mx = g.max_players || '?';
       meta.push(`👥 ${mn}${mx !== mn ? '~' + mx : ''}명`);
     }
+    if (g.best_players) meta.push(`🤩${g.best_players}명`);
     { const _pt = playtimeText(g); if (_pt) meta.push(`⏱ ${_pt}`); }
     if (g.weight) meta.push(`🧠 ${Number(g.weight).toFixed(2)}`);
     return `<div class="adm-gcard" onclick="openEditGame('${g.game_id}')">
@@ -4010,7 +4017,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1069 카테고리 그래프: 막대·꺾은선 공통 바닥 +2칸(그래프 높이도 +2칸 확장)';
+const APP_VERSION = 'v1070 게임 [베스트 인원] 컬럼 추가(입력 폼 + 카드 메타 🤩N명)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');

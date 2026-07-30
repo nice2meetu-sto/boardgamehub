@@ -35,6 +35,7 @@ create table if not exists public.games (
   category     text,
   min_players  numeric,
   max_players  numeric,
+  best_players numeric,          -- 권장/베스트 인원(단일 값)
   playtime_min numeric,          -- (레거시) 단일 플레이타임 → max_playtime 로 이관
   min_playtime numeric,          -- 최소 플레이타임(분)
   max_playtime numeric,          -- 최대 플레이타임(분)
@@ -209,6 +210,7 @@ as $$
   select coalesce(json_agg(json_build_object(
     'game_id', g.game_id, 'name_kr', g.name_kr, 'name_en', g.name_en,
     'category', g.category, 'min_players', g.min_players, 'max_players', g.max_players,
+    'best_players', g.best_players,
     'playtime_min', g.playtime_min, 'min_playtime', g.min_playtime, 'max_playtime', g.max_playtime,
     'weight', g.weight,
     'summary_kr', g.summary_kr, 'image_url', g.image_url, 'source', g.source,
@@ -606,7 +608,7 @@ begin
 
   insert into public.games(
     game_id, name_kr, name_en, category,
-    min_players, max_players, min_playtime, max_playtime, weight,
+    min_players, max_players, best_players, min_playtime, max_playtime, weight,
     summary_kr, image_url, source, created_by, created_at)
   values(
     v_id,
@@ -614,6 +616,7 @@ begin
     coalesce(p_payload->>'category',''),
     nullif(p_payload->>'min_players','')::numeric,
     nullif(p_payload->>'max_players','')::numeric,
+    nullif(p_payload->>'best_players','')::numeric,
     nullif(p_payload->>'min_playtime','')::numeric,
     nullif(p_payload->>'max_playtime','')::numeric,
     nullif(p_payload->>'weight','')::numeric,
@@ -649,6 +652,7 @@ begin
     category  = coalesce(p_payload->>'category', category),
     min_players  = case when p_payload ? 'min_players'  then nullif(p_payload->>'min_players','')::numeric  else min_players end,
     max_players  = case when p_payload ? 'max_players'  then nullif(p_payload->>'max_players','')::numeric  else max_players end,
+    best_players = case when p_payload ? 'best_players' then nullif(p_payload->>'best_players','')::numeric else best_players end,
     min_playtime = case when p_payload ? 'min_playtime' then nullif(p_payload->>'min_playtime','')::numeric else min_playtime end,
     max_playtime = case when p_payload ? 'max_playtime' then nullif(p_payload->>'max_playtime','')::numeric else max_playtime end,
     weight       = case when p_payload ? 'weight'       then nullif(p_payload->>'weight','')::numeric       else weight end,
