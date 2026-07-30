@@ -2445,33 +2445,32 @@ function myCategoryChartSvg() {
   const plotH = H - padT - padB, baseY = padT + plotH;
   const n = cats.length, slot = (W - padX * 2) / n;
   const maxV = Math.max(1, ...cats.map(c => c.plays));
-  const y = v => padT + plotH * (1 - v / maxV);
-  const unit = plotH / maxV;   // 1판당 픽셀 높이
-  // 1판 막대만 배경에 묻히지 않게 최소 높이를 준다. 단, 2판 막대(2*unit)보다는 항상 낮게 유지 →
-  // 오직 1판만 보정되고 2판부터는 그대로 비례, 순서는 절대 안 뒤집힘.
-  const MIN1 = 9;
-  const barTopY = plays => {
-    let h = plays * unit;
-    if (plays === 1) h = Math.min(Math.max(h, MIN1), 2 * unit - 1);
-    return baseY - Math.max(0, h);
-  };
+  // 모든 막대·꺾은선에 공통 바닥(+2칸)을 깔아 작은 값도 잘 보이게 한다.
+  // 칸 크기(unit)는 기존 비율 그대로 두고, 그래프 최대 높이를 딱 +2칸만큼 키워
+  // 큰 값들의 높이 차이는 그대로 유지(윗부분이 눌리지 않음).
+  const BASE = 2;
+  const unit = plotH / maxV;         // 1칸당 픽셀(기존 비율 유지)
+  const extra = BASE * unit;         // 바닥만큼 그래프를 아래로 확장
+  const H2 = H + extra, baseY2 = baseY + extra;
+  const ev = v => (v > 0 ? (v + BASE) * unit : 0);   // 값 → 막대/점 픽셀 높이(1 이상이면 +2칸)
+  const yTop = v => baseY2 - ev(v);
   const cx = i => padX + slot * (i + 0.5);
   const bw = Math.min(slot * 0.56, 26);
   let bars = '', labels = '';
   const line = [];
   cats.forEach((c, i) => {
     const x = cx(i);
-    const by = barTopY(c.plays);   // 막대 높이만 보정, 표시 숫자는 실제 값
-    bars += `<path d="${topRoundRect(x - bw / 2, by, bw, baseY - by, 5)}" fill="var(--main)"/>`;
+    const by = yTop(c.plays);   // 표시 숫자는 실제 값 유지
+    bars += `<path d="${topRoundRect(x - bw / 2, by, bw, baseY2 - by, 5)}" fill="var(--main)"/>`;
     labels += `<text x="${x.toFixed(1)}" y="${(by - 8).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="#8a86a8">${c.plays}</text>`;
-    const gy = y(c.games);
+    const gy = yTop(c.games);
     line.push({ x, y: gy });
     labels += `<text x="${x.toFixed(1)}" y="${(gy + 13).toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#d9d5f3">${c.games}</text>`;
-    labels += `<text x="${x.toFixed(1)}" y="${(H - 5).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9a97a8">${esc(c.cat)}</text>`;
+    labels += `<text x="${x.toFixed(1)}" y="${(H2 - 5).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9a97a8">${esc(c.cat)}</text>`;
   });
   const curve = smoothPath(line);
   const path = curve ? `<path d="${curve}" fill="none" stroke="#d9d5f3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : '';
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;">${bars}${path}${labels}</svg>`;
+  return `<svg viewBox="0 0 ${W} ${H2.toFixed(1)}" width="100%" style="display:block;">${bars}${path}${labels}</svg>`;
 }
 
 function setMyGameSort(sort) {
@@ -4011,7 +4010,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1068 카테고리 그래프: 1판만 최소 높이(2판보다 낮게 유지, 순서 안 뒤집힘)';
+const APP_VERSION = 'v1069 카테고리 그래프: 막대·꺾은선 공통 바닥 +2칸(그래프 높이도 +2칸 확장)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
