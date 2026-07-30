@@ -1590,10 +1590,11 @@ function reviewPillHtml(gameId, count, extraClass, action) {
   return `<button class="gcard-pill review${extraClass ? ' ' + extraClass : ''}" onclick="event.stopPropagation(); ${fn}('${gameId}')">💬${cnt}</button>`;
 }
 
-// 후기 표시(평점 옆 인라인, 버튼 아님): 💬 + 개수(있을 때만) — 카드 전체 탭이 게임정보 팝업을 여는 곳에서 사용
+// 후기 표시(평점 옆 인라인, 버튼 아님): 💬 + 개수(있을 때만) — 카드 전체 탭이 게임정보 팝업을 여는 곳에서 사용.
+// 💬는 별점 기호(★) 크기에 맞춰 살짝 줄이고, 개수는 별점 개수와 동일하게 작은 회색(small.muted)으로 표시.
 function reviewCountInline(count) {
   const n = Number(count) || 0;
-  return `💬${n > 0 ? ' (' + n + ')' : ''}`;
+  return `<span style="font-size:.82em;">💬</span>${n > 0 ? ` <small class="muted">(${n})</small>` : ''}`;
 }
 
 // 게임 탭: [후기] 버튼 → 사람들이 남긴 후기(닉네임 + 코멘트)
@@ -4051,7 +4052,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1078 통합-게임 탭 카드=전체 정보 팝업, 후기수는 평점 옆, 연필은 우하단으로';
+const APP_VERSION = 'v1079 플레이 탭 후기 💬/개수 크기·색을 별점 기호·개수와 통일(덜 튀게)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
