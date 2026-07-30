@@ -2811,13 +2811,26 @@ function openLinkGuestModal(scope) {
           oninput="linkNameInput(event, this)" oncompositionend="linkNameInput(event, this)" onblur="acHide(this)" />
         <div class="ac-menu"></div>
       </div>
+      <div class="mchk no" id="link-mchk" style="margin-top:6px;display:none;"></div>
       <button class="btn" id="link-submit" style="margin-top:8px;" onclick="submitLinkBatch()">선택한 기록 연동</button>
     </div>`;
   showDetailSheet();
   renderLinkList();
 }
 function linkNameInput(e, inp) {
-  acRender(inp, 'player');
+  updateLinkMemberBadge(inp);          // 실시간 회원 조회(배지) — 플레이 추가와 동일
+  acRender(inp, 'player');             // 실시간 자동완성 드롭다운
+}
+// 연동 대상 회원 확인 배지: 정확히 일치하는 회원이면 초록 '회원이에요', 아니면 회색 안내(빈칸이면 숨김)
+function updateLinkMemberBadge(inp) {
+  const el = document.getElementById('link-mchk');
+  if (!el) return;
+  const name = nfc(inp.value).trim();
+  if (!name) { el.style.display = 'none'; return; }
+  const ok = !!playerByExactName(name);
+  el.style.display = '';
+  el.textContent = ok ? '✓ 회원이에요' : '일치하는 회원이 없어요';
+  el.className = 'mchk ' + (ok ? 'ok' : 'no');
 }
 function renderLinkList() {
   const el = document.getElementById('link-list');
@@ -4022,7 +4035,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1074 비회원(게스트) 이름 앞에 작은 보라색 비 배지 표시(참가자 목록 전반)';
+const APP_VERSION = 'v1075 연동 모달: 연결할 회원 이름 실시간 회원 확인 배지 추가';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
