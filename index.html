@@ -222,6 +222,8 @@
   /* MY 게임기록: 사진 아래 내가 쓴 후기(줄글, 전체 너비) */
   .gcard-myreview { margin-top: 10px; padding: 9px 11px; background: var(--bg); border-radius: 10px;
     font-size: 13px; color: #444; line-height: 1.5; white-space: pre-wrap; word-break: break-word; cursor: pointer; }
+  /* 후기 미작성 안내: 보라색으로 실제 후기(진회색)와 구분 */
+  .gcard-myreview.noreview { color: var(--main); font-weight: 600; }
 
   /* MY 게임기록: 일자별 플레이 요약 */
   /* 게임 정보 + 요약 제목은 시트 상단에 고정, 아래 리스트만 스크롤 */
@@ -2098,7 +2100,7 @@ function gameCardTopHtml(g, showMine, extra = {}) {
       <div class="gcard-body">
         <div class="gcard-name">${esc(g.name_kr || g.name_en)}
           ${g.category ? `<span class="badge" style="margin-left:6px;">${esc(g.category)}</span>` : ''}</div>
-        ${g.name_en && g.name_kr ? `<div class="gcard-en">${esc(g.name_en)}</div>` : ''}
+        ${(g.name_en && g.name_kr && !extra.hideEn) ? `<div class="gcard-en">${esc(g.name_en)}</div>` : ''}
         ${extra.hideMeta ? '' : `<div class="gcard-meta">${meta.map(m => `<span>${m}</span>`).join('')}</div>`}
         <div class="gcard-ratings" style="${extra.hideMeta ? 'margin-top:8px;' : ''}">${extra.reviewCount != null
           ? `<span style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${club}<span class="muted" style="font-size:16px;font-weight:500;">· ${reviewCountInline(extra.reviewCount)}</span></span>`
@@ -2132,11 +2134,12 @@ function gameCardHtml(g, opts = {}) {
     const myR = (state._myRatings && state._myRatings[g.game_id]) || null;
     const myReview = myR && (myR.review || '').trim();
     const reviewBlock = myReview
-      ? `<div class="gcard-myreview" onclick="toggleCard(this)">💬 ${esc(myReview)}</div>` : '';
+      ? `<div class="gcard-myreview" onclick="toggleCard(this)">💬 ${esc(myReview)}</div>`
+      : `<div class="gcard-myreview noreview" onclick="toggleCard(this)">💬 클릭 후 후기를 남겨보세요</div>`;
     return `<div class="gcard" data-gid="${g.game_id}">
       ${actsHtml}
       <div class="gcard-top" onclick="toggleCard(this)">
-        ${gameCardTopHtml(g, true, { hideMeta: true })}
+        ${gameCardTopHtml(g, true, { hideEn: true })}
         <div class="gcard-actions br"><button class="gcard-pill" onclick="event.stopPropagation(); openGameDetail('${g.game_id}')">상세</button></div>
       </div>
       ${reviewBlock}
@@ -4069,7 +4072,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1081 MY-게임기록 카드: 메타 대신 평점, 사진 아래 내 후기 표시(수정 유지)';
+const APP_VERSION = 'v1082 MY-게임기록: 메타+평점 함께, 영문명 숨김, 후기 없을 때 보라색 안내';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
