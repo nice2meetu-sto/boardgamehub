@@ -3991,7 +3991,10 @@ function adminGameSearch() {
     if (g.weight) meta.push(`🧠 ${Number(g.weight).toFixed(2)}`);
     return `<div class="adm-gcard" onclick="openEditGame('${g.game_id}')">
       <div class="gcard-top">
-        ${thumb(g.image_url, 'gcard-img')}
+        <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px;">
+          ${thumb(g.image_url, 'gcard-img')}
+          ${g.created_by ? `<span class="adm-creator" style="margin-left:0;max-width:76px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">등록 ${esc(playerNameById(g.created_by))}</span>` : ''}
+        </div>
         <div class="gcard-body">
           <div class="gcard-name">${esc(g.name_kr || g.name_en)}
             ${g.category ? `<span class="badge" style="margin-left:6px;">${esc(g.category)}</span>` : ''}</div>
@@ -4143,7 +4146,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1086 플레이 표 일자칸 내용맞춤 축소 + 기본 뷰 플레이어로';
+const APP_VERSION = 'v1087 관리자 게임 카드: 사진 아래 등록자 표시';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
