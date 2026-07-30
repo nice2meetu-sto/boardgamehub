@@ -1263,7 +1263,7 @@ function renderPlay() {
   const ranks = competitionRanks(list, g => g.count);   // 동일 판수 = 공동 순위
   el.innerHTML = list.map((g, i) => `
     <div class="session" style="display:flex;align-items:center;gap:12px;position:relative;${g.id ? 'cursor:pointer;' : ''}" ${g.id ? `onclick="showGameInfo('${g.id}')"` : ''}>
-      ${g.id ? `<div class="gcard-actions br">${reviewPillHtml(g.id, g.review_count)}</div>` : ''}
+      ${g.id ? `<div class="gcard-actions br">${reviewPillHtml(g.id, g.review_count, null, 'info')}</div>` : ''}
       <div class="grow-rank">${ranks[i]}</div>
       ${thumb(g.image, 'session-thumb')}
       <div style="flex:1;min-width:0;">
@@ -1577,10 +1577,12 @@ function showBarSession(sid) {
 function closeBarSession() { closeOverlay(); }
 
 // 후기 버튼 HTML: 후기 개수 > 0 이면 연하고 작게 (N) 표시, 0이면 개수 없이
-function reviewPillHtml(gameId, count, extraClass) {
+// action: 기본은 후기만 뜨는 openReviews(통합-게임 탭용). 'info'면 게임 정보 창(showGameInfo)으로 연다(통합-플레이 탭용).
+function reviewPillHtml(gameId, count, extraClass, action) {
   const n = Number(count) || 0;
   const cnt = n > 0 ? ` <small style="font-weight:500;color:var(--text-sub);">(${n})</small>` : '';
-  return `<button class="gcard-pill review${extraClass ? ' ' + extraClass : ''}" onclick="event.stopPropagation(); openReviews('${gameId}')">💬${cnt}</button>`;
+  const fn = action === 'info' ? 'showGameInfo' : 'openReviews';
+  return `<button class="gcard-pill review${extraClass ? ' ' + extraClass : ''}" onclick="event.stopPropagation(); ${fn}('${gameId}')">💬${cnt}</button>`;
 }
 
 // 게임 탭: [후기] 버튼 → 사람들이 남긴 후기(닉네임 + 코멘트)
@@ -3992,7 +3994,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1064 후기 쓸 게임 선택 창: 제목·닫기 고정, 게임 목록만 내부 스크롤';
+const APP_VERSION = 'v1065 통합-플레이 탭 후기 버튼도 게임 정보 창으로 열기(게임 탭은 기존대로 후기만)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
