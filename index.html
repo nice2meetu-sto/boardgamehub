@@ -3734,7 +3734,7 @@ function renderParticipants() {
              </div>`}
         <input class="input" type="number" inputmode="numeric" placeholder="점수" value="${esc(pt.score)}" oninput="updatePart(${i}, 'score', this.value)" style="flex:1;min-width:0;" />
         <button class="wintoggle ${pt.is_win ? 'on' : ''}" onclick="toggleWin(${i})">${pt.is_win ? '승 👑' : '패 🥈'}</button>
-        ${addPlayState.participants.length > 1 ? `<button class="rm-btn" onclick="removePart(${i})">×</button>` : ''}
+        <button class="rm-btn" onclick="removePart(${i})" title="${addPlayState.participants.length > 1 ? '삭제' : '내용 지우기'}">×</button>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding-left:2px;">
         ${memberBadgeHtml(i, pt)}
@@ -3830,7 +3830,15 @@ function apScrollBtnUpdate() {
   if (!el || !b) return;
   b.textContent = el.scrollTop < 10 ? '↓ 아래로' : '↑ 위로';
 }
-function removePart(i) { addPlayState.participants.splice(i, 1); renderParticipants(); }
+function removePart(i) {
+  // 참가자가 1명뿐이면 삭제 대신 그 칸 내용을 초기화(빈 칸 유지)
+  if (addPlayState.participants.length <= 1) {
+    addPlayState.participants[0] = { name: '', score: '', is_win: false, is_guest: false };
+  } else {
+    addPlayState.participants.splice(i, 1);
+  }
+  renderParticipants();
+}
 function updatePart(i, field, val) {
   // 이름은 NFC로 정규화해 저장(분해형 입력 기기 대응). 점수 등 나머지는 그대로.
   addPlayState.participants[i][field] = field === 'name' ? nfc(val) : val;
@@ -4239,7 +4247,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1089 참가자 버튼: 이력 이모지 제거 + 아래로/이력 순서 교체';
+const APP_VERSION = 'v1090 참가자 x버튼 1명일 때도 표시(내용 초기화 역할)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
