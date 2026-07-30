@@ -935,7 +935,7 @@ function playtimeText(g) {
   const mx = (g.max_playtime != null && g.max_playtime !== '') ? g.max_playtime : g.playtime_min;
   const hasMn = mn != null && mn !== '';
   const hasMx = mx != null && mx !== '';
-  if (hasMn && hasMx && String(mn) !== String(mx)) return `${mn}~${mx}분`;
+  if (hasMn && hasMx && String(mn) !== String(mx)) return `${mn}-${mx}분`;
   const one = hasMx ? mx : (hasMn ? mn : null);
   return one != null ? `${one}분` : '';
 }
@@ -1309,7 +1309,7 @@ function gameInfoInnerHtml(g) {
   const meta = [];
   if (g.min_players || g.max_players) {
     const mn = g.min_players || '?', mx = g.max_players || '?';
-    meta.push(`👥 ${mn}${mx !== mn ? '~' + mx : ''}명`);
+    meta.push(`👥 ${mn}${mx !== mn ? '-' + mx : ''}명`);
   }
   if (g.best_players) meta.push(`🤩 ${g.best_players}명`);
   { const _pt = playtimeText(g); if (_pt) meta.push(`⏱ ${_pt}`); }
@@ -1972,10 +1972,10 @@ async function deleteSession(sid) {
 // ============================================================
 // 난이도(weight) 필터 구간
 const WEIGHT_BUCKETS = [
-  { key: '0-2', label: '0~2', lo: 0, hi: 2 },
-  { key: '2-3', label: '2~3', lo: 2, hi: 3 },
-  { key: '3-4', label: '3~4', lo: 3, hi: 4 },
-  { key: '4-5', label: '4~5', lo: 4, hi: 5 }
+  { key: '0-2', label: '0-2', lo: 0, hi: 2 },
+  { key: '2-3', label: '2-3', lo: 2, hi: 3 },
+  { key: '3-4', label: '3-4', lo: 3, hi: 4 },
+  { key: '4-5', label: '4-5', lo: 4, hi: 5 }
 ];
 
 function renderGames() {
@@ -2060,7 +2060,7 @@ function gameCardTopHtml(g, showMine) {
   const meta = [];
   if (g.min_players || g.max_players) {
     const mn = g.min_players || '?', mx = g.max_players || '?';
-    meta.push(`👥 ${mn}${mx !== mn ? '~' + mx : ''}명`);
+    meta.push(`👥 ${mn}${mx !== mn ? '-' + mx : ''}명`);
   }
   if (g.best_players) meta.push(`🤩 ${g.best_players}명`);
   { const _pt = playtimeText(g); if (_pt) meta.push(`⏱ ${_pt}`); }
@@ -3858,7 +3858,7 @@ function adminGameSearch() {
     const meta = [];
     if (g.min_players || g.max_players) {
       const mn = g.min_players || '?', mx = g.max_players || '?';
-      meta.push(`👥 ${mn}${mx !== mn ? '~' + mx : ''}명`);
+      meta.push(`👥 ${mn}${mx !== mn ? '-' + mx : ''}명`);
     }
     if (g.best_players) meta.push(`🤩 ${g.best_players}명`);
     { const _pt = playtimeText(g); if (_pt) meta.push(`⏱ ${_pt}`); }
@@ -4017,7 +4017,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1072 베스트 인원 자유 텍스트 입력 허용(4-5 등, 컬럼 text로 변경)';
+const APP_VERSION = 'v1073 범위 구분자 ~ → - 로 변경(인원·플레이타임·난이도, 공간 절약)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
