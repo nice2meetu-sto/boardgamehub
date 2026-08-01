@@ -4077,9 +4077,11 @@ function adminGameSearch() {
   const listEl = document.getElementById('adm-game-list');
   if (!listEl) return;
   const raw = (document.getElementById('adm-game-search') || {}).value || '';
+  // 통합 게임탭과 동일하게 최근 추가된 게임(게임번호 큰 순)이 위로
+  const gidNum = g => parseInt(String(g.game_id).replace(/\D/g, ''), 10) || 0;
   const list = state.games.filter(g =>
     matchAllTerms([g.name_kr, g.name_en, g.category, g.summary_kr].map(v => v || '').join(' '), raw))
-    .slice().sort((a, b) => String(a.name_kr || a.name_en || '').localeCompare(String(b.name_kr || b.name_en || '')));
+    .slice().sort((a, b) => gidNum(b) - gidNum(a));
   if (!list.length) { listEl.innerHTML = `<div class="empty">검색 결과가 없어요.</div>`; return; }
   listEl.innerHTML = list.map(g => {
     const meta = [];
@@ -4247,7 +4249,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1090 참가자 x버튼 1명일 때도 표시(내용 초기화 역할)';
+const APP_VERSION = 'v1091 관리자 게임 목록도 최근 추가순(통합 게임탭과 동일)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
