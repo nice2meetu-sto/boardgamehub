@@ -1742,7 +1742,7 @@ function gamePlayRows(gid, uid) {
     const mineScore = (me.score == null || me.score === '') ? null : Number(me.score);
     const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length * 10) / 10 : null;
     const best = scores.length ? Math.max(...scores) : null;
-    return { ord: i + 1, sid: s.session_id, date: String(s.play_date).substring(0, 10), mine: mineScore, avg, best };
+    return { ord: i + 1, sid: s.session_id, date: String(s.play_date).substring(0, 10), mine: mineScore, win: !!me.is_win, avg, best };
   });
 }
 
@@ -1813,10 +1813,11 @@ function renderGameDetail() {
       <td style="font-weight:400;">${p.ord}</td>
       <td class="gd-date">${esc(p.date)}</td>
       <td style="font-weight:700;">${p.mine == null ? '-' : p.mine}</td>
+      <td>${p.win ? '👑' : '🥈'}</td>
       <td>${p.avg == null ? '-' : p.avg}</td>
       <td>${p.best == null ? '-' : p.best}</td>
-    </tr>`).join('') : `<tr><td colspan="5" class="muted" style="text-align:center;padding:16px 0;">플레이 기록이 없어요.</td></tr>`;
-    tableInner = `<thead><tr>${pth('ord', '판수')}${pth('date', '일자', 'gd-date')}${pth('mine', '나')}${pth('avg', '평균')}${pth('best', '최고')}</tr></thead><tbody>${prows}</tbody>`;
+    </tr>`).join('') : `<tr><td colspan="6" class="muted" style="text-align:center;padding:16px 0;">플레이 기록이 없어요.</td></tr>`;
+    tableInner = `<thead><tr>${pth('ord', '판수')}${pth('date', '일자', 'gd-date')}${pth('mine', '나')}${pth('win', '승패')}${pth('avg', '평균')}${pth('best', '최고')}</tr></thead><tbody>${prows}</tbody>`;
     countLabel = `${plays.length}판`;
   } else {
     // 플레이어 기준(기존): 함께한 사람별 승수·승률·게임수·평균·최고
@@ -4249,7 +4250,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1091 관리자 게임 목록도 최근 추가순(통합 게임탭과 동일)';
+const APP_VERSION = 'v1092 플레이 기준 표에 승패(👑/🥈) 컬럼 추가';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
