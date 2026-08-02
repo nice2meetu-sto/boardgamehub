@@ -58,11 +58,13 @@ create table if not exists public.ratings (
   rating     numeric,
   memo       text,          -- 개인 게임메모(비공개)
   review     text,          -- 공개 후기(게임 탭에 노출)
-  updated_at text,
+  updated_at text,          -- 마지막 수정(별점/메모/후기 공통)
+  review_updated_at text,   -- 후기 전용 수정 시간(후기 저장 시에만 갱신)
   primary key (player_id, game_id)
 );
 -- 기존 DB에 review 컬럼이 없으면 추가
 alter table public.ratings add column if not exists review text;
+alter table public.ratings add column if not exists review_updated_at text;
 
 create table if not exists public.playlogs (
   record_id    text primary key,
@@ -389,10 +391,12 @@ as $$
 declare v_now text := to_char(now(), 'YYYY-MM-DD HH24:MI:SS');
 begin
   perform public._verify(p_player_id, p_pin);
-  insert into public.ratings(player_id, game_id, review, updated_at)
-  values (p_player_id, p_game_id, coalesce(p_review, ''), v_now)
+  insert into public.ratings(player_id, game_id, review, review_updated_at, updated_at)
+  values (p_player_id, p_game_id, coalesce(p_review, ''), v_now, v_now)
   on conflict (player_id, game_id) do update
-    set review = excluded.review, updated_at = excluded.updated_at;
+    set review = excluded.review,
+        review_updated_at = excluded.review_updated_at,
+        updated_at = excluded.updated_at;
   return json_build_object('player_id', p_player_id, 'game_id', p_game_id, 'review', coalesce(p_review, ''));
 end $$;
 
@@ -420,8 +424,9 @@ language sql stable security definer
 set search_path = public
 as $$
   select coalesce(json_agg(json_build_object(
-    'name', p.name, 'review', r.review, 'updated_at', r.updated_at
-  ) order by r.updated_at desc nulls last), '[]'::json)
+    'name', p.name, 'review', r.review,
+    'updated_at', coalesce(r.review_updated_at, r.updated_at)
+  ) order by coalesce(r.review_updated_at, r.updated_at) desc nulls last), '[]'::json)
   from public.ratings r
   join public.players p on p.player_id = r.player_id
   where r.game_id = p_game_id and r.review is not null and btrim(r.review) <> '';
@@ -441,8 +446,8 @@ as $$
     'game_image',  coalesce(g.image_url, ''),
     'review',      r.review,
     'rating',      r.rating,
-    'updated_at',  r.updated_at
-  ) order by r.updated_at desc nulls last), '[]'::json)
+    'updated_at',  coalesce(r.review_updated_at, r.updated_at)
+  ) order by coalesce(r.review_updated_at, r.updated_at) desc nulls last), '[]'::json)
   from public.ratings r
   left join public.players pl on pl.player_id = r.player_id
   left join public.games   g  on g.game_id   = r.game_id

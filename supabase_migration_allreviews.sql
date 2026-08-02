@@ -4,7 +4,10 @@
 --
 --  모든 게임의 후기를 최신순으로 반환. 각 후기에 작성자 닉네임 + 게임명 +
 --  게임 이미지 + 시간(updated_at)을 함께 담아 채팅 UI에서 바로 렌더.
+--  ※ 후기 시간은 review_updated_at(후기 전용) 우선 — supabase_migration_reviewtime.sql 참고.
 -- ============================================================
+
+alter table public.ratings add column if not exists review_updated_at text;
 
 create or replace function public.get_all_reviews()
 returns json
@@ -19,8 +22,8 @@ as $$
     'game_image',  coalesce(g.image_url, ''),
     'review',      r.review,
     'rating',      r.rating,
-    'updated_at',  r.updated_at
-  ) order by r.updated_at desc nulls last), '[]'::json)
+    'updated_at',  coalesce(r.review_updated_at, r.updated_at)
+  ) order by coalesce(r.review_updated_at, r.updated_at) desc nulls last), '[]'::json)
   from public.ratings r
   left join public.players pl on pl.player_id = r.player_id
   left join public.games   g  on g.game_id   = r.game_id
