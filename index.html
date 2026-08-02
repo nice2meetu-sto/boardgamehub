@@ -1112,7 +1112,9 @@ function renderReviewWrite() {
   const card = body.closest('.rvwrite-card');
   if (card) card.classList.toggle('picking', !state._rvwGid);
   if (!state._rvwGid) {
-    const played = recentlyPlayedGames();
+    const reviewed = g => !!(state._myRatings && state._myRatings[g.game_id] && (state._myRatings[g.game_id].review || '').trim());
+    // 후기 미작성 게임을 위로(1차), 그 안에서 최근 플레이 순 유지(2차, stable sort)
+    const played = recentlyPlayedGames().slice().sort((a, b) => (reviewed(a) ? 1 : 0) - (reviewed(b) ? 1 : 0));
     const cards = played.length ? played.map(g => {
       const rr = state._myRatings && state._myRatings[g.game_id];
       const done = !!(rr && (rr.review || '').trim());
@@ -4250,7 +4252,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1092 플레이 기준 표에 승패(👑/🥈) 컬럼 추가';
+const APP_VERSION = 'v1093 후기 쓰기 게임선택: 후기 미작성 게임 우선, 그다음 최근 플레이순';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
