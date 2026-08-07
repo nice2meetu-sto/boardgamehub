@@ -1781,12 +1781,13 @@ function renderGameDetail() {
   const myAvg = myScores.length ? Math.round(myScores.reduce((a, b) => a + b, 0) / myScores.length * 10) / 10 : null;
   const myBest = myScores.length ? Math.max(...myScores) : null;
   const scoreTxt = myScores.length ? `평균 ${myAvg}점 · 최고 ${myBest}점` : '점수 없음';
+  const myWinRate = myGames ? Math.round(myWins / myGames * 1000) / 10 : 0;
   const top = `<div class="gd-top">
     ${thumb(g.image_url, 'gcard-img')}
     <div style="flex:1;min-width:0;">
       <div class="gcard-name">${esc(g.name_kr || g.name_en)}
         ${g.category ? `<span class="badge" style="margin-left:6px;">${esc(g.category)}</span>` : ''}</div>
-      <div class="gd-mystat">${myGames}판 · ${myWins}승 · ${scoreTxt}</div>
+      <div class="gd-mystat">${myGames}판 · ${myWins}승 · ${scoreTxt} · ${myWinRate}%</div>
     </div>
   </div>`;
 
@@ -2668,7 +2669,7 @@ function renderMyGameStatList() {
       <div class="grow-rank">${ranks[i]}</div>
       <div class="grow-body">
         <div class="grow-name">${esc(g.game)}</div>
-        <div class="grow-sub">${g.plays}판 · ${g.wins}승 · ${scoreText}</div>
+        <div class="grow-sub">${g.wins}승 · ${scoreText} · ${g.win_rate}%</div>
         <div class="winbar"><i style="width:${g.win_rate}%"></i></div>
       </div>
       <div class="grow-rate"><div class="r">${rightNum}</div><div class="rl">${rightLbl}</div></div>
@@ -4340,7 +4341,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1095 관리자 평점 탭: 게임별 회원 평점+후기 조회';
+const APP_VERSION = 'v1096 게임별 플레이/게임상세 요약줄에 승률 추가(목록은 판수 대신)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
