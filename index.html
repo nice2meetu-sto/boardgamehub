@@ -2665,11 +2665,15 @@ function renderMyGameStatList() {
     const scoreText = sc.has ? `평균 ${sc.avg}점 · 최고 ${sc.max}점` : '점수 없음';
     const rightNum = sort === 'plays' ? `${g.plays}` : `${g.win_rate}%`;
     const rightLbl = sort === 'plays' ? '판수' : '승률';
+    // 정렬 모드별 부제(옆 큰 숫자와 중복되는 항목은 빼고 배치)
+    const sub = sort === 'plays'
+      ? `${scoreText} · ${g.wins}승 · ${g.win_rate}%`   // 판수순: 평균·최고·승·승률
+      : `${g.plays}판 · ${g.wins}승 · ${scoreText}`;    // 승률순: 판·승·평균·최고
     return `<div class="grow" style="cursor:pointer;" onclick="showMyGameStat('${esc(g.game_id)}')">
       <div class="grow-rank">${ranks[i]}</div>
       <div class="grow-body">
         <div class="grow-name">${esc(g.game)}</div>
-        <div class="grow-sub">${g.plays}판 · ${g.wins}승 · ${scoreText} · ${g.win_rate}%</div>
+        <div class="grow-sub">${sub}</div>
         <div class="winbar"><i style="width:${g.win_rate}%"></i></div>
       </div>
       <div class="grow-rate"><div class="r">${rightNum}</div><div class="rl">${rightLbl}</div></div>
@@ -4341,7 +4345,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1097 게임별 플레이 목록 부제에 판수 복원(판·승·평균·최고·승률)';
+const APP_VERSION = 'v1098 게임별 플레이 부제 정렬모드별 구성(판수순=평균·최고·승·승률 / 승률순=판·승·평균·최고)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
