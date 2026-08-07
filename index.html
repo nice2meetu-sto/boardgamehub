@@ -2669,7 +2669,7 @@ function renderMyGameStatList() {
       <div class="grow-rank">${ranks[i]}</div>
       <div class="grow-body">
         <div class="grow-name">${esc(g.game)}</div>
-        <div class="grow-sub">${g.wins}승 · ${scoreText} · ${g.win_rate}%</div>
+        <div class="grow-sub">${g.plays}판 · ${g.wins}승 · ${scoreText} · ${g.win_rate}%</div>
         <div class="winbar"><i style="width:${g.win_rate}%"></i></div>
       </div>
       <div class="grow-rate"><div class="r">${rightNum}</div><div class="rl">${rightLbl}</div></div>
@@ -4341,7 +4341,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1096 게임별 플레이/게임상세 요약줄에 승률 추가(목록은 판수 대신)';
+const APP_VERSION = 'v1097 게임별 플레이 목록 부제에 판수 복원(판·승·평균·최고·승률)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
