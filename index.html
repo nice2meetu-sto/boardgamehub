@@ -392,6 +392,14 @@
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .adm-creator { display: inline-block; font-size: 11px; font-weight: 700; color: var(--text-sub);
     background: #ececf1; border-radius: 6px; padding: 2px 8px; margin-left: 6px; }
+  /* 관리자 평점 탭: 게임별 회원 평점 행 */
+  .adm-rate-row { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .adm-rate-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .adm-rate-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .adm-rate-name { font-weight: 700; font-size: 13px; min-width: 0; }
+  .adm-rate-score { flex: 0 0 auto; font-weight: 800; font-size: 13px; color: var(--main); white-space: nowrap; }
+  .adm-rate-score .star { color: var(--win); }
+  .adm-rate-review { font-size: 12px; color: var(--text-sub); margin-top: 4px; line-height: 1.45; word-break: break-word; }
   /* 기간 필터: 두 날짜칸을 한 묶음(라벨+입력)으로 만들고, 폭이 좁으면 겹치지 않게 줄바꿈(세로 배치) */
   .adm-daterow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 12px; }
   .adm-datefield { flex: 1 1 160px; display: flex; align-items: center; gap: 6px; min-width: 0; }
@@ -776,10 +784,12 @@
     <button id="admtab-games" class="on" onclick="switchAdminTab('games')">게임</button>
     <button id="admtab-plays" onclick="switchAdminTab('plays')">플레이</button>
     <button id="admtab-players" onclick="switchAdminTab('players')">가입자</button>
+    <button id="admtab-ratings" onclick="switchAdminTab('ratings')">평점</button>
   </div>
   <div id="adm-games"></div>
   <div id="adm-plays" style="display:none;"></div>
   <div id="adm-players" style="display:none;"></div>
+  <div id="adm-ratings" style="display:none;"></div>
 </div>
 
 <div id="toast"></div>
@@ -866,6 +876,8 @@ async function api(action, params = {}) {
     case 'getReviews': return sbrpc('get_reviews', { p_game_id: P.gameId });
     case 'getAllReviews': return sbrpc('get_all_reviews');
     // ===== 관리자 페이지 전용 =====
+    case 'getAllRatings':
+      return sbrpc('get_all_ratings', { p_player_id: P.playerId });
     case 'adminGetPlayers':
       return sbrpc('admin_get_players', { p_player_id: P.playerId, p_pin: P.pin });
     case 'adminUpdatePin':
@@ -1164,6 +1176,7 @@ async function loadCore(manual) {
     state._myStats = null;
     state._myRatings = null;
     state._myRatingsPromise = null;
+    state._admRatings = null;   // 관리자 평점 탭 캐시도 갱신
     renderPlay();
     renderGames();
     if (state.user && document.getElementById('view-my').classList.contains('active')) renderMy();
@@ -3237,6 +3250,7 @@ async function saveRating(ev, gameId) {
     if (hasRating) upd.rating = val;
     if (hasReview) upd.review = review;
     state._myRatings[gameId] = Object.assign({}, state._myRatings[gameId], upd);
+    state._admRatings = null;   // 관리자 평점 탭 캐시 무효화(다음 진입 시 새로 로드)
     // 평점이 바뀌었으면 Hub 평점 갱신 위해 게임 목록 재로드
     if (hasRating) state.games = await api('getGames');
     toast('저장되었습니다!');
@@ -4055,13 +4069,14 @@ function openAdminPage() {
 function closeAdminPage() { closeOverlay(); }
 
 function switchAdminTab(tab) {
-  ['games', 'plays', 'players'].forEach(t => {
+  ['games', 'plays', 'players', 'ratings'].forEach(t => {
     document.getElementById('admtab-' + t).classList.toggle('on', t === tab);
     document.getElementById('adm-' + t).style.display = t === tab ? 'block' : 'none';
   });
   if (tab === 'games') renderAdminGames();
   else if (tab === 'plays') renderAdminPlays();
-  else renderAdminPlayers();
+  else if (tab === 'players') renderAdminPlayers();
+  else renderAdminRatings();
 }
 
 // ----- 게임 탭 -----
@@ -4112,6 +4127,76 @@ function adminGameSearch() {
           <div class="adm-summary">${g.summary_kr ? esc(g.summary_kr) : '<span class="muted">등록된 요약이 없습니다.</span>'}</div>
         </div>
       </div>
+    </div>`;
+  }).join('');
+}
+
+// ----- 평점 탭 (관리자 전용): 게임별 회원 평점 + 후기 -----
+async function renderAdminRatings() {
+  const el = document.getElementById('adm-ratings');
+  if (!el.dataset.ready) {
+    el.innerHTML = `
+      <div class="adm-searchrow">
+        <div class="searchbox"><span>🔍</span><input id="adm-rating-search" placeholder="게임 이름 검색" oninput="adminRatingsRender()" /></div>
+      </div>
+      <div id="adm-rating-list"><div class="empty"><div class="spinner" style="margin:0 auto;"></div></div></div>`;
+    el.dataset.ready = '1';
+  }
+  if (!state._admRatings) {
+    try { state._admRatings = await api('getAllRatings', { playerId: state.user.player_id }); }
+    catch (e) {
+      const l = document.getElementById('adm-rating-list');
+      if (l) l.innerHTML = `<div class="empty">불러오지 못했어요.<br/>${esc(e.message)}</div>`;
+      return;
+    }
+  }
+  adminRatingsRender();
+}
+// 게임별로 묶고 평균·인원 계산(평점 높은 순 정렬), 게임은 최근 추가순
+function adminRatingsGroups() {
+  const map = new Map();
+  (state._admRatings || []).forEach(r => {
+    let e = map.get(r.game_id);
+    if (!e) { e = { game_id: r.game_id, name: r.game_name, image: r.game_image, rows: [] }; map.set(r.game_id, e); }
+    e.rows.push(r);
+  });
+  const groups = Array.from(map.values());
+  groups.forEach(g => {
+    const rated = g.rows.filter(x => x.rating != null).map(x => Number(x.rating));
+    g.avg = rated.length ? Math.round(rated.reduce((a, b) => a + b, 0) / rated.length * 10) / 10 : null;
+    g.count = g.rows.length;
+    g.rows.sort((a, b) => (b.rating == null ? -1 : b.rating) - (a.rating == null ? -1 : a.rating));
+  });
+  const gidNum = x => parseInt(String(x.game_id).replace(/\D/g, ''), 10) || 0;
+  return groups.sort((a, b) => gidNum(b) - gidNum(a));
+}
+function adminRatingsRender() {
+  const listEl = document.getElementById('adm-rating-list');
+  if (!listEl) return;
+  const term = (document.getElementById('adm-rating-search') || {}).value || '';
+  const t = term.trim().toLowerCase();
+  let groups = adminRatingsGroups();
+  if (t) groups = groups.filter(g => (g.name || '').toLowerCase().includes(t));
+  if (!groups.length) { listEl.innerHTML = `<div class="empty">${t ? '검색 결과가 없어요.' : '평점 기록이 없어요.'}</div>`; return; }
+  listEl.innerHTML = groups.map(g => {
+    const rows = g.rows.map(r => `<div class="adm-rate-row">
+      <div class="adm-rate-head">
+        <span class="adm-rate-name">${esc(r.player_name)}</span>
+        <span class="adm-rate-score">${r.rating != null ? `<span class="star">★</span> ${Number(r.rating).toFixed(1)}` : '<span class="muted" style="font-weight:500;">평점 없음</span>'}</span>
+      </div>
+      ${(r.review && r.review.trim()) ? `<div class="adm-rate-review">💬 ${esc(r.review)}</div>` : ''}
+    </div>`).join('');
+    return `<div class="gcard" data-gid="${esc(g.game_id)}">
+      <div class="gcard-top" onclick="toggleCard(this)" style="align-items:center;cursor:pointer;">
+        ${thumb(g.image, 'gcard-img')}
+        <div class="gcard-body">
+          <div class="gcard-name">${esc(g.name)}</div>
+          <div class="gcard-ratings">${g.avg != null
+            ? `<span class="rate-club"><span class="star">★</span> ${g.avg.toFixed(1)} <small>(${g.count}명)</small></span>`
+            : `<span class="muted">평가 ${g.count}명</span>`}</div>
+        </div>
+      </div>
+      <div class="gcard-detail" style="white-space:normal;">${rows}</div>
     </div>`;
   }).join('');
 }
@@ -4255,7 +4340,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1094 별점만 수정 시 후기 재저장 방지(후기 작성시간 유지)';
+const APP_VERSION = 'v1095 관리자 평점 탭: 게임별 회원 평점+후기 조회';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
