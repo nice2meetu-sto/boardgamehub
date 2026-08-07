@@ -3221,6 +3221,9 @@ async function saveRating(ev, gameId) {
   const review = reviewEl ? reviewEl.value : '';
   const hasRating = val > 0;
   const hasReview = review.trim() !== '';
+  // 후기가 실제로 바뀐 경우에만 저장 → 안 바꾸고 별점만 저장할 땐 후기 작성시간이 유지됨
+  const existingReview = ((state._myRatings && state._myRatings[gameId] && state._myRatings[gameId].review) || '');
+  const reviewChanged = hasReview && nfc(review).trim() !== nfc(existingReview).trim();
   // 둘 중 하나만 입력해도 저장(빈 칸은 기존 값 그대로 유지)
   if (!hasRating && !hasReview) { toast('평점이나 후기 중 하나 이상 입력하세요.', true); return; }
   const pin = await promptPin();
@@ -3228,7 +3231,7 @@ async function saveRating(ev, gameId) {
   showLoader('저장 중…');
   try {
     if (hasRating) await api('saveRating', { playerId: state.user.player_id, pin, gameId, rating: val });
-    if (hasReview) await api('saveReview', { playerId: state.user.player_id, pin, gameId, review });
+    if (reviewChanged) await api('saveReview', { playerId: state.user.player_id, pin, gameId, review });
     if (!state._myRatings) state._myRatings = {};
     const upd = { game_id: gameId };
     if (hasRating) upd.rating = val;
@@ -4252,7 +4255,7 @@ async function adminSavePin(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1093 후기 쓰기 게임선택: 후기 미작성 게임 우선, 그다음 최근 플레이순';
+const APP_VERSION = 'v1094 별점만 수정 시 후기 재저장 방지(후기 작성시간 유지)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');

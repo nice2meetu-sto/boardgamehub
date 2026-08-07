@@ -395,7 +395,10 @@ begin
   values (p_player_id, p_game_id, coalesce(p_review, ''), v_now, v_now)
   on conflict (player_id, game_id) do update
     set review = excluded.review,
-        review_updated_at = excluded.review_updated_at,
+        -- 후기 내용이 실제로 달라졌을 때만 후기 시간 갱신(같은 후기 재저장 시 유지)
+        review_updated_at = case when public.ratings.review is distinct from excluded.review
+                                 then excluded.review_updated_at
+                                 else public.ratings.review_updated_at end,
         updated_at = excluded.updated_at;
   return json_build_object('player_id', p_player_id, 'game_id', p_game_id, 'review', coalesce(p_review, ''));
 end $$;
