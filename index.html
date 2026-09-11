@@ -408,7 +408,9 @@
   .adm-prow { display: flex; gap: 8px; align-items: center; background: var(--card);
     border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
   .adm-prow .nm { flex: 1; min-width: 0; font-weight: 700; font-size: 14px; }
-  .adm-prow .jd { font-size: 11px; color: var(--text-sub); }
+  .adm-prow input.pname { width: 100%; padding: 7px 9px; border: 1px solid var(--border);
+    border-radius: 8px; background: #fafafc; font-weight: 700; font-size: 14px; box-sizing: border-box; }
+  .adm-prow .jd { font-size: 11px; color: var(--text-sub); margin-top: 3px; }
   .adm-prow input.pin { width: 64px; padding: 8px; border: 1px solid var(--border); border-radius: 8px;
     background: #fafafc; text-align: center; font-weight: 700; }
   .cat-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
@@ -882,6 +884,8 @@ async function api(action, params = {}) {
       return sbrpc('admin_get_players', { p_player_id: P.playerId, p_pin: P.pin });
     case 'adminUpdatePin':
       return sbrpc('admin_update_pin', { p_player_id: P.playerId, p_pin: P.pin, p_target_id: P.targetId, p_new_pin: P.newPin });
+    case 'adminRenamePlayer':
+      return sbrpc('admin_rename_player', { p_player_id: P.playerId, p_pin: P.pin, p_target_id: P.targetId, p_new_name: P.newName });
     case 'adminAddCategory':
       return sbrpc('admin_add_category', { p_player_id: P.playerId, p_pin: P.pin, p_name: P.name, p_sort: Number(P.sort) || 0 });
     case 'adminUpdateCategory':
@@ -4317,35 +4321,57 @@ function adminPlayerSearch() {
   if (!list.length) { listEl.innerHTML = `<div class="empty">검색 결과가 없어요.</div>`; return; }
   listEl.innerHTML = list.map(p => `
     <div class="adm-prow" data-pid="${esc(p.player_id)}">
-      <div class="nm">${esc(p.name)}${p.role === 'admin' ? ' 👑' : ''}
-        <div class="jd">가입 ${esc(p.joined_at || '-')}</div>
+      <div class="nm">
+        <input class="pname" maxlength="20" value="${esc(p.name)}" placeholder="닉네임" onblur="this.value=nfc(this.value)" />
+        <div class="jd">${p.role === 'admin' ? '👑 ' : ''}가입 ${esc(p.joined_at || '-')}</div>
       </div>
       <input class="pin" inputmode="numeric" maxlength="4" value="${esc(p.pin)}" />
-      <button class="btn sm" style="padding:8px 12px;flex:0 0 auto;" onclick="adminSavePin(this)">저장</button>
+      <button class="btn sm" style="padding:8px 12px;flex:0 0 auto;" onclick="adminSaveRow(this)">저장</button>
     </div>`).join('');
 }
 
-async function adminSavePin(btn) {
+// 관리자: 회원 닉네임/비밀번호 저장(바뀐 것만 반영)
+async function adminSaveRow(btn) {
   const row = btn.closest('.adm-prow');
   const targetId = row.getAttribute('data-pid');
+  const rec = (state._admPlayers || []).find(x => x.player_id === targetId) || {};
+  const newName = nfc(row.querySelector('.pname').value).trim();
   const newPin = row.querySelector('.pin').value.trim();
+  const nameChanged = newName !== nfc(rec.name || '').trim();
+  const pinChanged = newPin !== (rec.pin || '');
+  if (!newName) { toast('닉네임을 입력하세요.', true); return; }
+  if (newName.length > 20) { toast('닉네임은 20자 이하로 입력하세요.', true); return; }
   if (!/^\d{4}$/.test(newPin)) { toast('비밀번호는 숫자 4자리로 입력하세요.', true); return; }
+  if (!nameChanged && !pinChanged) { toast('변경된 내용이 없어요.'); return; }
   const pin = await promptPin(); if (pin == null) return;
   showLoader('저장 중…');
   try {
-    await api('adminUpdatePin', { playerId: state.user.player_id, pin, targetId, newPin });
-    const t = (state._admPlayers || []).find(x => x.player_id === targetId);
-    if (t) t.pin = newPin;
-    // 내 PIN을 바꿨다면 캐시도 갱신
-    if (targetId === state.user.player_id) localStorage.setItem('bg_pin', newPin);
-    toast('비밀번호가<br/>변경되었습니다!');
+    if (nameChanged) {
+      await api('adminRenamePlayer', { playerId: state.user.player_id, pin, targetId, newName });
+      rec.name = newName;
+      // 프론트 캐시(자동완성/이름조회)도 갱신
+      const sp = (state.players || []).find(x => x.player_id === targetId);
+      if (sp) sp.name = newName;
+      // 내 닉네임을 바꿨으면 로그인 정보/상단 표시도 갱신
+      if (targetId === state.user.player_id) {
+        state.user.name = newName;
+        try { localStorage.setItem('bg_user', JSON.stringify(state.user)); } catch (e) {}
+        updateWhoami();
+      }
+    }
+    if (pinChanged) {
+      await api('adminUpdatePin', { playerId: state.user.player_id, pin, targetId, newPin });
+      rec.pin = newPin;
+      if (targetId === state.user.player_id) localStorage.setItem('bg_pin', newPin);
+    }
+    toast('저장되었습니다!');
   } catch (e) { toast(e.message, true); } finally { hideLoader(); }
 }
 
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1098 게임별 플레이 부제 정렬모드별 구성(판수순=평균·최고·승·승률 / 승률순=판·승·평균·최고)';
+const APP_VERSION = 'v1099 관리자 가입자 탭: 회원 닉네임 변경 기능 추가';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');

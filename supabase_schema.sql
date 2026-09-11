@@ -781,6 +781,27 @@ begin
   return json_build_object('player_id', p_target_id, 'updated', true);
 end $$;
 
+-- 회원 닉네임 변경(관리자). players.name + 과거 playlogs.player_name(회원 기록) 갱신
+create or replace function public.admin_rename_player(
+  p_player_id text, p_pin text, p_target_id text, p_new_name text)
+returns json
+language plpgsql security definer
+set search_path = public, extensions
+as $$
+declare v_name text := btrim(p_new_name);
+begin
+  perform public._verify_admin(p_player_id, p_pin);
+  if v_name = '' then raise exception '닉네임을 입력하세요.'; end if;
+  if length(v_name) > 20 then raise exception '닉네임은 20자 이하로 입력하세요.'; end if;
+  if not exists (select 1 from public.players where player_id = p_target_id) then
+    raise exception '회원을 찾을 수 없습니다.'; end if;
+  if exists (select 1 from public.players where btrim(name) = v_name and player_id <> p_target_id) then
+    raise exception '이미 사용 중인 닉네임입니다.'; end if;
+  update public.players set name = v_name where player_id = p_target_id;
+  update public.playlogs set player_name = v_name where player_id = p_target_id;
+  return json_build_object('player_id', p_target_id, 'name', v_name);
+end $$;
+
 -- 분류 추가
 create or replace function public.admin_add_category(
   p_player_id text, p_pin text, p_name text, p_sort int)
@@ -821,6 +842,7 @@ end $$;
 
 grant execute on function public.admin_get_players(text, text)                       to anon;
 grant execute on function public.admin_update_pin(text, text, text, text)            to anon;
+grant execute on function public.admin_rename_player(text, text, text, text)         to anon;
 grant execute on function public.admin_add_category(text, text, text, int)           to anon;
 grant execute on function public.admin_update_category(text, text, text, text, int)  to anon;
 
