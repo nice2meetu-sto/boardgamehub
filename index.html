@@ -109,6 +109,9 @@
     font-weight: 500;
   }
   .chip.on { background: var(--main); color: #fff; border-color: var(--main); }
+  /* 달력 대표 지정 핀: 기본 흐림, 지정된 게임은 선명 */
+  .cal-pin { margin-left: 7px; font-size: 12px; line-height: 1; opacity: .35; filter: grayscale(1); cursor: pointer; }
+  .cal-pin.on { opacity: 1; filter: none; }
   .chip-row { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 4px; -webkit-overflow-scrolling: touch; }
   .chip-row::-webkit-scrollbar { display: none; }
   /* 마지막 필터줄(난이도)과 첫 게임카드 사이 간격 = 검색창↔필터 간격과 동일하게 */
@@ -2724,8 +2727,23 @@ function myPlaysByDate() {
   });
   return map;
 }
-// 그날 가장 많이 플레이한 게임의 이미지
-function topGameImageForDay(sessions) {
+// 달력 대표 게임 사용자 지정(날짜별) — localStorage 저장(개인 설정, 서버 불필요)
+function loadCalCover() {
+  if (!state._calCover) {
+    let obj = {};
+    try { obj = JSON.parse(localStorage.getItem('bg_calcover') || '{}') || {}; } catch (e) {}
+    state._calCover = obj;
+  }
+  return state._calCover;
+}
+function saveCalCover() { try { localStorage.setItem('bg_calcover', JSON.stringify(state._calCover || {})); } catch (e) {} }
+// 그날 달력 이미지: 사용자가 지정한 대표 게임이 그날 있으면 우선, 없으면 가장 많이(같으면 최근) 플레이한 게임
+function topGameImageForDay(sessions, ds) {
+  const cover = ds ? loadCalCover()[ds] : null;
+  if (cover) {
+    const s = sessions.find(x => String(x.game_id) === String(cover));
+    if (s) return s.game_image || '';
+  }
   const cnt = {}; let best = 0, img = '';
   sessions.forEach(s => {
     const k = s.game_id;
@@ -2733,6 +2751,17 @@ function topGameImageForDay(sessions) {
     if (cnt[k] > best) { best = cnt[k]; img = s.game_image || ''; }
   });
   return img;
+}
+// 칩의 📌 → 그 날짜의 대표 게임 지정/해제
+function setCalCover(gid) {
+  const ds = state._calDay; if (!ds) return;
+  const cov = loadCalCover();
+  if (String(cov[ds]) === String(gid)) { delete cov[ds]; toast('달력 대표 지정을 해제했어요'); }
+  else { cov[ds] = gid; toast('이 게임을 달력 대표로 지정했어요'); }
+  saveCalCover();
+  renderMyCalendar();
+  const dayList = (state._mySessions || []).filter(s => String(s.play_date).substring(0, 10) === ds);
+  renderCalChips(dayList, ds);
 }
 function calMonthShift(delta) {
   const [Y, M] = state._calMonth.split('-').map(Number);
@@ -2752,7 +2781,8 @@ function selectCalDay(ds) {
   if (chips) chips.scrollLeft = 0;
 }
 // 선택한 날의 게임별 칩(이름 + 판수). 여러 게임 플레이 시 분류용.
-function renderCalChips(dayList) {
+// ds(날짜)가 주어지고 게임이 2개 이상이면 각 칩에 📌(달력 대표 지정) 표시.
+function renderCalChips(dayList, ds) {
   const el = document.getElementById('my-cal-chips');
   if (!el) return;
   const order = [], cnt = {}, name = {};
@@ -2762,12 +2792,15 @@ function renderCalChips(dayList) {
   });
   if (!order.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
   const sel = state._calGameFilter || new Set();
+  const showPin = ds && order.length >= 2;                 // 그날 게임 2개 이상일 때만 대표 지정
+  const coverGid = showPin ? loadCalCover()[ds] : null;
   el.style.display = '';
   // 맨 앞 '전체' 칩(총 판수). 아무 게임도 선택 안 됐을 때 활성.
   const allChip = `<span class="chip ${sel.size ? '' : 'on'}" onclick="selectAllCalChips()">전체 <b style="margin-left:4px;">${dayList.length}</b></span>`;
-  el.innerHTML = allChip + order.map(gid =>
-    `<span class="chip ${sel.has(gid) ? 'on' : ''}" onclick="toggleCalChip('${esc(String(gid))}')">${esc(name[gid])} <b style="margin-left:4px;">${cnt[gid]}</b></span>`
-  ).join('');
+  el.innerHTML = allChip + order.map(gid => {
+    const pin = showPin ? `<span class="cal-pin ${String(coverGid) === String(gid) ? 'on' : ''}" title="달력 대표 지정" onclick="event.stopPropagation(); setCalCover('${esc(String(gid))}')">📌</span>` : '';
+    return `<span class="chip ${sel.has(gid) ? 'on' : ''}" onclick="toggleCalChip('${esc(String(gid))}')">${esc(name[gid])} <b style="margin-left:4px;">${cnt[gid]}</b>${pin}</span>`;
+  }).join('');
 }
 function toggleCalChip(gid) {
   if (!state._calGameFilter) state._calGameFilter = new Set();
@@ -2828,7 +2861,7 @@ function renderMyCalendar() {
   for (let d = 1; d <= daysInMonth; d++) {
     const ds = `${Y}-${String(M).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const sess = byDate[ds] || [];
-    const img = sess.length ? topGameImageForDay(sess) : '';
+    const img = sess.length ? topGameImageForDay(sess, ds) : '';
     const sel = state._calDay === ds;
     // 1일은 해당 요일 칸에서 시작(빈 셀 없이 → 모든 주 간격 균일)
     const colStart = d === 1 ? `style="grid-column-start:${firstDow + 1};"` : '';
@@ -2898,7 +2931,7 @@ function filterMyPlays() {
   if (cal) cal.style.display = '';
   if (state._calDay) {
     const dayList = all.filter(s => String(s.play_date).substring(0, 10) === state._calDay);
-    renderCalChips(dayList);   // 그날 게임별 칩(이름+판수)
+    renderCalChips(dayList, state._calDay);   // 그날 게임별 칩(이름+판수) + 📌 대표 지정
     const sel = state._calGameFilter;
     const list = (sel && sel.size) ? dayList.filter(s => sel.has(s.game_id)) : dayList;
     renderSessionList('my-sessions', list, { linkGame: true });
@@ -4371,7 +4404,7 @@ async function adminSaveRow(btn) {
 // ============================================================
 //  초기화
 // ============================================================
-const APP_VERSION = 'v1099 관리자 가입자 탭: 회원 닉네임 변경 기능 추가';
+const APP_VERSION = 'v1100 달력 대표 게임 직접 지정(칩 📌, 날짜별 localStorage 저장)';
 // 상단 헤더(appbar) 높이를 CSS 변수로 → sticky 요소들이 그 아래에 붙게
 function syncAppbarHeight() {
   const ab = document.querySelector('.appbar');
